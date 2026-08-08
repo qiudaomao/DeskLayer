@@ -39,14 +39,12 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		AA512E570000000000000D03 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstSubfolder = PlugIns;
 			files = (
 				AA512E570000000000000A06 /* DeskLayerWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -94,16 +92,16 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		E92E093C3026A85D0099B400 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-				AA512E570000000000000A04 /* DeskLayerKit in Frameworks */,
-			);
-		};
 		AA512E570000000000000C04 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				AA512E570000000000000A05 /* DeskLayerKit in Frameworks */,
+			);
+		};
+		E92E093C3026A85D0099B400 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				AA512E570000000000000A04 /* DeskLayerKit in Frameworks */,
 			);
 		};
 		E92E094C3026A85F0099B400 /* Frameworks */ = {
@@ -144,6 +142,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AA512E570000000000000C01 /* DeskLayerWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA512E570000000000000C02 /* Build configuration list for PBXNativeTarget "DeskLayerWidget" */;
+			buildPhases = (
+				AA512E570000000000000C03 /* Sources */,
+				AA512E570000000000000C04 /* Frameworks */,
+				AA512E570000000000000C05 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA512E570000000000000B02 /* DeskLayerWidget */,
+			);
+			name = DeskLayerWidget;
+			packageProductDependencies = (
+				AA512E570000000000000A03 /* DeskLayerKit */,
+			);
+			productName = DeskLayerWidget;
+			productReference = AA512E570000000000000B01 /* DeskLayerWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E92E093E3026A85D0099B400 /* DeskLayer */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E92E09613026A85F0099B400 /* Build configuration list for PBXNativeTarget "DeskLayer" */;
@@ -168,29 +187,6 @@
 			productName = DeskLayer;
 			productReference = E92E093F3026A85D0099B400 /* DeskLayer.app */;
 			productType = "com.apple.product-type.application";
-		};
-		AA512E570000000000000C01 /* DeskLayerWidget */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AA512E570000000000000C02 /* Build configuration list for PBXNativeTarget "DeskLayerWidget" */;
-			buildPhases = (
-				AA512E570000000000000C03 /* Sources */,
-				AA512E570000000000000C04 /* Frameworks */,
-				AA512E570000000000000C05 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				AA512E570000000000000B02 /* DeskLayerWidget */,
-			);
-			name = DeskLayerWidget;
-			packageProductDependencies = (
-				AA512E570000000000000A03 /* DeskLayerKit */,
-			);
-			productName = DeskLayerWidget;
-			productReference = AA512E570000000000000B01 /* DeskLayerWidget.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 		E92E094E3026A85F0099B400 /* DeskLayerTests */ = {
 			isa = PBXNativeTarget;
@@ -283,12 +279,12 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		E92E093D3026A85D0099B400 /* Resources */ = {
+		AA512E570000000000000C05 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
 		};
-		AA512E570000000000000C05 /* Resources */ = {
+		E92E093D3026A85D0099B400 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -306,12 +302,12 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E92E093B3026A85D0099B400 /* Sources */ = {
+		AA512E570000000000000C03 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 			);
 		};
-		AA512E570000000000000C03 /* Sources */ = {
+		E92E093B3026A85D0099B400 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 			);
@@ -347,6 +343,58 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		AA512E570000000000000C06 /* Debug configuration for PBXNativeTarget "DeskLayerWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DeskLayerWidget/DeskLayerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskLayerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DeskLayer;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.qiudaomao.DeskLayer.DeskLayerWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AA512E570000000000000C07 /* Release configuration for PBXNativeTarget "DeskLayerWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DeskLayerWidget/DeskLayerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskLayerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DeskLayer;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.qiudaomao.DeskLayer.DeskLayerWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		E92E095F3026A85F0099B400 /* Debug configuration for PBXProject "DeskLayer" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -617,78 +665,6 @@
 		};
 /* End XCBuildConfiguration section */
 
-		AA512E570000000000000C06 /* Debug configuration for PBXNativeTarget "DeskLayerWidget" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = DeskLayerWidget/DeskLayerWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SGZE33W2XX;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DeskLayerWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DeskLayer;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.qiudaomao.DeskLayer.DeskLayerWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		AA512E570000000000000C07 /* Release configuration for PBXNativeTarget "DeskLayerWidget" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = DeskLayerWidget/DeskLayerWidget.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SGZE33W2XX;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DeskLayerWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = DeskLayer;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.qiudaomao.DeskLayer.DeskLayerWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-/* End XCBuildConfiguration section (widget) */
-
-/* Begin XCLocalSwiftPackageReference section */
-		AA512E570000000000000A01 /* XCLocalSwiftPackageReference "DeskLayerKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = DeskLayerKit;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		AA512E570000000000000A02 /* DeskLayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = DeskLayerKit;
-		};
-		AA512E570000000000000A03 /* DeskLayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = DeskLayerKit;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCConfigurationList section */
 		AA512E570000000000000C02 /* Build configuration list for PBXNativeTarget "DeskLayerWidget" */ = {
 			isa = XCConfigurationList;
@@ -731,6 +707,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AA512E570000000000000A01 /* XCLocalSwiftPackageReference "DeskLayerKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = DeskLayerKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA512E570000000000000A02 /* DeskLayerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DeskLayerKit;
+		};
+		AA512E570000000000000A03 /* DeskLayerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DeskLayerKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E92E09373026A85D0099B400 /* Project object */;
 	validationLevel = 1;

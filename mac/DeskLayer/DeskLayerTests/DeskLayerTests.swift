@@ -358,6 +358,116 @@ struct PluginInstanceTests {
         instance.invalidate()
     }
 
+    @Test func systemStatsAvailableWithoutPermission() async throws {
+        let source = """
+        let properties = [];
+        let snap = null;
+        function render(ctx) {}
+        plugin.export = { properties, render, grab: function () { snap = $system.stats(); return snap; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        let hasKeys = await withCheckedContinuation { continuation in
+            instance.queue.async {
+                let v = instance.context.objectForKeyedSubscript("plugin")?
+                    .objectForKeyedSubscript("export")?
+                    .objectForKeyedSubscript("grab")?
+                    .call(withArguments: [])
+                let dict = v?.toDictionary()
+                continuation.resume(returning:
+                    dict?["cpu"] != nil && dict?["memory"] != nil &&
+                    dict?["disk"] != nil && dict?["network"] != nil)
+            }
+        }
+        #expect(hasKeys)
+        #expect(instance.permissions.isEmpty)
+        instance.invalidate()
+    }
+
+    @Test func shellRejectsWithoutPermission() async throws {
+        let source = """
+        let properties = [];
+        let result = 'pending';
+        shell(['echo', 'hi']).then(function () { result = 'ran'; })
+                             .catch(function (e) { result = 'denied:' + e.message; });
+        function render(ctx) {}
+        plugin.export = { properties, render, read: function () { return result; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        try await Task.sleep(for: .milliseconds(200))
+        let result = await readExport(instance, "read")
+        #expect(result.hasPrefix("denied:"))
+        instance.invalidate()
+    }
+
+    @Test func shellRejectsStringArgument() async throws {
+        // argv-array only; a string must be refused (no shell injection).
+        let source = """
+        let properties = [];
+        let result = 'pending';
+        shell('rm -rf /').catch(function (e) { result = 'err:' + e.message; });
+        function render(ctx) {}
+        plugin.export = { permissions: ['shell'], properties, render, read: function () { return result; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        try await Task.sleep(for: .milliseconds(200))
+        let result = await readExport(instance, "read")
+        #expect(result.contains("array"))
+        instance.invalidate()
+    }
+
+    @Test func shellBlocksDangerousCommands() async throws {
+        let source = """
+        let properties = [];
+        let result = 'pending';
+        shell(['rm', '-rf', 'x']).catch(function (e) { result = 'blocked:' + e.message; });
+        function render(ctx) {}
+        plugin.export = { permissions: ['shell'], properties, render, read: function () { return result; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        try await Task.sleep(for: .milliseconds(200))
+        let result = await readExport(instance, "read")
+        #expect(result.contains("blocked") && result.contains("rm"))
+        instance.invalidate()
+    }
+
+    @Test func hookServerFansOutToHandlers() async throws {
+        // App-level server delivers one POST to every registered plugin.
+        let server = HookServer()
+        let port = UInt16(8000 + Int(ProcessInfo.processInfo.processIdentifier % 900))
+        server.start(port: port)
+        defer { server.stop() }
+
+        actor Box { var value = ""; func set(_ v: String) { value = v }; func get() -> String { value } }
+        let a = Box(), b = Box()
+        let id1 = UUID(), id2 = UUID()
+        server.addHandler(.init(itemID: id1, method: "POST") { _, body in Task { await a.set(body) } })
+        server.addHandler(.init(itemID: id2, method: "POST") { _, body in Task { await b.set(body) } })
+
+        try await Task.sleep(for: .milliseconds(300))
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/hook")!)
+        request.httpMethod = "POST"
+        request.httpBody = Data("{\"tool\":\"Bash\"}".utf8)
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let ack = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(ack?["delivered"] as? Int == 2)
+
+        try await Task.sleep(for: .milliseconds(200))
+        let gotA = await a.get(), gotB = await b.get()
+        #expect(gotA.contains("Bash") && gotB.contains("Bash"))
+    }
+
+    private func readExport(_ instance: PluginInstance, _ name: String) async -> String {
+        await withCheckedContinuation { continuation in
+            instance.queue.async {
+                let v = instance.context.objectForKeyedSubscript("plugin")?
+                    .objectForKeyedSubscript("export")?
+                    .objectForKeyedSubscript(name)?
+                    .call(withArguments: [])
+                continuation.resume(returning: v?.toString() ?? "")
+            }
+        }
+    }
+
     @Test func invalidateMidFetchDoesNotCrash() async throws {
         let source = """
         let properties = [];

@@ -44,6 +44,9 @@ final class RuntimeCoordinator: ObservableObject {
     private var suppressRebuild = false
     private var cancellables: Set<AnyCancellable> = []
     private let widgetPublisher = WidgetPublisher()
+    private let hookServer = HookServer()
+    /// Default loopback port for the hook receiver ($server plugins).
+    static let hookPort: UInt16 = 8787
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "coordinator")
 
     init(store: LayoutStore, screens: ScreenManager, plugins: PluginRegistry) {
@@ -56,6 +59,7 @@ final class RuntimeCoordinator: ObservableObject {
         power.start()
         screens.start()
         plugins.bootstrap()
+        hookServer.start(port: Self.hookPort)
 
         store.onChange
             .sink { [weak self] in
@@ -105,7 +109,9 @@ final class RuntimeCoordinator: ObservableObject {
     }
 
     func rebuild() {
-        // Teardown current runtime.
+        // Teardown current runtime. Clear hook handlers synchronously first
+        // so a stale instance's async teardown can't drop a re-registration.
+        hookServer.removeAllHandlers()
         for controller in screens.controllers.values {
             controller.scheduler.removeAll()
         }
@@ -167,6 +173,17 @@ final class RuntimeCoordinator: ObservableObject {
         let scale = controller.screen.backingScaleFactor
         let itemID = layoutItem.id
         let isFloating = layoutItem.target == .floatingWindow
+
+        // Wire $server.on(...) to the shared app-level hook receiver.
+        if instance.permissions.contains("server") {
+            let server = hookServer
+            instance.connectHooks(
+                register: { method, handler in
+                    server.addHandler(HookServer.Handler(itemID: itemID, method: method, deliver: handler))
+                },
+                unregister: { server.removeHandlers(itemID: itemID) }
+            )
+        }
 
         // Floating items live in their own panel (absolute screen coords);
         // the item content then fills the panel's content view.

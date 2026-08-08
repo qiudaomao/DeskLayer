@@ -30,7 +30,108 @@ nonisolated enum SamplePlugins {
         "WebSocketDemo": webSocketDemo,
         "HelloCard": helloCard,
         "WeatherCard": weatherCard,
+        "SystemMonitor": systemMonitor,
+        "HookBoard": hookBoard,
     ]
+
+    // Live CPU / RAM / disk / network gauges via the native $system API —
+    // no shell, no permissions. Declarative, updates once a second.
+    static let systemMonitor = #"""
+    let properties = [
+        {"name": "interval", "valueType": "number", "value": "1"},
+        {"name": "accent", "valueType": "color", "value": "#4CD964FF"}
+    ];
+
+    let lastNet = null;
+
+    function fmtBytes(n) {
+        const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+        return n.toFixed(1) + ' ' + u[i];
+    }
+
+    function bar(label, value, detail, accent) {
+        const pct = Math.round(value * 100);
+        return HStack([
+            Text(label).fontSize(11).textColor('#FFFFFF99').frame(64, 16),
+            Text(pct + '%').fontSize(12).bold().textColor(accent).frame(44, 16),
+            Text(detail).fontSize(11).textColor('#FFFFFFCC')
+        ]).spacing(6);
+    }
+
+    render = () => {
+        const s = $system.stats();
+        const accent = String(properties.find(p => p.name === 'accent').value);
+        const memUsed = s.memory.used / s.memory.total;
+        const diskUsed = (s.disk.total - s.disk.free) / s.disk.total;
+
+        let netRate = '—';
+        if (lastNet) {
+            const dt = Math.max(s.time - lastNet.time, 0.001);
+            const down = (s.network.rxBytes - lastNet.rxBytes) / dt;
+            const up = (s.network.txBytes - lastNet.txBytes) / dt;
+            netRate = '↓' + fmtBytes(down) + '/s  ↑' + fmtBytes(up) + '/s';
+        }
+        lastNet = { time: s.time, rxBytes: s.network.rxBytes, txBytes: s.network.txBytes };
+
+        return view([
+            VStack([
+                Text('System').fontSize(13).bold().textColor('white'),
+                bar('CPU', s.cpu, s.cores + ' cores', accent),
+                bar('Memory', memUsed, fmtBytes(s.memory.used) + ' / ' + fmtBytes(s.memory.total), accent),
+                bar('Disk', diskUsed, fmtBytes(s.disk.free) + ' free', accent),
+                HStack([
+                    Text('Net').fontSize(11).textColor('#FFFFFF99').frame(64, 16),
+                    Text(netRate).fontSize(11).textColor('#FFFFFFCC')
+                ]).spacing(6)
+            ]).spacing(6).padding(14).background('#0C0E16E6').cornerRadius(14)
+        ]);
+    };
+
+    plugin.export = { properties, render };
+    """#
+
+    // Local hook receiver. The APP listens on 127.0.0.1:8787 and fans each
+    // request out to every plugin that registered a handler; this one shows
+    // the last few events. Point a Claude/Codex hook at:
+    //   curl -s -X POST -d '{"tool":"Bash"}' http://127.0.0.1:8787
+    // Requires the "server" permission.
+    static let hookBoard = #"""
+    let properties = [
+        {"name": "interval", "valueType": "number", "value": "1"}
+    ];
+
+    let events = [];
+
+    $server.on('POST', (event, body) => {
+        let label = body;
+        try { const j = JSON.parse(body); label = j.tool || j.event || j.type || body; } catch (e) {}
+        events.unshift({ at: new Date().toLocaleTimeString(), text: String(label).slice(0, 40) });
+        events = events.slice(0, 6);
+        console.log('hook ' + event.method + ' ' + event.path + ': ' + label);
+    });
+    console.log('registered POST handler (app listens on 127.0.0.1:8787)');
+
+    render = () => {
+        const rows = events.length
+            ? events.map(e => HStack([
+                Text(e.at).fontSize(10).textColor('#FFFFFF66').frame(70, 14),
+                Text(e.text).fontSize(12).textColor('white')
+              ]).spacing(4))
+            : [Text('waiting for POST to :8787…').fontSize(12).textColor('#FFFFFF88')];
+        return view([
+            VStack([
+                HStack([
+                    Image('antenna.radiowaves.left.and.right').fontSize(13).textColor('#4CD964FF'),
+                    Text('Hooks :8787').fontSize(13).bold().textColor('white')
+                ]).spacing(6)
+            ].concat(rows)).spacing(4).padding(14).background('#0C0E16E6').cornerRadius(14)
+        ]);
+    };
+
+    plugin.export = { permissions: ['server'], properties, render };
+    """#
 
     static let analogClock = #"""
     let properties = [

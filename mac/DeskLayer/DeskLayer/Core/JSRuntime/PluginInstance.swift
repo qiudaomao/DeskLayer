@@ -84,6 +84,9 @@ nonisolated final class PluginInstance: @unchecked Sendable {
     private let renderFunction: JSValue
     private let exportValue: JSValue
     private let bindings: JSBindings
+    private let hostBindings: HostBindings
+    /// Host powers the plugin opted into via plugin.export.permissions.
+    let permissions: Set<String>
     private(set) var isErrored = false
     private(set) var errorMessage: String?
 
@@ -120,6 +123,9 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
         bindings = JSBindings(queue: queue, pluginName: pluginID)
         bindings.install(into: context)
+        let host = HostBindings(queue: queue, pluginName: pluginID)
+        host.install(into: context)
+        hostBindings = host
         context.evaluateScript(JSUIPrelude.source)
 
         context.evaluateScript(source, withSourceURL: URL(fileURLWithPath: "/plugins/\(pluginID).js"))
@@ -178,7 +184,17 @@ nonisolated final class PluginInstance: @unchecked Sendable {
             renderMode = arity >= 1 ? .canvas : .declarative
         }
 
+        // Host powers the plugin opted into: plugin.export.permissions =
+        // ["shell", "applescript", "server"]. $system.stats() needs none.
+        if let raw = export.objectForKeyedSubscript("permissions")?.toArray() as? [String] {
+            permissions = Set(raw.map { $0.lowercased() })
+        } else {
+            permissions = []
+        }
+        host.permissions = permissions
+
         bindings.afterCallback = { [weak self] in self?.checkException() }
+        host.afterCallback = { [weak self] in self?.checkException() }
         pushPropertiesToJS()
     }
 
@@ -232,6 +248,20 @@ nonisolated final class PluginInstance: @unchecked Sendable {
         properties.first { $0.name == name }?.value
     }
 
+    /// Wire this instance's $server.on(...) registrations to the app-level
+    /// HookServer. `register(method, handler)` adds; `unregister()` removes
+    /// all of this item's handlers. Called by the coordinator at spawn.
+    func connectHooks(
+        register: @escaping (_ method: String, _ handler: @escaping @Sendable ([String: Any], String) -> Void) -> Void,
+        unregister: @escaping () -> Void
+    ) {
+        // Runs on the instance queue so a flush of pre-wire $server.on(...)
+        // registrations is serialized with any handler calls.
+        queue.async { [hostBindings] in
+            hostBindings.setHookRegistrar(register, unregister: unregister)
+        }
+    }
+
     // MARK: - console.log capture (inspector log panel)
 
     func recentLogs() -> [PluginLogEntry] {
@@ -268,8 +298,9 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
     /// Cancels all async work. Call once when the item is removed.
     func invalidate() {
-        queue.async { [bindings] in
+        queue.async { [bindings, hostBindings] in
             bindings.invalidate()
+            hostBindings.invalidate()
         }
     }
 }
