@@ -61,15 +61,16 @@ final class DeclarativeItemHost {
 
     func start() {
         renderOnce()
-        // Static plugins (no declared fps) re-render only on property edits.
-        guard instance.hasDeclaredFps else { return }
-        let interval = 1.0 / instance.fps
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        // Static plugins (no declared fps/interval, or fps 0) re-render only
+        // on property edits. Any finite cadence — 60fps down to hours — ticks.
+        guard instance.hasDeclaredCadence, instance.renderInterval.isFinite else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: instance.renderInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, !self.isPaused else { return }
                 self.renderOnce()
             }
         }
+        timer?.tolerance = min(instance.renderInterval * 0.1, 30)
     }
 
     func stop() {

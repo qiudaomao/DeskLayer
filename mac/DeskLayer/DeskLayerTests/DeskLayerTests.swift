@@ -205,7 +205,7 @@ struct PluginInstanceTests {
         let d = try #require(PluginInstance(pluginID: "d", source: declarative, overrides: [:]))
         let c = try #require(PluginInstance(pluginID: "c", source: canvas, overrides: [:]))
         #expect(d.renderMode == .declarative)
-        #expect(d.hasDeclaredFps == false)
+        #expect(d.hasDeclaredCadence == false)
         #expect(c.renderMode == .canvas)
         d.invalidate(); c.invalidate()
     }
@@ -314,6 +314,47 @@ struct PluginInstanceTests {
         #expect(pixels[offset + 1] == 0)   // G
         #expect(pixels[offset + 0] == 0)   // B
         rendered.unlock(options: [.readOnly], seed: nil)
+        instance.invalidate()
+    }
+
+    @Test func renderCadenceFromFpsAndInterval() throws {
+        func boot(_ props: String) -> PluginInstance? {
+            PluginInstance(pluginID: "t", source: """
+            let properties = [\(props)];
+            function render(ctx) {}
+            plugin.export = { properties, render };
+            """, overrides: [:])
+        }
+        // fps fractions: 0.2 fps = every 5 seconds
+        let slow = try #require(boot(#"{"name": "fps", "valueType": "number", "value": "0.2"}"#))
+        #expect(abs(slow.renderInterval - 5) < 0.001)
+        // interval in seconds beats everything: hourly renders
+        let hourly = try #require(boot(#"{"name": "interval", "valueType": "number", "value": "3600"}"#))
+        #expect(hourly.renderInterval == 3600)
+        // fps 0 = render exactly once
+        let once = try #require(boot(#"{"name": "fps", "valueType": "number", "value": "0"}"#))
+        #expect(once.renderInterval == .infinity)
+        // nothing declared = 30fps default, not a declared cadence
+        let none = try #require(boot(""))
+        #expect(abs(none.renderInterval - 1.0 / 30.0) < 0.0001)
+        #expect(none.hasDeclaredCadence == false)
+        for instance in [slow, hourly, once, none] { instance.invalidate() }
+    }
+
+    @Test func consoleLogCapturedToBuffer() throws {
+        let source = """
+        let properties = [];
+        console.log('boot message');
+        console.error('an error');
+        function render(ctx) {}
+        plugin.export = { properties, render };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        let logs = instance.recentLogs()
+        #expect(logs.map(\.message) == ["boot message", "an error"])
+        instance.clearLogs()
+        #expect(instance.recentLogs().isEmpty)
+        #expect(instance.context.isInspectable)
         instance.invalidate()
     }
 

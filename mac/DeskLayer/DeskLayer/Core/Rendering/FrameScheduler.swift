@@ -35,13 +35,17 @@ final class ScheduledItem {
         self.id = id
         self.renderer = renderer
         self.layer = layer
-        self.interval = 1.0 / renderer.fps
+        // Seconds between renders; .infinity = render exactly once.
+        self.interval = renderer.instance.renderInterval
     }
 }
 
 @MainActor
 final class FrameScheduler: NSObject {
     private var displayLink: CADisplayLink?
+    /// Wakes slow items (interval ≥ 1s) when the display link is parked —
+    /// an hourly item must not keep a 60Hz link alive.
+    private var slowTimer: Timer?
     private var items: [ScheduledItem] = []
     private weak var window: NSWindow?
 
@@ -74,13 +78,22 @@ final class FrameScheduler: NSObject {
         rebuildLink()
     }
 
+    /// Items ticking faster than this ride the display link; slower ones
+    /// (and render-once items) are woken by a plain timer instead.
+    private static let slowThreshold: TimeInterval = 1.0
+
+    private var fastItems: [ScheduledItem] { items.filter { $0.interval < Self.slowThreshold } }
+
     /// Recreate the link (after wake, display changes) or retune fps range.
     func rebuildLink() {
         displayLink?.invalidate()
         displayLink = nil
-        guard let window, !items.isEmpty else { return }
+        guard let window, !fastItems.isEmpty else {
+            updateLinkState()
+            return
+        }
         let link = window.displayLink(target: self, selector: #selector(tick(_:)))
-        let maxFps = Float(items.map(\.renderer.fps).max() ?? 60)
+        let maxFps = Float(fastItems.map(\.renderer.fps).max() ?? 60)
         link.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: maxFps, preferred: maxFps)
         link.add(to: .main, forMode: .common)
         displayLink = link
@@ -89,7 +102,43 @@ final class FrameScheduler: NSObject {
 
     private func updateLinkState() {
         let allPauseWithDesktop = items.allSatisfy(\.pausesWhenDesktopOccluded)
-        displayLink?.isPaused = policy == .paused || items.isEmpty || (isOccluded && allPauseWithDesktop)
+        let paused = policy == .paused || items.isEmpty || (isOccluded && allPauseWithDesktop)
+        displayLink?.isPaused = paused || fastItems.isEmpty
+        if paused {
+            slowTimer?.invalidate()
+            slowTimer = nil
+        } else {
+            // Kick anything already due (covers freshly added slow /
+            // render-once items) and arm the next slow wake-up.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.dispatchDueItems(now: CACurrentMediaTime())
+                self.armSlowTimer()
+            }
+        }
+    }
+
+    private func armSlowTimer() {
+        slowTimer?.invalidate()
+        slowTimer = nil
+        guard policy != .paused else { return }
+        // Earliest finite deadline among slow items not carried by the link.
+        let now = CACurrentMediaTime()
+        let deadlines = items
+            .filter { $0.interval >= Self.slowThreshold && $0.interval.isFinite && !$0.renderer.isErrored }
+            .filter { !(isOccluded && $0.pausesWhenDesktopOccluded) }
+            .map { $0.nextDue == 0 ? now : $0.nextDue }
+        guard let earliest = deadlines.min() else { return }
+        let delay = max(earliest - now, 0.05)
+        let timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.dispatchDueItems(now: CACurrentMediaTime())
+                self.armSlowTimer()
+            }
+        }
+        timer.tolerance = min(delay * 0.1, 30)
+        slowTimer = timer
     }
 
     /// A render stuck longer than this is declared wedged: the item is
@@ -98,7 +147,11 @@ final class FrameScheduler: NSObject {
     static let watchdogTimeout: CFTimeInterval = 2.0
 
     @objc private func tick(_ link: CADisplayLink) {
-        let now = link.targetTimestamp
+        dispatchDueItems(now: link.targetTimestamp)
+    }
+
+    private func dispatchDueItems(now: CFTimeInterval) {
+        guard policy != .paused else { return }
         let fpsCap: Double? = {
             if case .throttled(let maxFps) = policy { return maxFps }
             return nil

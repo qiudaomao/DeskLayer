@@ -79,6 +79,10 @@ struct InspectorView: View {
                     }
                 }
 
+                Section("Log") {
+                    PluginLogPanel(itemID: item.id)
+                }
+
                 Section {
                     Button(role: .destructive) {
                         selection.itemID = nil
@@ -122,6 +126,63 @@ struct InspectorView: View {
                 store.update(current)
             }
         )
+    }
+}
+
+// MARK: - Log panel (console.log of the running item, refreshed every second)
+
+private struct PluginLogPanel: View {
+    let itemID: UUID
+    @EnvironmentObject private var coordinator: RuntimeCoordinator
+
+    private static let timeFormat = Date.FormatStyle.dateTime.hour().minute().second()
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let logs = coordinator.logs(for: itemID)
+            VStack(alignment: .leading, spacing: 4) {
+                if logs.isEmpty {
+                    Text("No console.log output")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .center)
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(logs.suffix(100)) { entry in
+                                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                        Text(entry.date, format: Self.timeFormat)
+                                            .foregroundStyle(.tertiary)
+                                        Text(entry.message)
+                                            .foregroundStyle(.secondary)
+                                            .textSelection(.enabled)
+                                    }
+                                    .font(.caption.monospaced())
+                                    .id(entry.id)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(height: 140)
+                        .onChange(of: logs.last?.id) { _, newValue in
+                            if let newValue { proxy.scrollTo(newValue, anchor: .bottom) }
+                        }
+                        .onAppear {
+                            if let last = logs.last?.id { proxy.scrollTo(last, anchor: .bottom) }
+                        }
+                    }
+                    HStack {
+                        Spacer()
+                        Button("Clear") {
+                            coordinator.clearLogs(for: itemID)
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                    }
+                }
+            }
+        }
     }
 }
 

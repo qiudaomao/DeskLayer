@@ -228,7 +228,7 @@ nonisolated enum SamplePlugins {
 
     static let fetchDemo = #"""
     let properties = [
-        {"name": "fps", "valueType": "number", "value": "1"},
+        {"name": "interval", "valueType": "number", "value": "5"},
         {"name": "url", "valueType": "string", "value": "https://api.github.com/zen"},
         {"name": "refreshSeconds", "valueType": "number", "value": "60"}
     ];
@@ -238,13 +238,15 @@ nonisolated enum SamplePlugins {
     let fetchedAt = '';
 
     function refresh() {
+        console.log('fetching ' + properties.find(p => p.name === 'url').value);
         fetch(String(properties.find(p => p.name === 'url').value))
             .then(r => { status = 'HTTP ' + r.status; return r.text(); })
             .then(body => {
                 text = body.slice(0, 80);
                 fetchedAt = new Date().toLocaleTimeString();
+                console.log(status + ': ' + text.slice(0, 40));
             })
-            .catch(e => { text = 'error: ' + e.message; });
+            .catch(e => { text = 'error: ' + e.message; console.log('fetch failed: ' + e.message); });
     }
 
     refresh();

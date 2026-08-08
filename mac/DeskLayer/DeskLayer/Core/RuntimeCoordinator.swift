@@ -260,7 +260,7 @@ final class RuntimeCoordinator: ObservableObject {
             store.update(item)
             suppressRebuild = false
         }
-        if name == "fps" {
+        if name == "fps" || name == "interval" {
             rebuild()
         } else if case .declarative(let host) = running[itemID]?.runtime {
             // Static declarative plugins re-render only on edits; ticking
@@ -311,6 +311,15 @@ final class RuntimeCoordinator: ObservableObject {
         } else if commit && sizeChanged {
             rebuild()
         }
+    }
+
+    /// console.log output of a running item, for the inspector's log panel.
+    func logs(for itemID: UUID) -> [PluginLogEntry] {
+        running[itemID]?.instance.recentLogs() ?? []
+    }
+
+    func clearLogs(for itemID: UUID) {
+        running[itemID]?.instance.clearLogs()
     }
 
     /// Inspector status line: nil when the item runs fine.

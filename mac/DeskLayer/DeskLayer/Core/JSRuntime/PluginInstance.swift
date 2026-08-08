@@ -20,16 +20,64 @@ nonisolated enum PluginRenderMode: String {
     case declarative
 }
 
+nonisolated struct PluginLogEntry: Identifiable, Sendable {
+    let id: UUID
+    let date: Date
+    let message: String
+}
+
 nonisolated final class PluginInstance: @unchecked Sendable {
     let pluginID: String
     let queue: DispatchQueue
-    /// Declared properties merged with overrides; fps is read by the scheduler.
+    /// Declared properties merged with overrides; cadence is read by the scheduler.
     private(set) var properties: [PluginProperty]
-    let fps: Double
-    /// False when the plugin declared no fps (declarative plugins then only
-    /// re-render on property changes).
-    let hasDeclaredFps: Bool
+    /// Seconds between renders. Derived from the plugin's `interval` property
+    /// (seconds — e.g. 5, 300, 3600) or `fps` (frames/second, fractions
+    /// allowed: 0.2 = every 5s). `fps: 0` and `.infinity` mean render once.
+    /// Neither declared → 30fps for canvas; declarative hosts treat it as
+    /// static (re-render on property edits only).
+    let renderInterval: Double
+    /// True when the plugin declared fps or interval itself.
+    let hasDeclaredCadence: Bool
     let renderMode: PluginRenderMode
+
+    /// Display-link rate hint (clamped to something CADisplayLink accepts).
+    var fps: Double {
+        guard renderInterval.isFinite, renderInterval > 0 else { return 1 }
+        return min(max(1.0 / renderInterval, 1), 120)
+    }
+
+    /// Ring buffer of console.log output for the manager's inspector.
+    /// A standalone object so the JS block can capture it during init
+    /// (before self is fully initialized) — boot-time logs are kept too.
+    private final class LogSink: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [PluginLogEntry] = []
+        private static let capacity = 200
+
+        func append(_ message: String) {
+            lock.lock()
+            entries.append(PluginLogEntry(id: UUID(), date: Date(), message: message))
+            if entries.count > Self.capacity {
+                entries.removeFirst(entries.count - Self.capacity)
+            }
+            lock.unlock()
+        }
+
+        func recent() -> [PluginLogEntry] {
+            lock.lock()
+            defer { lock.unlock() }
+            return entries
+        }
+
+        func clear() {
+            lock.lock()
+            entries.removeAll()
+            lock.unlock()
+        }
+    }
+
+    private let logSink = LogSink()
 
     private let vm: JSVirtualMachine
     let context: JSContext
@@ -50,6 +98,9 @@ nonisolated final class PluginInstance: @unchecked Sendable {
         guard let jsContext = JSContext(virtualMachine: vm) else { return nil }
         context = jsContext
         context.name = "DeskLayer:\(pluginID)"
+        // Attachable from Safari's Develop menu (▸ this Mac ▸ DeskLayer:<id>)
+        // for breakpoints, the console, and profiling inside plugin JS.
+        context.isInspectable = true
 
         context.exceptionHandler = { context, exception in
             let message = exception?.toString() ?? "unknown"
@@ -59,8 +110,10 @@ nonisolated final class PluginInstance: @unchecked Sendable {
             context?.exception = exception
         }
 
+        let sink = logSink
         let log: @convention(block) (String) -> Void = { message in
             renderLog.info("[\(pluginID, privacy: .public)] \(message, privacy: .public)")
+            sink.append(message)
         }
         context.setObject(log, forKeyedSubscript: "__dl_log" as NSString)
         context.evaluateScript("var plugin = { export: null }; var console = { log: __dl_log, error: __dl_log, warn: __dl_log };")
@@ -101,8 +154,19 @@ nonisolated final class PluginInstance: @unchecked Sendable {
         }
         properties = declared
         let declaredFps = declared.first { $0.name == "fps" }?.value.doubleValue
-        hasDeclaredFps = declaredFps != nil
-        fps = min(max(declaredFps ?? 30, 1), 120)
+        let declaredInterval = declared.first { $0.name == "interval" }?.value.doubleValue
+        if let interval = declaredInterval, interval > 0 {
+            // Seconds between renders, up to a day.
+            renderInterval = min(max(interval, 1.0 / 120.0), 86_400)
+            hasDeclaredCadence = true
+        } else if let fpsValue = declaredFps {
+            // Fractions allowed (0.2 = every 5s); 0 or negative = render once.
+            renderInterval = fpsValue <= 0 ? .infinity : 1.0 / min(max(fpsValue, 1.0 / 86_400.0), 120)
+            hasDeclaredCadence = true
+        } else {
+            renderInterval = 1.0 / 30.0
+            hasDeclaredCadence = false
+        }
 
         // Mode: explicit plugin.export.mode wins; otherwise render's arity —
         // render(ctx) is canvas, render() is declarative.
@@ -166,6 +230,16 @@ nonisolated final class PluginInstance: @unchecked Sendable {
     /// Typed property lookup for ctx.getProp / the scheduler.
     func property(named name: String) -> PropertyValue? {
         properties.first { $0.name == name }?.value
+    }
+
+    // MARK: - console.log capture (inspector log panel)
+
+    func recentLogs() -> [PluginLogEntry] {
+        logSink.recent()
+    }
+
+    func clearLogs() {
+        logSink.clear()
     }
 
     /// Applies an override live (from the inspector or a layout edit):

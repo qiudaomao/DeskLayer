@@ -66,12 +66,12 @@ struct PluginLibraryView: View {
                 Label(plugin.id, systemImage: "puzzlepiece.extension")
                     .lineLimit(1)
                 Spacer()
+                // Always present (visible + accessible); emphasized on hover.
                 Button(action: onAdd) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isHovering ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
                 }
                 .buttonStyle(.borderless)
-                .opacity(isHovering ? 1 : 0)
                 .help("Add \(plugin.id) to the desktop")
                 .accessibilityLabel("Add \(plugin.id)")
             }
