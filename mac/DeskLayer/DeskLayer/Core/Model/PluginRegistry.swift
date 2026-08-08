@@ -21,10 +21,17 @@ nonisolated struct PluginDescriptor: Identifiable, Hashable {
 @MainActor
 final class PluginRegistry: ObservableObject {
     @Published private(set) var plugins: [PluginDescriptor] = []
+    /// Fires after a rescan (folder edit, import, or applied update) so the
+    /// coordinator can re-spawn running items with fresh code.
+    let didChange = PassthroughSubject<Void, Never>()
 
     private var watcher: DispatchSourceFileSystemObject?
     private var propertiesCache: [String: [PluginProperty]] = [:]
     private var permissionsCache: [String: Set<String>] = [:]
+    private var metadataCache: [String: PluginMetadata] = [:]
+    private let updater = PluginUpdater()
+    /// Last update-check result per plugin, surfaced in the inspector.
+    @Published private(set) var updateStatus: [String: UpdateResult] = [:]
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "plugins")
 
     static let directoryURL = LayoutStore.directoryURL.appendingPathComponent("Plugins", isDirectory: true)
@@ -34,6 +41,45 @@ final class PluginRegistry: ObservableObject {
         SamplePlugins.installIfMissing(into: Self.directoryURL)
         rescan()
         watch()
+        Task { await self.autoUpdateAll() }
+    }
+
+    // MARK: - Metadata & updates
+
+    /// version / author / description / updateURL, cached until the next scan.
+    func metadata(for id: String) -> PluginMetadata {
+        if let cached = metadataCache[id] { return cached }
+        let meta = source(for: id).map(PluginMetadata.extract(from:)) ?? PluginMetadata()
+        metadataCache[id] = meta
+        return meta
+    }
+
+    func isAutoUpdate(_ id: String) -> Bool { updater.isAutoUpdate(id) }
+    func setAutoUpdate(_ on: Bool, for id: String) { updater.setAutoUpdate(on, for: id) }
+
+    /// Manual "Check for Update". Publishes the result to `updateStatus`.
+    @discardableResult
+    func checkForUpdate(_ id: String) async -> UpdateResult {
+        guard let descriptor = descriptor(for: id), let source = source(for: id) else {
+            let result = UpdateResult.failed("plugin not found")
+            updateStatus[id] = result
+            return result
+        }
+        // .deskplugin folders update their main.js; bare .js updates in place.
+        let destination = descriptor.sourceURL
+        let result = await updater.check(pluginID: id, installedSource: source, destination: destination)
+        updateStatus[id] = result
+        if case .updated = result { rescan() }
+        return result
+    }
+
+    /// Launch-time pass: check every auto-update plugin that has an updateURL.
+    func autoUpdateAll() async {
+        for descriptor in plugins where updater.isAutoUpdate(descriptor.id) {
+            let meta = metadata(for: descriptor.id)
+            guard meta.updateURL != nil else { continue }
+            _ = await checkForUpdate(descriptor.id)
+        }
     }
 
     func descriptor(for id: String) -> PluginDescriptor? {
@@ -75,6 +121,7 @@ final class PluginRegistry: ObservableObject {
     func rescan() {
         propertiesCache.removeAll()
         permissionsCache.removeAll()
+        metadataCache.removeAll()
         var found: [PluginDescriptor] = []
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: Self.directoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
@@ -95,6 +142,7 @@ final class PluginRegistry: ObservableObject {
         }
         plugins = found.sorted { $0.id < $1.id }
         log.info("plugins folder scan: \(self.plugins.map(\.id).joined(separator: ","), privacy: .public)")
+        didChange.send()
     }
 
     private func watch() {

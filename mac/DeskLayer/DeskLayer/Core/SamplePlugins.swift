@@ -257,7 +257,13 @@ nonisolated enum SamplePlugins {
         }
     }
 
-    plugin.export = { properties, render };
+    plugin.export = {
+        version: "1.0.0",
+        author: "DeskLayer",
+        description: "An analog clock with a custom face color and label.",
+        properties,
+        render
+    };
     """#
 
     static let particles = #"""

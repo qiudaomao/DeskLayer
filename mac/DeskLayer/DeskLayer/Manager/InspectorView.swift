@@ -62,6 +62,10 @@ struct InspectorView: View {
                     .id(item.id)
                 }
 
+                Section("About & Updates") {
+                    PluginAboutView(pluginID: item.pluginID).id(item.pluginID)
+                }
+
                 let permissions = registry.declaredPermissions(for: item.pluginID)
                 if permissions.contains("ssh") {
                     Section("SSH Destination") {
@@ -199,6 +203,72 @@ private struct PluginLogPanel: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Plugin info & updates
+
+private struct PluginAboutView: View {
+    let pluginID: String
+    @EnvironmentObject private var registry: PluginRegistry
+    @State private var isChecking = false
+
+    var body: some View {
+        let meta = registry.metadata(for: pluginID)
+        VStack(alignment: .leading, spacing: 6) {
+            LabeledContent("Version", value: meta.version ?? "—")
+            if let author = meta.author {
+                LabeledContent("Author", value: author)
+            }
+            if let summary = meta.summary {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if meta.updateURL != nil {
+                Divider()
+                Toggle("Auto-update", isOn: Binding(
+                    get: { registry.isAutoUpdate(pluginID) },
+                    set: { registry.setAutoUpdate($0, for: pluginID) }
+                ))
+                HStack {
+                    Button {
+                        isChecking = true
+                        Task {
+                            await registry.checkForUpdate(pluginID)
+                            isChecking = false
+                        }
+                    } label: {
+                        if isChecking {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Check for Update")
+                        }
+                    }
+                    .disabled(isChecking)
+                    Spacer()
+                }
+                if let status = registry.updateStatus[pluginID] {
+                    Text(status.message)
+                        .font(.caption)
+                        .foregroundStyle(statusColor(status))
+                }
+            } else {
+                Text("No update URL declared")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func statusColor(_ result: UpdateResult) -> Color {
+        switch result {
+        case .updated: return .green
+        case .failed: return .orange
+        default: return .secondary
         }
     }
 }

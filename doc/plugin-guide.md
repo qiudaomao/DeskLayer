@@ -74,10 +74,40 @@ plugin.export = {
     render,            // function — required
     mode,              // "canvas" | "declarative" — optional (auto-detected)
     permissions,       // ["shell", "applescript", "ssh", "server"] — optional
+    version,           // "1.0.0" — optional, shown in the inspector
+    author,            // "You" — optional
+    description,       // "What it does" — optional
+    updateURL,         // "https://.../MyPlugin.js" — optional, enables updates
 };
 ```
 
 `render` is the only required field. Everything else is optional.
+
+### Versioning & updates
+
+Declare `version`, `author`, and `description` — they appear in the inspector's
+**About & Updates** section. Add an `updateURL` pointing at the raw plugin `.js`
+to enable updating:
+
+```js
+plugin.export = {
+    version: "1.2.0",
+    author: "Ada Lovelace",
+    description: "A tasteful clock.",
+    updateURL: "https://example.com/plugins/Clock.js",
+    properties, render
+};
+```
+
+- **Check for Update** (inspector button) fetches `updateURL`, reads the
+  `version` it declares, and — if it's newer (dotted numeric compare, so
+  `1.2.10 > 1.2.9`) — overwrites your installed file.
+- **Auto-update** (inspector toggle, remembered per plugin) checks at launch.
+- Applying an update hot-reloads any running items using that plugin — no
+  restart. Editing a plugin file in the folder hot-reloads it the same way.
+
+Version your own plugins by bumping `version` and publishing the new file at the
+same `updateURL`. For a `.deskplugin` folder, the `updateURL` replaces `main.js`.
 
 ---
 
@@ -378,6 +408,10 @@ these work. In a sandboxed build they return a clear error.
 | `properties` | array | `{ name, valueType, value }`; `valueType` ∈ string/number/boolean/color. |
 | `mode` | string | Optional `"canvas"` / `"declarative"` override. |
 | `permissions` | string[] | Subset of `shell`, `applescript`, `ssh`, `server`. |
+| `version` | string | Optional, e.g. `"1.2.0"`; shown in inspector, drives updates. |
+| `author` | string | Optional; shown in inspector. |
+| `description` | string | Optional; shown in inspector. |
+| `updateURL` | string | Optional; URL of the latest `.js`, enables update checks. |
 
 ### Special property names
 

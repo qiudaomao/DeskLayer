@@ -71,6 +71,12 @@ final class RuntimeCoordinator: ObservableObject {
         screens.onScreensChanged
             .sink { [weak self] in self?.rebuild() }
             .store(in: &cancellables)
+        // Hot-reload running items when a plugin file changes (edit, import,
+        // or an applied update).
+        plugins.didChange
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .sink { [weak self] in self?.rebuild() }
+            .store(in: &cancellables)
         power.$policy
             .sink { [weak self] _ in self?.pushPolicies() }
             .store(in: &cancellables)

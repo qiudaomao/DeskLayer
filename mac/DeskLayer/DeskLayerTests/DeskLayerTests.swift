@@ -520,6 +520,61 @@ struct PluginInstanceTests {
         #expect(round.ssh.port == 2222)
     }
 
+    @Test func metadataExtractionAndVersionCompare() {
+        let source = """
+        let properties = [];
+        function render(ctx) {}
+        plugin.export = {
+            version: "2.3.1", author: "Ada", description: "Does things",
+            updateURL: "https://example.com/p.js", properties, render
+        };
+        """
+        let meta = PluginMetadata.extract(from: source)
+        #expect(meta.version == "2.3.1")
+        #expect(meta.author == "Ada")
+        #expect(meta.summary == "Does things")
+        #expect(meta.updateURL == "https://example.com/p.js")
+
+        // Metadata extraction must not run side effects (timers/network).
+        let sideEffecty = """
+        let fired = false;
+        setInterval(function () { fired = true; }, 1);
+        fetch("https://nope.example");
+        plugin.export = { version: "1.0.0", render: function () {} };
+        """
+        #expect(PluginMetadata.extract(from: sideEffecty).version == "1.0.0")
+
+        #expect(compareVersions("1.2.10", "1.2.9") == .orderedDescending)
+        #expect(compareVersions("1.2.0", "1.2") == .orderedSame)
+        #expect(compareVersions("0.9", "1.0") == .orderedAscending)
+    }
+
+    @Test func updaterInstallsNewerVersion() async throws {
+        // Serve a "remote" newer plugin from a temp file:// URL.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-upd-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let remoteURL = dir.appendingPathComponent("remote.js")
+        let installed = dir.appendingPathComponent("Plugin.js")
+        let updateURLLine = "updateURL: \"\(remoteURL.absoluteString)\""
+        let v1 = "plugin.export = { version: \"1.0.0\", \(updateURLLine), render: function(){} };"
+        let v2 = "plugin.export = { version: \"1.1.0\", \(updateURLLine), render: function(){} };"
+        try v1.write(to: installed, atomically: true, encoding: .utf8)
+        try v2.write(to: remoteURL, atomically: true, encoding: .utf8)
+
+        let updater = await PluginUpdater()
+        let result = await updater.check(pluginID: "Plugin", installedSource: v1, destination: installed)
+        #expect(result == .updated(from: "1.0.0", to: "1.1.0"))
+        let onDisk = try String(contentsOf: installed, encoding: .utf8)
+        #expect(onDisk.contains("1.1.0"))
+
+        // Re-checking against the now-current file reports up to date.
+        let again = await updater.check(pluginID: "Plugin", installedSource: onDisk, destination: installed)
+        #expect(again == .upToDate(version: "1.1.0"))
+    }
+
     private func readExport(_ instance: PluginInstance, _ name: String) async -> String {
         await withCheckedContinuation { continuation in
             instance.queue.async {
