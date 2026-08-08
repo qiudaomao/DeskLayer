@@ -246,7 +246,10 @@ Layout & text: `view([...])` (root), `VStack`, `HStack`, `ZStack`,
 `http(s)`/`file` URL** (loaded async).
 
 `Spinner()` — indeterminate activity indicator.
-`ProgressBar(value)` — determinate bar, `value` 0…1.
+`ProgressBar(value)` — determinate system bar, `value` 0…1.
+`Rect()` — a plain rectangle; size with `.frame(w, h)` and color with
+`.background(css)`. Use it to draw your own bars, rules, and dividers when you
+want exact colors (see the `SystemMonitor` sample).
 `Video(url)` — plays a video; `.loop(true)`, `.muted(false)`.
 
 Interactive (see below): `Button(label, handler?)`, `TextField(placeholder,
@@ -255,8 +258,12 @@ onChange?)`.
 ### Modifiers (chainable)
 
 `.textColor(css)` / `.foregroundColor(css)`, `.fontSize(pt)`, `.bold()`,
-`.padding(pt)`, `.background(css)`, `.cornerRadius(pt)`, `.frame(w, h)`,
-`.opacity(0–1)`, `.spacing(pt)` (on stacks).
+`.padding(pt)`, `.background(css)`, `.cornerRadius(pt)`, `.opacity(0–1)`,
+`.spacing(pt)` (on stacks), `.lineLimit(n)`,
+`.frame(w, h)` or `.frame(w, h, "leading"|"center"|"trailing")`.
+
+Fixed-width frames with an alignment are how you build aligned columns —
+give each row's label, value, and bar the same widths and the rows line up.
 
 ### Interactivity (floating windows only)
 

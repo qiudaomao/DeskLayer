@@ -84,6 +84,10 @@ public struct NodeView: View {
             return AnyView(Button(node.text ?? "") {
                 if let id { onAction?(id, "{}") }
             }.buttonStyle(.borderless))
+        case "Rect":
+            // Plain colored rectangle — the primitive for custom bars,
+            // dividers, and rules. Color comes from .background(...).
+            return AnyView(Rectangle().fill(Color.clear))
         case "Spinner":
             return AnyView(ProgressView().controlSize(.small))
         case "ProgressBar":
@@ -169,12 +173,22 @@ public struct NodeView: View {
             let radius = CGFloat(modifier.firstDouble ?? 8)
             return AnyView(view.clipShape(RoundedRectangle(cornerRadius: radius)))
         case "frame":
+            // frame(w, h) or frame(w, h, "leading"|"center"|"trailing")
             let width = modifier.args.count > 0 ? modifier.args[0].doubleValue : nil
             let height = modifier.args.count > 1 ? modifier.args[1].doubleValue : nil
+            let alignment: Alignment
+            switch modifier.args.count > 2 ? modifier.args[2].stringValue : nil {
+            case "leading": alignment = .leading
+            case "trailing": alignment = .trailing
+            default: alignment = .center
+            }
             return AnyView(view.frame(
                 width: width.map { CGFloat($0) },
-                height: height.map { CGFloat($0) }
+                height: height.map { CGFloat($0) },
+                alignment: alignment
             ))
+        case "lineLimit":
+            return AnyView(view.lineLimit(Int(modifier.firstDouble ?? 1)))
         case "opacity":
             return AnyView(view.opacity(modifier.firstDouble ?? 1))
         case "onTapGesture":

@@ -23,7 +23,7 @@ nonisolated enum JSUIPrelude {
     (function (global) {
         var MODIFIERS = ['textColor', 'foregroundColor', 'fontSize', 'font', 'bold',
                          'padding', 'background', 'cornerRadius', 'frame', 'opacity',
-                         'spacing', 'value', 'loop', 'muted'];
+                         'spacing', 'value', 'loop', 'muted', 'lineLimit'];
 
         global.__dl_actions = {};
         var nextActionId = 1;
@@ -93,6 +93,9 @@ nonisolated enum JSUIPrelude {
             if (typeof handler === 'function') { node.onTap(handler); }
             return node;
         };
+        // Plain rectangle: size it with .frame(w,h) and color it with
+        // .background(css) — the building block for bars and dividers.
+        global.Rect = function () { return makeNode('Rect', null, []); };
         global.Spinner = function () { return makeNode('Spinner', null, []); };
         // ProgressBar(value) — value 0…1.
         global.ProgressBar = function (value) { return makeNode('ProgressBar', String(value), []); };
