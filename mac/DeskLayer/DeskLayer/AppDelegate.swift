@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
+        app.mainMenu = MainMenu.build()
         let delegate = AppDelegate()
         delegateRef = delegate
         app.delegate = delegate

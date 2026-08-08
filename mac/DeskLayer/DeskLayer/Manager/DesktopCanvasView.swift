@@ -129,8 +129,13 @@ private struct CanvasItemView: View {
     @EnvironmentObject private var coordinator: RuntimeCoordinator
     @EnvironmentObject private var selection: ManagerSelection
 
-    /// Live gesture offsets (view space); nil when idle.
+    /// Live gesture frame (view space); nil when idle.
     @State private var dragFrame: CGRect?
+    /// Frame captured at drag start. DragGesture.translation is cumulative
+    /// from the start, so it must be added to this fixed anchor — not to the
+    /// live viewFrame, which setFrame() updates mid-drag (that double-counted
+    /// and made the item outrun the cursor).
+    @State private var dragAnchor: CGRect?
 
     var body: some View {
         let frame = dragFrame ?? viewFrame
@@ -211,9 +216,11 @@ private struct CanvasItemView: View {
         DragGesture()
             .onChanged { value in
                 selection.itemID = item.id
-                var frame = viewFrame
-                frame.origin.x = min(max(frame.origin.x + value.translation.width, 0), canvasSize.width - frame.width)
-                frame.origin.y = min(max(frame.origin.y + value.translation.height, 0), canvasSize.height - frame.height)
+                let anchor = dragAnchor ?? viewFrame
+                if dragAnchor == nil { dragAnchor = anchor }
+                var frame = anchor
+                frame.origin.x = min(max(anchor.minX + value.translation.width, 0), canvasSize.width - anchor.width)
+                frame.origin.y = min(max(anchor.minY + value.translation.height, 0), canvasSize.height - anchor.height)
                 dragFrame = frame
                 coordinator.setFrame(itemID: item.id, normalizedFrame: normalized(from: frame), commit: false)
             }
@@ -222,15 +229,18 @@ private struct CanvasItemView: View {
                     coordinator.setFrame(itemID: item.id, normalizedFrame: normalized(from: frame), commit: true)
                 }
                 dragFrame = nil
+                dragAnchor = nil
             }
     }
 
     private var resizeGesture: some Gesture {
         DragGesture()
             .onChanged { value in
-                var frame = viewFrame
-                frame.size.width = min(max(frame.width + value.translation.width, 24), canvasSize.width - frame.minX)
-                frame.size.height = min(max(frame.height + value.translation.height, 24), canvasSize.height - frame.minY)
+                let anchor = dragAnchor ?? viewFrame
+                if dragAnchor == nil { dragAnchor = anchor }
+                var frame = anchor
+                frame.size.width = min(max(anchor.width + value.translation.width, 24), canvasSize.width - anchor.minX)
+                frame.size.height = min(max(anchor.height + value.translation.height, 24), canvasSize.height - anchor.minY)
                 dragFrame = frame
                 coordinator.setFrame(itemID: item.id, normalizedFrame: normalized(from: frame), commit: false)
             }
@@ -239,6 +249,7 @@ private struct CanvasItemView: View {
                     coordinator.setFrame(itemID: item.id, normalizedFrame: normalized(from: frame), commit: true)
                 }
                 dragFrame = nil
+                dragAnchor = nil
             }
     }
 }
