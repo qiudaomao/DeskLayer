@@ -239,8 +239,25 @@ private struct CanvasItemView: View {
                 let anchor = dragAnchor ?? viewFrame
                 if dragAnchor == nil { dragAnchor = anchor }
                 var frame = anchor
-                frame.size.width = min(max(anchor.width + value.translation.width, 24), canvasSize.width - anchor.minX)
-                frame.size.height = min(max(anchor.height + value.translation.height, 24), canvasSize.height - anchor.minY)
+                let maxWidth = canvasSize.width - anchor.minX
+                let maxHeight = canvasSize.height - anchor.minY
+
+                // Aspect-preserving by default; hold Shift for free resize.
+                if NSEvent.modifierFlags.contains(.shift) {
+                    frame.size.width = min(max(anchor.width + value.translation.width, 24), maxWidth)
+                    frame.size.height = min(max(anchor.height + value.translation.height, 24), maxHeight)
+                } else {
+                    // One uniform scale, driven by the dominant drag axis and
+                    // clamped so the whole item stays on-canvas at fixed aspect.
+                    let byWidth = (anchor.width + value.translation.width) / anchor.width
+                    let byHeight = (anchor.height + value.translation.height) / anchor.height
+                    var scale = abs(value.translation.width) >= abs(value.translation.height) ? byWidth : byHeight
+                    let minScale = max(24 / anchor.width, 24 / anchor.height)
+                    let maxScale = min(maxWidth / anchor.width, maxHeight / anchor.height)
+                    scale = min(max(scale, minScale), maxScale)
+                    frame.size.width = anchor.width * scale
+                    frame.size.height = anchor.height * scale
+                }
                 dragFrame = frame
                 coordinator.setFrame(itemID: item.id, normalizedFrame: normalized(from: frame), commit: false)
             }

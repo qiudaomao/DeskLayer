@@ -454,6 +454,12 @@ frame, a **background color** (transparent by default — set opacity to 0 for a
 see-through tint), and the SSH destination (when the plugin declares the `ssh`
 permission).
 
+**Frames are stored as a percentage of the screen**, not absolute points, so an
+item keeps its place and proportion when the resolution changes or it moves
+between displays of different sizes. Resizing on the canvas **preserves the
+item's aspect ratio** by default; hold **Shift** while dragging the corner to
+resize width and height independently.
+
 ---
 
 ## Debugging
