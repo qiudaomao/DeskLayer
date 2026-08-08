@@ -604,6 +604,35 @@ struct PluginInstanceTests {
         #expect(again == .upToDate(version: "2.0.0"))
     }
 
+    @Test func updateFallsBackToJSWhenManifestMissingOrBad() async throws {
+        // The manifest is optional: with none (or a malformed one), the check
+        // must still update by reading the .js body's declared version.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-fallback-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let jsURL = dir.appendingPathComponent("Plugin.js")
+        let dest = dir.appendingPathComponent("Plugin_installed.js")
+        let updateLine = "updateURL: \"\(jsURL.absoluteString)\""
+        let installed = "plugin.export = { version: \"1.0.0\", \(updateLine), render: function(){} };"
+        let newBody = "plugin.export = { version: \"3.0.0\", \(updateLine), render: function(){} };"
+        try installed.write(to: dest, atomically: true, encoding: .utf8)
+        try newBody.write(to: jsURL, atomically: true, encoding: .utf8)
+
+        let updater = await PluginUpdater()
+
+        // (a) No manifest file exists at Plugin.json → JS fallback updates.
+        let noManifest = await updater.check(pluginID: "Plugin", installedSource: installed, destination: dest)
+        #expect(noManifest == .updated(from: "1.0.0", to: "3.0.0"))
+
+        // (b) A malformed manifest is ignored → JS fallback still works.
+        try "not json at all".write(to: dir.appendingPathComponent("Plugin.json"), atomically: true, encoding: .utf8)
+        try installed.write(to: dest, atomically: true, encoding: .utf8) // reset to 1.0.0
+        let badManifest = await updater.check(pluginID: "Plugin", installedSource: installed, destination: dest)
+        #expect(badManifest == .updated(from: "1.0.0", to: "3.0.0"))
+    }
+
     @Test func webviewModeParsesConfig() throws {
         let source = """
         let properties = [
