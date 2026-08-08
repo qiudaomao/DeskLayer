@@ -19,6 +19,7 @@ struct DesktopCanvasView: View {
     @EnvironmentObject private var screens: ScreenManager
     @EnvironmentObject private var coordinator: RuntimeCoordinator
     @EnvironmentObject private var selection: ManagerSelection
+    @EnvironmentObject private var registry: PluginRegistry
 
     var body: some View {
         VStack(spacing: 0) {
@@ -98,7 +99,10 @@ struct DesktopCanvasView: View {
         guard let displayUUID = selection.displayUUID else { return false }
         var added = false
         for pluginID in pluginIDs {
-            let defaultSize = CGSize(width: 0.2, height: 0.2)
+            let defaultSize = PluginLibraryView.defaultNormalizedSize(
+                preferred: registry.metadata(for: pluginID).preferredSize,
+                screen: currentScreenSize
+            )
             let nx = min(max(location.x / canvas.width - defaultSize.width / 2, 0), 1 - defaultSize.width)
             let nyTop = min(max(location.y / canvas.height - defaultSize.height / 2, 0), 1 - defaultSize.height)
             let item = LayoutItem(
@@ -128,6 +132,7 @@ private struct CanvasItemView: View {
 
     @EnvironmentObject private var coordinator: RuntimeCoordinator
     @EnvironmentObject private var selection: ManagerSelection
+    @EnvironmentObject private var registry: PluginRegistry
 
     /// Live gesture frame (view space); nil when idle.
     @State private var dragFrame: CGRect?
@@ -175,7 +180,7 @@ private struct CanvasItemView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if isSelected {
+            if isSelected && registry.metadata(for: item.pluginID).resizable {
                 ResizeHandle()
                     .gesture(resizeGesture)
             }

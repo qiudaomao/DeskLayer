@@ -104,7 +104,7 @@ final class LayoutStore: ObservableObject {
             LayoutItem(
                 pluginID: "AnalogClock",
                 displayUUID: display,
-                normalizedFrame: CGRect(x: 0.06, y: 0.55, width: 0.16, height: 0.25)
+                normalizedFrame: CGRect(x: 0.06, y: 0.62, width: 0.14, height: 0.14) // square, matches the face
             ),
             LayoutItem(
                 pluginID: "Particles",

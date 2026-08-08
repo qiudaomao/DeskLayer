@@ -14,6 +14,7 @@ struct PluginLibraryView: View {
     @EnvironmentObject private var registry: PluginRegistry
     @EnvironmentObject private var store: LayoutStore
     @EnvironmentObject private var selection: ManagerSelection
+    @EnvironmentObject private var screens: ScreenManager
 
     var body: some View {
         List {
@@ -84,7 +85,11 @@ struct PluginLibraryView: View {
 
     private func addToDesktop(_ pluginID: String) {
         guard let displayUUID = selection.displayUUID else { return }
-        let size = CGSize(width: 0.2, height: 0.2)
+        let screenSize = screens.controller(forDisplayUUID: displayUUID)?.screen.frame.size
+            ?? NSScreen.main?.frame.size
+        let size = PluginLibraryView.defaultNormalizedSize(
+            preferred: registry.metadata(for: pluginID).preferredSize, screen: screenSize
+        )
         let item = LayoutItem(
             pluginID: pluginID,
             displayUUID: displayUUID,
@@ -94,6 +99,19 @@ struct PluginLibraryView: View {
         )
         store.add(item)
         selection.itemID = item.id
+    }
+
+    /// A newly added item adopts the plugin's declared point size (converted
+    /// to a screen fraction) so its rect matches the content; falls back to
+    /// 20% of the screen when the plugin declares no size.
+    static func defaultNormalizedSize(preferred: CGSize?, screen: CGSize?) -> CGSize {
+        guard let preferred, let screen, screen.width > 0, screen.height > 0 else {
+            return CGSize(width: 0.2, height: 0.2)
+        }
+        return CGSize(
+            width: min(preferred.width / screen.width, 1),
+            height: min(preferred.height / screen.height, 1)
+        )
     }
 
     private func importPlugin() {

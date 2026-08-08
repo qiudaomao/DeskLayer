@@ -496,6 +496,8 @@ these work. In a sandboxed build they return a clear error.
 | `author` | string | Optional; shown in inspector. |
 | `description` | string | Optional; shown in inspector. |
 | `updateURL` | string | Optional; URL of the latest `.js`, enables update checks. |
+| `width`, `height` | number | Optional preferred size in points. A newly added item adopts this aspect so its rect matches the content. |
+| `resizable` | bool | Optional (default true). `false` hides the resize handle. |
 
 ### Special property names
 

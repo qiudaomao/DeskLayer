@@ -320,6 +320,7 @@ nonisolated enum SamplePlugins {
         version: "1.0.0",
         author: "DeskLayer",
         description: "An analog clock with a custom face color and label.",
+        width: 260, height: 260,   // square: rect matches the round face
         properties,
         render
     };

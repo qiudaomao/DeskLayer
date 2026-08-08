@@ -69,7 +69,9 @@ struct InspectorView: View {
                 let permissions = registry.declaredPermissions(for: item.pluginID)
                 if permissions.contains("ssh") {
                     Section("SSH Destination") {
-                        SSHEditor(item: item) { updated in store.update(updated) }
+                        // Route through the coordinator's no-rebuild path so
+                        // typing doesn't flash every on-screen widget.
+                        SSHEditor(item: item) { updated in coordinator.updateSSH(updated) }
                             .id(item.id)
                     }
                 }

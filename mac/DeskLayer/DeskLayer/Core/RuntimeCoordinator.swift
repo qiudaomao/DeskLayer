@@ -339,6 +339,26 @@ final class RuntimeCoordinator: ObservableObject {
         }
     }
 
+    /// SSH destination edits from the inspector: persist and re-resolve the
+    /// running instance's ssh() config live, WITHOUT a runtime rebuild — so
+    /// typing in the SSH fields doesn't flash every widget on screen.
+    func updateSSH(_ updated: LayoutItem) {
+        suppressRebuild = true
+        store.update(updated)
+        suppressRebuild = false
+        guard let runningItem = running[updated.id],
+              runningItem.instance.permissions.contains("ssh") else { return }
+        let cfg = updated.ssh
+        runningItem.instance.configureSSH(cfg.isConfigured ? HostBindings.ResolvedSSH(
+            host: cfg.host,
+            port: cfg.port,
+            user: cfg.user,
+            usesKey: cfg.auth == .key,
+            keyPath: cfg.keyPath,
+            password: cfg.auth == .password ? KeychainStore.password(forItem: updated.id) : nil
+        ) : nil)
+    }
+
     /// Live frame updates from canvas drags. Moves reposition the running
     /// CALayer directly (no re-render, no rebuild). A size change needs new
     /// pixel buffers, so it rebuilds — but only when `commit` (drag end);

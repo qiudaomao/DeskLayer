@@ -712,6 +712,34 @@ struct PluginInstanceTests {
         instance.invalidate()
     }
 
+    @Test func metadataReadsSizeAndResizable() {
+        let sized = """
+        function render(ctx) {}
+        plugin.export = { width: 260, height: 180, resizable: false, render };
+        """
+        let m = PluginMetadata.extract(from: sized)
+        #expect(m.preferredSize == CGSize(width: 260, height: 180))
+        #expect(m.resizable == false)
+
+        // Defaults: no size, resizable true.
+        let plain = "function render(ctx){}; plugin.export = { render };"
+        let d = PluginMetadata.extract(from: plain)
+        #expect(d.preferredSize == nil)
+        #expect(d.resizable == true)
+    }
+
+    @Test func preferredSizeMapsToScreenFraction() {
+        // 260pt on a 1300pt-wide screen → 0.2 width.
+        let size = PluginLibraryView.defaultNormalizedSize(
+            preferred: CGSize(width: 260, height: 130), screen: CGSize(width: 1300, height: 650)
+        )
+        #expect(abs(size.width - 0.2) < 0.001)
+        #expect(abs(size.height - 0.2) < 0.001)
+        // No preferred size → 20% fallback.
+        let fallback = PluginLibraryView.defaultNormalizedSize(preferred: nil, screen: CGSize(width: 1000, height: 1000))
+        #expect(fallback == CGSize(width: 0.2, height: 0.2))
+    }
+
     @Test func webviewNeedsNoRenderFunction() throws {
         // A webview plugin with no render() must still load.
         let source = """

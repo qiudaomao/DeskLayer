@@ -18,6 +18,11 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
     var author: String?
     var summary: String? // plugin.export.description
     var updateURL: String?
+    /// Preferred size in points, if the plugin declares width/height. Used to
+    /// size a freshly added item so its rect matches the content's aspect.
+    var preferredSize: CGSize?
+    /// Whether the item may be resized on the canvas (default true).
+    var resizable: Bool = true
 
     var isEmpty: Bool { version == nil && author == nil && summary == nil && updateURL == nil }
 
@@ -63,11 +68,24 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
             let s = value.toString()
             return (s?.isEmpty ?? true) ? nil : s
         }
+        func number(_ key: String) -> Double? {
+            guard let value = export.objectForKeyedSubscript(key), value.isNumber else { return nil }
+            return value.toDouble()
+        }
+        var size: CGSize?
+        if let w = number("width"), let h = number("height"), w > 0, h > 0 {
+            size = CGSize(width: w, height: h)
+        }
+        let resizableValue = export.objectForKeyedSubscript("resizable")
+        let resizable = (resizableValue?.isBoolean == true) ? resizableValue!.toBool() : true
+
         return PluginMetadata(
             version: string("version"),
             author: string("author"),
             summary: string("description"),
-            updateURL: string("updateURL") ?? string("updateUrl")
+            updateURL: string("updateURL") ?? string("updateUrl"),
+            preferredSize: size,
+            resizable: resizable
         )
     }
 }
