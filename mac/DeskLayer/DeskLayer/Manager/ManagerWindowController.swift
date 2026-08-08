@@ -25,11 +25,17 @@ final class ManagerWindowController: NSWindowController {
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1080, height: 680),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "DeskLayer"
+        // Full-height sidebar, Finder/Notes-style: content extends under a
+        // transparent titlebar; NavigationSplitView manages the safe areas.
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
+        window.titlebarSeparatorStyle = .automatic
         window.center()
         window.setFrameAutosaveName("ManagerWindow")
         window.contentViewController = NSHostingController(rootView: root)

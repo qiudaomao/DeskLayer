@@ -16,46 +16,69 @@ struct PluginLibraryView: View {
     @EnvironmentObject private var selection: ManagerSelection
 
     var body: some View {
-        List(registry.plugins) { plugin in
-            HStack(spacing: 8) {
-                Image(systemName: "puzzlepiece.extension")
-                    .foregroundStyle(.secondary)
-                Text(plugin.id)
-                    .lineLimit(1)
-                Spacer()
-                Button {
-                    addToDesktop(plugin.id)
-                } label: {
-                    Image(systemName: "plus.circle")
+        List {
+            Section("Plugins") {
+                ForEach(registry.plugins) { plugin in
+                    PluginRow(plugin: plugin) {
+                        addToDesktop(plugin.id)
+                    }
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("DeskLayer")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Bottom action bar, Notes/Mail-style.
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: 2) {
+                    Button {
+                        importPlugin()
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 22, height: 22)
+                    }
+                    .help("Import plugin…")
+                    Button {
+                        NSWorkspace.shared.open(PluginRegistry.directoryURL)
+                    } label: {
+                        Image(systemName: "folder")
+                            .frame(width: 22, height: 22)
+                    }
+                    .help("Open plugins folder")
+                    Spacer()
                 }
                 .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private struct PluginRow: View {
+        let plugin: PluginDescriptor
+        let onAdd: () -> Void
+        @State private var isHovering = false
+
+        var body: some View {
+            HStack {
+                Label(plugin.id, systemImage: "puzzlepiece.extension")
+                    .lineLimit(1)
+                Spacer()
+                Button(action: onAdd) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .opacity(isHovering ? 1 : 0)
                 .help("Add \(plugin.id) to the desktop")
                 .accessibilityLabel("Add \(plugin.id)")
             }
-            .padding(.vertical, 2)
             .contentShape(Rectangle())
+            .onHover { isHovering = $0 }
             .draggable(plugin.id)
-            .help("Drag onto the desktop canvas to add")
-        }
-        .listStyle(.sidebar)
-        .navigationTitle("Plugins")
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Button {
-                    importPlugin()
-                } label: {
-                    Label("Import…", systemImage: "plus")
-                }
-                Button {
-                    NSWorkspace.shared.open(PluginRegistry.directoryURL)
-                } label: {
-                    Label("Open Folder", systemImage: "folder")
-                }
-                Spacer()
-            }
-            .buttonStyle(.borderless)
-            .padding(8)
-            .background(.bar)
+            .help("Drag onto the desktop canvas, or click + to add")
         }
     }
 
