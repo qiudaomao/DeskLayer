@@ -492,6 +492,53 @@ struct PluginInstanceTests {
         instance.invalidate()
     }
 
+    @Test func multiHostSSHModelAndLegacyDecode() throws {
+        // A layout written before multi-host support carries a single `ssh`.
+        let legacy = """
+        {"id": "11111111-1111-1111-1111-111111111111", "pluginID": "P",
+         "displayUUID": "X", "normalizedFrame": [[0,0],[1,1]],
+         "ssh": {"host": "nas", "port": 2222, "user": "zfu", "auth": "key", "keyPath": "/k"}}
+        """
+        let decoded = try JSONDecoder().decode(LayoutItem.self, from: Data(legacy.utf8))
+        #expect(decoded.sshHosts.count == 1)
+        #expect(decoded.ssh.host == "nas")
+        #expect(decoded.ssh.port == 2222)
+
+        // Several destinations round trip, and a bare alias counts as
+        // configured (~/.ssh/config supplies user/port/key).
+        var item = decoded
+        item.sshHosts = [
+            SSHConfig(name: "docker", host: "docker"),
+            SSHConfig(name: "mini", host: "mini"),
+        ]
+        let allConfigured = item.sshHosts.filter(\.isConfigured).count == item.sshHosts.count
+        #expect(allConfigured)
+        let data = try JSONEncoder().encode(item)
+        let round = try JSONDecoder().decode(LayoutItem.self, from: data)
+        #expect(round.sshHosts.map(\.name) == ["docker", "mini"])
+        #expect(round.ssh.name == "docker") // `ssh` is the first host
+    }
+
+    @Test func sshConfigAliasesParse() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-ssh-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("config")
+        try """
+        Host *
+            ServerAliveInterval 60
+        # a comment
+        Host docker pve
+            HostName 10.0.0.5
+        Host mini
+            User zfu
+        """.write(to: file, atomically: true, encoding: .utf8)
+        // Patterns like `*` are skipped; multiple names on one line are kept.
+        let aliases = SSHConfigFile.aliases(at: file)
+        #expect(aliases == ["docker", "pve", "mini"])
+    }
+
     @Test func keychainRoundTrip() {
         let id = UUID()
         KeychainStore.setPassword("hunter2", forItem: id)

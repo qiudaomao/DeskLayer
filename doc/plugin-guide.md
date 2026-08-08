@@ -249,7 +249,13 @@ Layout & text: `view([...])` (root), `VStack`, `HStack`, `ZStack`,
 `ProgressBar(value)` — determinate system bar, `value` 0…1.
 `Rect()` — a plain rectangle; size with `.frame(w, h)` and color with
 `.background(css)`. Use it to draw your own bars, rules, and dividers when you
-want exact colors (see the `SystemMonitor` sample).
+want exact colors (see the `SystemMonitor` sample). Pass `null` for a dimension
+to let it flex: `Rect().frame(null, 1)` is a full-width rule.
+`Ring(to)` / `Ring(from, to)` — donut gauge, fractions 0…1, drawn clockwise
+from 12 o'clock. `.lineWidth(pt)`, `.ringColor(css)`, `.trackColor(css)`.
+Stack several `Ring(from, to)` arcs in a `ZStack` to build a **segmented**
+ring entirely in JS (the `RemoteMonitor` memory ring shows used / cached /
+free that way).
 `Video(url)` — plays a video; `.loop(true)`, `.muted(false)`.
 
 Interactive (see below): `Button(label, handler?)`, `TextField(placeholder,
@@ -415,18 +421,35 @@ const front = await applescript('tell application "System Events" to ' +
 
 ### `ssh()` — run on a remote machine
 
-Permission: `"ssh"`. Configure the destination in the inspector's **SSH**
-section (host, port, user, and either a password or an identity key). With no
-destination configured, `ssh()` rejects with a clear error.
+Permission: `"ssh"`. Configure destinations in the inspector's **SSH
+Destinations** section. The quickest setup is a **`~/.ssh/config` alias** — pick
+it from the menu and ssh resolves the real host, user, port, and identity for
+you. Otherwise fill in host/user/port and choose a password or identity key.
 
 ```js
-const r = await ssh(["cat", "/proc/loadavg"]);   // argv form
-const r2 = await ssh("uptime");                   // string → runs in remote shell
+const r  = await ssh(["cat", "/proc/loadavg"]);   // argv form (exec-like)
+const r2 = await ssh("uptime | head -1");          // string → remote shell
 // r.status, r.stdout, r.stderr
 ```
 
-Passwords are stored in your macOS Keychain, never in `layout.json`. Key auth
-uses the identity file you pick (`-i`). Requires the non-sandboxed build.
+The argv form is shell-quoted for you, so `ssh(["sh", "-c", script])` delivers
+`script` intact no matter what it contains. A string is passed through for the
+remote shell to interpret.
+
+**Multiple servers.** An item can hold several destinations, each with a name.
+`$ssh.hosts` lists them, and a second argument picks one — so one plugin can
+render a stack of machines:
+
+```js
+$ssh.hosts.forEach(name => {
+    ssh(["uptime"], name).then(r => { results[name] = r.stdout; });
+});
+```
+
+With no destination configured, `ssh()` rejects with a clear error. Passwords
+live in your macOS Keychain, never in `layout.json`. Requires the non-sandboxed
+build. See the `RemoteMonitor` sample: it probes Linux **and** macOS hosts and
+renders one block per server.
 
 ### `$server` — receive local HTTP hooks
 

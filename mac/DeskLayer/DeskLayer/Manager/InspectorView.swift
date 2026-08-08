@@ -68,7 +68,7 @@ struct InspectorView: View {
 
                 let permissions = registry.declaredPermissions(for: item.pluginID)
                 if permissions.contains("ssh") {
-                    Section("SSH Destination") {
+                    Section("SSH Destinations") {
                         // Route through the coordinator's no-rebuild path so
                         // typing doesn't flash every on-screen widget.
                         SSHEditor(item: item) { updated in coordinator.updateSSH(updated) }
@@ -316,75 +316,160 @@ private struct BackgroundColorEditor: View {
     }
 }
 
-// MARK: - SSH destination
+// MARK: - SSH destinations (one or more remote hosts per item)
 
 private struct SSHEditor: View {
     let item: LayoutItem
     let commit: (LayoutItem) -> Void
 
-    @State private var host = ""
-    @State private var port = "22"
-    @State private var user = ""
-    @State private var auth = SSHAuth.none
-    @State private var keyPath = ""
-    @State private var password = ""
+    @State private var hosts: [SSHConfig] = []
     @State private var isSeeded = false
+    private var aliases: [String] { SSHConfigFile.aliases() }
 
     var body: some View {
-        Group {
-            TextField("Host", text: $host).onChange(of: host) { _, _ in push() }
-            TextField("Port", text: $port).onChange(of: port) { _, _ in push() }
-            TextField("User", text: $user).onChange(of: user) { _, _ in push() }
-            Picker("Auth", selection: $auth) {
-                Text("None").tag(SSHAuth.none)
-                Text("Password").tag(SSHAuth.password)
-                Text("Identity Key").tag(SSHAuth.key)
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach($hosts) { $config in
+                SSHHostRow(
+                    config: $config,
+                    itemID: item.id,
+                    aliases: aliases,
+                    onChange: { push() },
+                    onRemove: {
+                        hosts.removeAll { $0.id == config.id }
+                        push()
+                    },
+                    canRemove: hosts.count > 1
+                )
+                if config.id != hosts.last?.id { Divider() }
             }
-            .onChange(of: auth) { _, _ in push() }
-
-            switch auth {
-            case .password:
-                SecureField("Password", text: $password)
-                    .onChange(of: password) { _, newValue in
-                        guard isSeeded else { return }
-                        KeychainStore.setPassword(newValue, forItem: item.id)
-                        commit(item) // re-resolve ssh() with the new secret
-                    }
-                Text("Stored in your login Keychain, never in layout.json.")
-                    .font(.caption2).foregroundStyle(.tertiary)
-            case .key:
-                HStack {
-                    Text(keyPath.isEmpty ? "No key selected" : (keyPath as NSString).lastPathComponent)
-                        .font(.caption).foregroundStyle(keyPath.isEmpty ? .tertiary : .secondary)
-                        .lineLimit(1).truncationMode(.middle)
-                    Spacer()
-                    Button("Choose…") { chooseKey() }
-                }
-            case .none:
-                Text("Select an auth method to enable ssh().")
+            Button {
+                hosts.append(SSHConfig(name: suggestedName()))
+                push()
+            } label: {
+                Label("Add Server", systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption)
+            if hosts.count > 1 {
+                Text("Plugins target a server by name: ssh(cmd, \"\(hosts[1].name)\").")
                     .font(.caption2).foregroundStyle(.tertiary)
             }
         }
         .onAppear {
-            host = item.ssh.host
-            port = String(item.ssh.port)
-            user = item.ssh.user
-            auth = item.ssh.auth
-            keyPath = item.ssh.keyPath
-            password = KeychainStore.password(forItem: item.id) ?? ""
+            hosts = item.sshHosts.isEmpty ? [SSHConfig()] : item.sshHosts
             isSeeded = true
         }
+    }
+
+    private func suggestedName() -> String {
+        var n = hosts.count + 1
+        while hosts.contains(where: { $0.name == "server\(n)" }) { n += 1 }
+        return "server\(n)"
     }
 
     private func push() {
         guard isSeeded else { return } // ignore the initial onAppear seed
         var updated = item
-        updated.ssh.host = host
-        updated.ssh.port = Int(port) ?? 22
-        updated.ssh.user = user
-        updated.ssh.auth = auth
-        updated.ssh.keyPath = keyPath
+        updated.sshHosts = hosts
         commit(updated)
+    }
+}
+
+private struct SSHHostRow: View {
+    @Binding var config: SSHConfig
+    let itemID: UUID
+    let aliases: [String]
+    let onChange: () -> Void
+    let onRemove: () -> Void
+    let canRemove: Bool
+
+    @State private var password = ""
+    @State private var isSeeded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                TextField("name", text: $config.name)
+                    .font(.caption.bold())
+                    .onChange(of: config.name) { _, _ in onChange() }
+                Spacer()
+                if canRemove {
+                    Button(role: .destructive) { onRemove() } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+
+            // Alias from ~/.ssh/config — supplies user, port, and identity.
+            if !aliases.isEmpty {
+                Picker("Alias", selection: aliasBinding) {
+                    Text("Custom…").tag("")
+                    ForEach(aliases, id: \.self) { Text($0).tag($0) }
+                }
+            }
+
+            TextField("Host or ~/.ssh/config alias", text: $config.host)
+                .onChange(of: config.host) { _, _ in onChange() }
+
+            DisclosureGroup("Overrides") {
+                TextField("User (blank = from ssh config)", text: $config.user)
+                    .onChange(of: config.user) { _, _ in onChange() }
+                TextField("Port", value: $config.port, format: .number)
+                    .onChange(of: config.port) { _, _ in onChange() }
+                Picker("Auth", selection: $config.auth) {
+                    Text("ssh config / agent").tag(SSHAuth.none)
+                    Text("Password").tag(SSHAuth.password)
+                    Text("Identity Key").tag(SSHAuth.key)
+                }
+                .onChange(of: config.auth) { _, _ in onChange() }
+
+                switch config.auth {
+                case .password:
+                    SecureField("Password", text: $password)
+                        .onChange(of: password) { _, newValue in
+                            guard isSeeded else { return }
+                            KeychainStore.setPassword(newValue, forItem: itemID, host: config.id)
+                            onChange()
+                        }
+                    Text("Stored in your login Keychain, never in layout.json.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                case .key:
+                    HStack {
+                        Text(config.keyPath.isEmpty ? "No key selected"
+                             : (config.keyPath as NSString).lastPathComponent)
+                            .font(.caption)
+                            .foregroundStyle(config.keyPath.isEmpty ? .tertiary : .secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                        Spacer()
+                        Button("Choose…") { chooseKey() }
+                    }
+                case .none:
+                    Text("Uses ~/.ssh/config and your agent — nothing else to set.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+            .font(.caption)
+        }
+        .onAppear {
+            password = KeychainStore.password(forItem: itemID, host: config.id) ?? ""
+            isSeeded = true
+        }
+    }
+
+    /// Picking an alias fills the host field; editing host by hand clears it.
+    private var aliasBinding: Binding<String> {
+        Binding(
+            get: { aliases.contains(config.host) ? config.host : "" },
+            set: { newValue in
+                guard !newValue.isEmpty else { return }
+                config.host = newValue
+                if config.name.isEmpty || config.name.hasPrefix("server") || config.name == "default" {
+                    config.name = newValue
+                }
+                onChange()
+            }
+        )
     }
 
     private func chooseKey() {
@@ -393,12 +478,11 @@ private struct SSHEditor: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.message = "Choose an SSH identity (private key) file"
-        // ~/.ssh is hidden; let the user reveal it.
         panel.showsHiddenFiles = true
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        keyPath = url.path
-        push()
+        config.keyPath = url.path
+        onChange()
     }
 }
 

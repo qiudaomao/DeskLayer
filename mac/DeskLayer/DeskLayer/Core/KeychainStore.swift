@@ -12,8 +12,14 @@ import Security
 nonisolated enum KeychainStore {
     private static let service = "com.qiudaomao.DeskLayer.ssh"
 
-    static func setPassword(_ password: String?, forItem id: UUID) {
-        let account = id.uuidString
+    /// One password per (item, SSH host config).
+    private static func account(_ id: UUID, _ hostID: UUID?) -> String {
+        guard let hostID else { return id.uuidString }
+        return "\(id.uuidString)/\(hostID.uuidString)"
+    }
+
+    static func setPassword(_ password: String?, forItem id: UUID, host hostID: UUID? = nil) {
+        let account = account(id, hostID)
         // Clear any existing entry first (also the delete-then-set path).
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -29,11 +35,11 @@ nonisolated enum KeychainStore {
         SecItemAdd(add as CFDictionary, nil)
     }
 
-    static func password(forItem id: UUID) -> String? {
+    static func password(forItem id: UUID, host hostID: UUID? = nil) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: id.uuidString,
+            kSecAttrAccount as String: account(id, hostID),
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -43,7 +49,7 @@ nonisolated enum KeychainStore {
         return String(data: data, encoding: .utf8)
     }
 
-    static func hasPassword(forItem id: UUID) -> Bool {
-        password(forItem: id) != nil
+    static func hasPassword(forItem id: UUID, host hostID: UUID? = nil) -> Bool {
+        password(forItem: id, host: hostID) != nil
     }
 }

@@ -37,6 +37,7 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
     /// coordinator at spawn. nil until the user configures one — ssh() then
     /// rejects with a clear error.
     struct ResolvedSSH: Sendable {
+        var name: String = "default"
         var host: String
         var port: Int
         var user: String
@@ -44,7 +45,20 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
         var keyPath: String
         var password: String?
     }
-    var ssh: ResolvedSSH?
+    /// Configured destinations in inspector order; ssh(argv) targets the
+    /// first, ssh(argv, "name") targets one by name.
+    var sshHosts: [ResolvedSSH] = [] {
+        didSet { publishHostNames() }
+    }
+    /// Set by install(): lets us refresh $ssh.hosts when destinations change.
+    private weak var jsContext: JSContext?
+
+    private func publishHostNames() {
+        guard let jsContext else { return }
+        let names = sshHosts.map(\.name)
+        jsContext.setObject(names, forKeyedSubscript: "__dl_ssh_hosts" as NSString)
+        jsContext.evaluateScript("if (typeof $ssh === 'object') { $ssh.hosts = __dl_ssh_hosts; }")
+    }
     private let stats = SystemStats()
     private var isInvalidated = false
     var afterCallback: (@Sendable () -> Void)?
@@ -124,15 +138,18 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
         }
         context.setObject(applescript, forKeyedSubscript: "__dl_applescript" as NSString)
 
-        // ssh(argv) — run a command on the item's configured remote host.
-        let ssh: @convention(block) (JSValue, JSValue, JSValue) -> Void = { [weak self] argv, resolve, reject in
+        // ssh(argv, hostName?) — run a command on a configured destination.
+        jsContext = context
+        let ssh: @convention(block) (JSValue, JSValue, JSValue, JSValue, JSValue) -> Void = { [weak self] argv, hostName, raw, resolve, reject in
             guard let self else { return }
             guard self.permissions.contains("ssh") else {
                 reject.call(withArguments: ["permission 'ssh' not granted (add it to plugin.export.permissions)"])
                 return
             }
             let args = (argv.toArray() ?? []).map { String(describing: $0) }
-            self.runSSH(argv: args, resolve: resolve, reject: reject)
+            let name = hostName.isString ? hostName.toString() : nil
+            self.runSSH(argv: args, hostName: name, isRawCommand: raw.toBool(),
+                        resolve: resolve, reject: reject)
         }
         context.setObject(ssh, forKeyedSubscript: "__dl_ssh" as NSString)
 
@@ -182,12 +199,15 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
         });
     }
     // ssh('uptime') or ssh(['cat', '/proc/cpuinfo']) — runs on the item's
-    // configured remote host. A string is sent to the remote shell; an
-    // array is passed as argv (no local shell parsing).
-    function ssh(cmd) {
-        var argv = Array.isArray(cmd) ? cmd : [String(cmd)];
+    // first configured destination. Pass a name to target another:
+    // ssh(['uptime'], 'nas'). $ssh.hosts lists configured names.
+    var $ssh = { hosts: [] };
+    function ssh(cmd, host) {
+        var isRaw = !Array.isArray(cmd);           // string → remote shell
+        var argv = isRaw ? [String(cmd)] : cmd;    // array → exec-like argv
         return new Promise(function (resolve, reject) {
-            __dl_ssh(argv, resolve, function (e) { reject(new Error(e)); });
+            __dl_ssh(argv, host === undefined ? null : String(host), isRaw, resolve,
+                     function (e) { reject(new Error(e)); });
         });
     }
     // The port is owned by the app; plugins only register handlers.
@@ -240,25 +260,44 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
 
     // MARK: - ssh
 
-    private func runSSH(argv: [String], resolve: JSValue, reject: JSValue) {
+    /// POSIX single-quoting so an argument survives the remote shell.
+    private static func shellQuoted(_ s: String) -> String {
+        if s.isEmpty { return "''" }
+        let safe = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./=:@%+,")
+        if s.allSatisfy({ safe.contains($0) }) { return s }
+        return "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private func runSSH(argv: [String], hostName: String?, isRawCommand: Bool, resolve: JSValue, reject: JSValue) {
         guard !isInvalidated else { return }
-        guard let config = ssh, !config.host.isEmpty, !config.user.isEmpty else {
-            onQueue { reject.call(withArguments: ["no SSH destination configured for this item (set it in the inspector)"]) }
+        let match = hostName.flatMap { name in sshHosts.first { $0.name == name } } ?? sshHosts.first
+        guard let config = match, !config.host.isEmpty else {
+            let detail = hostName.map { "no SSH destination named '\($0)'" }
+                ?? "no SSH destination configured for this item (set it in the inspector)"
+            onQueue { reject.call(withArguments: [detail]) }
             return
         }
         DispatchQueue.global(qos: .utility).async { [weak self] in
+            // Password auth needs an interactive prompt (fed via SSH_ASKPASS);
+            // everything else runs non-interactively.
+            let usesPassword = !config.usesKey && (config.password?.isEmpty == false)
             var sshArgs = [
-                "-o", "BatchMode=" + (config.usesKey ? "yes" : "no"),
+                "-o", "BatchMode=" + (usesPassword ? "no" : "yes"),
                 "-o", "StrictHostKeyChecking=accept-new",
                 "-o", "ConnectTimeout=10",
-                "-p", String(config.port),
             ]
+            if config.port != 22 { sshArgs += ["-p", String(config.port)] }
             if config.usesKey, !config.keyPath.isEmpty {
                 sshArgs += ["-i", (config.keyPath as NSString).expandingTildeInPath, "-o", "IdentitiesOnly=yes"]
             }
-            sshArgs.append("\(config.user)@\(config.host)")
-            // argv passed as remote command; ssh joins them for the remote shell.
-            sshArgs += argv
+            // A bare host name resolves through ~/.ssh/config (alias, user,
+            // key, port); user@host is used only when a user is given.
+            sshArgs.append(config.user.isEmpty ? config.host : "\(config.user)@\(config.host)")
+            // ssh joins the remaining words with spaces and the REMOTE shell
+            // re-parses them, so an argv array must be shell-quoted to reach
+            // the far side intact (ssh(['sh','-c',script]) then behaves like
+            // exec). A raw string is passed through for shell interpretation.
+            sshArgs += isRawCommand ? argv : argv.map(Self.shellQuoted)
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")

@@ -184,17 +184,9 @@ final class RuntimeCoordinator: ObservableObject {
         let itemID = layoutItem.id
         let isFloating = layoutItem.target == .floatingWindow
 
-        // Supply the ssh() destination (password read from Keychain).
-        if instance.permissions.contains("ssh"), layoutItem.ssh.isConfigured {
-            let cfg = layoutItem.ssh
-            instance.configureSSH(HostBindings.ResolvedSSH(
-                host: cfg.host,
-                port: cfg.port,
-                user: cfg.user,
-                usesKey: cfg.auth == .key,
-                keyPath: cfg.keyPath,
-                password: cfg.auth == .password ? KeychainStore.password(forItem: itemID) : nil
-            ))
+        // Supply the ssh() destinations (passwords read from the Keychain).
+        if instance.permissions.contains("ssh") {
+            instance.configureSSH(Self.resolveSSH(for: layoutItem))
         }
 
         // Wire $server.on(...) to the shared app-level hook receiver.
@@ -354,15 +346,24 @@ final class RuntimeCoordinator: ObservableObject {
         suppressRebuild = false
         guard let runningItem = running[updated.id],
               runningItem.instance.permissions.contains("ssh") else { return }
-        let cfg = updated.ssh
-        runningItem.instance.configureSSH(cfg.isConfigured ? HostBindings.ResolvedSSH(
-            host: cfg.host,
-            port: cfg.port,
-            user: cfg.user,
-            usesKey: cfg.auth == .key,
-            keyPath: cfg.keyPath,
-            password: cfg.auth == .password ? KeychainStore.password(forItem: updated.id) : nil
-        ) : nil)
+        runningItem.instance.configureSSH(Self.resolveSSH(for: updated))
+    }
+
+    /// Layout SSH configs → runtime destinations, pulling each password from
+    /// the Keychain (never stored in layout.json).
+    static func resolveSSH(for item: LayoutItem) -> [HostBindings.ResolvedSSH] {
+        item.sshHosts.filter(\.isConfigured).map { cfg in
+            HostBindings.ResolvedSSH(
+                name: cfg.name,
+                host: cfg.host,
+                port: cfg.port,
+                user: cfg.user,
+                usesKey: cfg.auth == .key,
+                keyPath: cfg.keyPath,
+                password: cfg.auth == .password
+                    ? KeychainStore.password(forItem: item.id, host: cfg.id) : nil
+            )
+        }
     }
 
     /// Live frame updates from canvas drags. Moves reposition the running

@@ -88,6 +88,31 @@ public struct NodeView: View {
             // Plain colored rectangle — the primitive for custom bars,
             // dividers, and rules. Color comes from .background(...).
             return AnyView(Rectangle().fill(Color.clear))
+        case "Ring":
+            // Donut gauge. Ring(to) draws 0…to; Ring(from, to) draws an arc
+            // segment, so several stacked Rings make a segmented ring.
+            // .lineWidth(pt), .ringColor(css), .trackColor(css).
+            let parts = (node.text ?? "0,0").split(separator: ",").map { Double($0) ?? 0 }
+            let from = min(max(parts.count > 1 ? parts[0] : 0, 0), 1)
+            let to = min(max(parts.count > 1 ? parts[1] : (parts.first ?? 0), 0), 1)
+            let lineWidth = CGFloat(modifierDouble(named: "lineWidth") ?? 8)
+            let track = color(modifierString(named: "trackColor"))
+            let tint = color(modifierString(named: "ringColor")) ?? .green
+            // Segments butt against each other, so only a full 0…1 arc uses
+            // a round cap; partial segments stay flat to avoid overlap.
+            let cap: CGLineCap = (from == 0 && to < 1) ? .round : .butt
+            return AnyView(
+                ZStack {
+                    if let track {
+                        Circle().stroke(track, lineWidth: lineWidth)
+                    }
+                    Circle()
+                        .trim(from: from, to: max(to, from))
+                        .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: cap))
+                        .rotationEffect(.degrees(-90)) // start at 12 o'clock
+                }
+                .padding(lineWidth / 2)
+            )
         case "Spinner":
             return AnyView(ProgressView().controlSize(.small))
         case "ProgressBar":
@@ -116,6 +141,11 @@ public struct NodeView: View {
     /// String value of the first arg of a named modifier.
     private func modifierString(named name: String) -> String? {
         node.modifiers?.first { $0.name == name }?.firstString
+    }
+
+    /// Numeric value of the first arg of a named modifier.
+    private func modifierDouble(named name: String) -> Double? {
+        node.modifiers?.first { $0.name == name }?.firstDouble
     }
 
     /// The action id carried by a modifier (onTap / onTapGesture), if any.
@@ -199,7 +229,8 @@ public struct NodeView: View {
         case "spacing",       // consumed by stack construction
              "onTap",         // consumed by Button
              "onChange",      // consumed by TextField
-             "value", "loop", "muted": // consumed by TextField / Video
+             "value", "loop", "muted",          // TextField / Video
+             "lineWidth", "ringColor", "trackColor": // Ring
             return view
         default:
             nodeLog.error("NodeView: unknown modifier \(modifier.name, privacy: .public)")

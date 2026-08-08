@@ -20,18 +20,50 @@ nonisolated enum SSHAuth: String, Codable {
 }
 
 /// Remote destination for the ssh() host binding. The password is NOT stored
-/// here — it lives in the Keychain, keyed by the item id.
-nonisolated struct SSHConfig: Codable, Hashable {
+/// here — it lives in the Keychain, keyed by the item id + host name.
+nonisolated struct SSHConfig: Codable, Hashable, Identifiable {
+    /// Stable id so the inspector can edit a list of hosts.
+    var id: UUID = UUID()
+    /// The name plugins use to target this host: ssh(argv, "nas").
+    var name: String = "default"
     var host: String = ""
     var port: Int = 22
     var user: String = ""
     var auth: SSHAuth = .none
     var keyPath: String = ""
 
-    var isConfigured: Bool { !host.isEmpty && !user.isEmpty && auth != .none }
+    /// A host name alone is enough: it may be a ~/.ssh/config alias, which
+    /// supplies user, port, and identity. User/auth are optional overrides.
+    var isConfigured: Bool { !host.isEmpty }
+
+    private enum CodingKeys: String, CodingKey { case id, name, host, port, user, auth, keyPath }
+
+    init(id: UUID = UUID(), name: String = "default", host: String = "", port: Int = 22,
+         user: String = "", auth: SSHAuth = .none, keyPath: String = "") {
+        self.id = id; self.name = name; self.host = host
+        self.port = port; self.user = user; self.auth = auth; self.keyPath = keyPath
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "default"
+        host = try c.decodeIfPresent(String.self, forKey: .host) ?? ""
+        port = try c.decodeIfPresent(Int.self, forKey: .port) ?? 22
+        user = try c.decodeIfPresent(String.self, forKey: .user) ?? ""
+        auth = try c.decodeIfPresent(SSHAuth.self, forKey: .auth) ?? .none
+        keyPath = try c.decodeIfPresent(String.self, forKey: .keyPath) ?? ""
+    }
 }
 
 nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
+    // `ssh` is a computed accessor for sshHosts.first, but the key stays so
+    // layouts written before multi-host support still decode.
+    private enum CodingKeys: String, CodingKey {
+        case id, pluginID, displayUUID, normalizedFrame, target, propertyOverrides
+        case isEnabled, zOrder, clickThrough, backgroundColor, sshHosts, ssh
+    }
+
     var id: UUID
     var pluginID: String
     /// Stable across reboots/reconnects (CGDisplayCreateUUIDFromDisplayID),
@@ -50,8 +82,17 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
     /// Backdrop behind the plugin's own drawing. nil = fully transparent
     /// (default); otherwise a CSS color string (#rrggbbaa supported).
     var backgroundColor: String?
-    /// Remote destination for the ssh() binding (empty until configured).
-    var ssh: SSHConfig
+    /// Remote destinations for the ssh() binding. A plugin can target one by
+    /// name — ssh(argv, "nas") — or iterate $ssh.hosts to render several.
+    var sshHosts: [SSHConfig]
+
+    /// The first host, for single-destination plugins.
+    var ssh: SSHConfig {
+        get { sshHosts.first ?? SSHConfig() }
+        set {
+            if sshHosts.isEmpty { sshHosts = [newValue] } else { sshHosts[0] = newValue }
+        }
+    }
 
     init(
         id: UUID = UUID(),
@@ -64,7 +105,7 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         zOrder: Int = 0,
         clickThrough: Bool = false,
         backgroundColor: String? = nil,
-        ssh: SSHConfig = SSHConfig()
+        sshHosts: [SSHConfig] = []
     ) {
         self.id = id
         self.pluginID = pluginID
@@ -76,7 +117,7 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         self.zOrder = zOrder
         self.clickThrough = clickThrough
         self.backgroundColor = backgroundColor
-        self.ssh = ssh
+        self.sshHosts = sshHosts
     }
 
     // Custom decoding so layouts written before a field existed still load
@@ -93,7 +134,31 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         zOrder = try container.decodeIfPresent(Int.self, forKey: .zOrder) ?? 0
         clickThrough = try container.decodeIfPresent(Bool.self, forKey: .clickThrough) ?? false
         backgroundColor = try container.decodeIfPresent(String.self, forKey: .backgroundColor)
-        ssh = try container.decodeIfPresent(SSHConfig.self, forKey: .ssh) ?? SSHConfig()
+        // Layouts written before multi-host support carry a single `ssh`.
+        if let hosts = try container.decodeIfPresent([SSHConfig].self, forKey: .sshHosts) {
+            sshHosts = hosts
+        } else if let legacy = try container.decodeIfPresent(SSHConfig.self, forKey: .ssh) {
+            sshHosts = [legacy]
+        } else {
+            sshHosts = []
+        }
+    }
+
+    // Explicit: `ssh` is a computed accessor (decode-only, for old layouts),
+    // so the synthesized encoder can't be used.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(pluginID, forKey: .pluginID)
+        try c.encode(displayUUID, forKey: .displayUUID)
+        try c.encode(normalizedFrame, forKey: .normalizedFrame)
+        try c.encode(target, forKey: .target)
+        try c.encode(propertyOverrides, forKey: .propertyOverrides)
+        try c.encode(isEnabled, forKey: .isEnabled)
+        try c.encode(zOrder, forKey: .zOrder)
+        try c.encode(clickThrough, forKey: .clickThrough)
+        try c.encodeIfPresent(backgroundColor, forKey: .backgroundColor)
+        try c.encode(sshHosts, forKey: .sshHosts)
     }
 }
 

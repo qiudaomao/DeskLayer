@@ -23,7 +23,8 @@ nonisolated enum JSUIPrelude {
     (function (global) {
         var MODIFIERS = ['textColor', 'foregroundColor', 'fontSize', 'font', 'bold',
                          'padding', 'background', 'cornerRadius', 'frame', 'opacity',
-                         'spacing', 'value', 'loop', 'muted', 'lineLimit'];
+                         'spacing', 'value', 'loop', 'muted', 'lineLimit',
+                         'lineWidth', 'ringColor', 'trackColor'];
 
         global.__dl_actions = {};
         var nextActionId = 1;
@@ -96,6 +97,14 @@ nonisolated enum JSUIPrelude {
         // Plain rectangle: size it with .frame(w,h) and color it with
         // .background(css) — the building block for bars and dividers.
         global.Rect = function () { return makeNode('Rect', null, []); };
+        // Ring(to) draws 0…to; Ring(from, to) draws an arc segment, so
+        // stacking Rings in a ZStack makes a segmented ring — all in JS.
+        // .lineWidth(pt), .ringColor(css), .trackColor(css); .frame(w,h).
+        global.Ring = function (a, b) {
+            var from = b === undefined ? 0 : a;
+            var to = b === undefined ? a : b;
+            return makeNode('Ring', String(from) + ',' + String(to), []);
+        };
         global.Spinner = function () { return makeNode('Spinner', null, []); };
         // ProgressBar(value) — value 0…1.
         global.ProgressBar = function (value) { return makeNode('ProgressBar', String(value), []); };
