@@ -64,6 +64,8 @@ nonisolated enum SamplePlugins {
         version: "1.0.0",
         author: "DeskLayer",
         description: "Interactive counter — buttons, a text field, and tap callbacks. Use as a floating window.",
+        width: 260, height: 220,
+        resizable: false,   // fixed-size card: SwiftUI lays it out at its natural size
         properties,
         render
     };

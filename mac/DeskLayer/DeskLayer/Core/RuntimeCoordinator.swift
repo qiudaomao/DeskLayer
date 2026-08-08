@@ -320,6 +320,12 @@ final class RuntimeCoordinator: ObservableObject {
     /// JS context without a runtime rebuild. fps is consumed by the Swift
     /// scheduler at spawn, so an fps edit rebuilds instead.
     func applyOverride(itemID: UUID, name: String, value: PropertyValue) {
+        // A no-op edit must never rebuild: selecting an item re-seeds the
+        // inspector's editors, and an fps/interval "change" to the same value
+        // would otherwise respawn every plugin (visible flash).
+        if let current = effectiveProperty(itemID: itemID, name: name), current == value {
+            return
+        }
         running[itemID]?.instance.applyOverride(name: name, value: value)
         if var item = store.layout.items.first(where: { $0.id == itemID }) {
             item.propertyOverrides[name] = value
@@ -403,6 +409,15 @@ final class RuntimeCoordinator: ObservableObject {
         } else if commit && sizeChanged {
             rebuild()
         }
+    }
+
+    /// The value a property currently has for an item: its saved override,
+    /// else the running instance's (declared) value.
+    func effectiveProperty(itemID: UUID, name: String) -> PropertyValue? {
+        if let override = store.layout.items.first(where: { $0.id == itemID })?.propertyOverrides[name] {
+            return override
+        }
+        return running[itemID]?.instance.property(named: name)
     }
 
     /// console.log output of a running item, for the inspector's log panel.

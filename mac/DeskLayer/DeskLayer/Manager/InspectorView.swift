@@ -77,10 +77,15 @@ struct InspectorView: View {
                 }
 
                 Section("Frame (% of screen)") {
-                    FrameEditor(item: item) { newFrame in
+                    let resizable = registry.metadata(for: item.pluginID).resizable
+                    FrameEditor(item: item, resizable: resizable) { newFrame in
                         coordinator.setFrame(itemID: item.id, normalizedFrame: newFrame, commit: true)
                     }
                     .id(item.id)
+                    if !resizable {
+                        Text("This plugin declares a fixed size (resizable: false).")
+                            .font(.caption2).foregroundStyle(.tertiary)
+                    }
                 }
 
                 Section("Properties") {
@@ -282,17 +287,20 @@ private struct BackgroundColorEditor: View {
     let onChange: (String?) -> Void
     @State private var isCustom = false
     @State private var color = Color.black.opacity(0.6)
+    @State private var isSeeded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("Background", isOn: $isCustom)
                 .onChange(of: isCustom) { _, on in
+                    guard isSeeded else { return }
                     onChange(on ? (color.hexString() ?? "#000000FF") : nil)
                 }
             if isCustom {
                 ColorPicker("Color", selection: $color, supportsOpacity: true)
                     .onChange(of: color) { _, newValue in
-                        if isCustom { onChange(newValue.hexString()) }
+                        guard isSeeded, isCustom else { return }
+                        onChange(newValue.hexString())
                     }
                 Text("Set opacity to 0 for a see-through tint.")
                     .font(.caption2).foregroundStyle(.tertiary)
@@ -303,6 +311,7 @@ private struct BackgroundColorEditor: View {
         .onAppear {
             isCustom = hex != nil
             if let hex, let parsed = Color(hexString: hex) { color = parsed }
+            isSeeded = true
         }
     }
 }
@@ -319,6 +328,7 @@ private struct SSHEditor: View {
     @State private var auth = SSHAuth.none
     @State private var keyPath = ""
     @State private var password = ""
+    @State private var isSeeded = false
 
     var body: some View {
         Group {
@@ -336,8 +346,9 @@ private struct SSHEditor: View {
             case .password:
                 SecureField("Password", text: $password)
                     .onChange(of: password) { _, newValue in
+                        guard isSeeded else { return }
                         KeychainStore.setPassword(newValue, forItem: item.id)
-                        commit(item) // re-spawn so ssh() picks up the new secret
+                        commit(item) // re-resolve ssh() with the new secret
                     }
                 Text("Stored in your login Keychain, never in layout.json.")
                     .font(.caption2).foregroundStyle(.tertiary)
@@ -361,10 +372,12 @@ private struct SSHEditor: View {
             auth = item.ssh.auth
             keyPath = item.ssh.keyPath
             password = KeychainStore.password(forItem: item.id) ?? ""
+            isSeeded = true
         }
     }
 
     private func push() {
+        guard isSeeded else { return } // ignore the initial onAppear seed
         var updated = item
         updated.ssh.host = host
         updated.ssh.port = Int(port) ?? 22
@@ -393,6 +406,7 @@ private struct SSHEditor: View {
 
 private struct FrameEditor: View {
     let item: LayoutItem
+    var resizable: Bool = true
     let commit: (CGRect) -> Void
 
     @State private var x = 0.0
@@ -405,7 +419,9 @@ private struct FrameEditor: View {
             percentField("X", value: $x)
             percentField("Y (from bottom)", value: $y)
             percentField("Width", value: $width)
+                .disabled(!resizable)
             percentField("Height", value: $height)
+                .disabled(!resizable)
         }
         .onAppear { load() }
         .onChange(of: item.normalizedFrame) { _, _ in load() }
@@ -456,16 +472,25 @@ private struct PropertyEditorRow: View {
     }
 }
 
+// Each editor seeds its draft from the model in onAppear. That seed must NOT
+// commit: selecting an item would otherwise fire onChange for every property,
+// and an fps/interval "edit" rebuilds the whole runtime — flashing every
+// widget on screen. `isSeeded` gates commits until the user actually types.
+
 private struct StringEditor: View {
     let name: String
     let value: String
     let commit: (PropertyValue) -> Void
     @State private var draft = ""
+    @State private var isSeeded = false
 
     var body: some View {
         TextField(name, text: $draft)
-            .onAppear { draft = value }
-            .onChange(of: draft) { _, newValue in commit(.string(newValue)) }
+            .onAppear { draft = value; isSeeded = true }
+            .onChange(of: draft) { _, newValue in
+                guard isSeeded, newValue != value else { return }
+                commit(.string(newValue))
+            }
     }
 }
 
@@ -474,16 +499,23 @@ private struct NumberEditor: View {
     let value: Double
     let commit: (PropertyValue) -> Void
     @State private var draft = 0.0
+    @State private var isSeeded = false
 
     var body: some View {
         HStack {
             TextField(name, value: $draft, format: .number)
-                .onSubmit { commit(.number(draft)) }
+                .onSubmit {
+                    guard draft != value else { return }
+                    commit(.number(draft))
+                }
             Stepper("", value: $draft, step: 1)
                 .labelsHidden()
-                .onChange(of: draft) { _, newValue in commit(.number(newValue)) }
+                .onChange(of: draft) { _, newValue in
+                    guard isSeeded, newValue != value else { return }
+                    commit(.number(newValue))
+                }
         }
-        .onAppear { draft = value }
+        .onAppear { draft = value; isSeeded = true }
     }
 }
 
@@ -492,14 +524,17 @@ private struct ColorEditor: View {
     let hex: String
     let commit: (PropertyValue) -> Void
     @State private var draft = Color.white
+    @State private var isSeeded = false
 
     var body: some View {
         ColorPicker(name, selection: $draft, supportsOpacity: true)
-            .onAppear { draft = Color(hexString: hex) ?? .white }
+            .onAppear {
+                draft = Color(hexString: hex) ?? .white
+                isSeeded = true
+            }
             .onChange(of: draft) { _, newValue in
-                if let hexString = newValue.hexString() {
-                    commit(.color(hexString))
-                }
+                guard isSeeded, let hexString = newValue.hexString(), hexString != hex else { return }
+                commit(.color(hexString))
             }
     }
 }
