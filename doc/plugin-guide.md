@@ -59,8 +59,38 @@ re-scans automatically; re-add the item (or restart) to pick up code changes.
         logo.png
 ```
 
-Use **Open Plugins Folder** / **Import…** at the bottom of the plugin library.
-The `pluginID` is the file or folder name (without extension).
+Use **＋ → Add Plugin…** or **Open Plugins Folder** at the bottom of the plugin
+library. The `pluginID` is the file or folder name (without extension).
+
+The library groups plugins by where they came from — **Built-in**, **Examples**,
+**User Installed**, and one category per plugin store you add.
+
+### Publishing a plugin store
+
+A store is a JSON catalog at a URL. Add it with **＋ → Add Plugin Store…** and it
+becomes its own category; selecting a listed plugin shows its description and
+preview with an **Install** button.
+
+```json
+{
+  "name": "Acme Widgets",
+  "plugins": [
+    {
+      "name": "Clock",
+      "description": "A tasteful clock.",
+      "preview": "https://acme.example/clock.png",
+      "url": "https://acme.example/Clock.js",
+      "version": "1.2.0",
+      "author": "Acme"
+    }
+  ]
+}
+```
+
+Only `name` and `url` are required. `preview` is shown in the detail pane, so
+keep it a reasonable size. Selecting the store category itself shows the
+catalog URL, how many of its plugins are installed, a **Refresh**, and **Remove
+Store** (which only drops the listing — installed plugins stay).
 
 ---
 

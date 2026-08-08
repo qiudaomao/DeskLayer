@@ -18,7 +18,11 @@ struct InspectorView: View {
     @EnvironmentObject private var selection: ManagerSelection
 
     var body: some View {
-        if let pluginID = selection.pluginID {
+        if let ref = selection.storePlugin {
+            StorePluginDetailView(ref: ref)
+        } else if let storeID = selection.storeID {
+            StoreDetailView(storeID: storeID)
+        } else if let pluginID = selection.pluginID {
             PluginDetailView(pluginID: pluginID)
         } else if let item = selectedItem {
             Form {
@@ -216,6 +220,168 @@ private struct PluginLogPanel: View {
     }
 }
 
+// MARK: - Store details (category selection)
+
+private struct StoreDetailView: View {
+    let storeID: String
+    @EnvironmentObject private var stores: PluginStoreRegistry
+    @EnvironmentObject private var registry: PluginRegistry
+    @EnvironmentObject private var selection: ManagerSelection
+    @State private var confirmRemove = false
+
+    var body: some View {
+        let entry = stores.stores.first { $0.id == storeID }
+        Form {
+            Section(entry?.displayName ?? "Store") {
+                LabeledContent("Kind", value: "Plugin Store")
+                LabeledContent("Plugins", value: "\(entry?.catalog?.plugins.count ?? 0)")
+                let installed = entry?.catalog?.plugins.filter { plugin in
+                    registry.plugins.contains { $0.id == plugin.name }
+                }.count ?? 0
+                LabeledContent("Installed", value: "\(installed)")
+                if let error = entry?.lastError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Section("Catalog URL") {
+                Text(entry?.url ?? "—")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    Task { await stores.refreshAll() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(stores.isRefreshing)
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    confirmRemove = true
+                } label: {
+                    Label("Remove Store", systemImage: "trash")
+                }
+                .buttonStyle(.borderless)
+                Text("Removing a store only drops its listing. Plugins you already installed from it stay on disk.")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle("Store")
+        .confirmationDialog(
+            "Remove \(entry?.displayName ?? "this store")?",
+            isPresented: $confirmRemove,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Store", role: .destructive) {
+                stores.removeStore(storeID)
+                selection.storeID = nil
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its catalog disappears from the library. Installed plugins are untouched.")
+        }
+    }
+}
+
+// MARK: - Store plugin details (not-yet-installed listing)
+
+private struct StorePluginDetailView: View {
+    let ref: StorePluginRef
+    @EnvironmentObject private var stores: PluginStoreRegistry
+    @EnvironmentObject private var registry: PluginRegistry
+    @EnvironmentObject private var selection: ManagerSelection
+    @State private var isInstalling = false
+    @State private var installError: String?
+
+    var body: some View {
+        let entry = stores.stores.first { $0.id == ref.storeID }
+        let plugin = entry?.catalog?.plugins.first { $0.name == ref.name }
+        let isInstalled = registry.plugins.contains { $0.id == ref.name }
+
+        Form {
+            Section(plugin?.name ?? ref.name) {
+                if let preview = plugin?.preview, let url = URL(string: preview) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        case .failure:
+                            Label("Preview unavailable", systemImage: "photo")
+                                .font(.caption).foregroundStyle(.tertiary)
+                        case .empty:
+                            ProgressView().frame(maxWidth: .infinity)
+                        @unknown default: Color.clear
+                        }
+                    }
+                    .frame(maxHeight: 160)
+                }
+                if let description = plugin?.description {
+                    Text(description)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                LabeledContent("From", value: entry?.displayName ?? "—")
+                if let version = plugin?.version { LabeledContent("Version", value: version) }
+                if let author = plugin?.author { LabeledContent("Author", value: author) }
+            }
+
+            Section {
+                if isInstalled {
+                    Label("Installed", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Button {
+                        selection.pluginID = ref.name   // jump to the local details
+                    } label: {
+                        Label("Show Installed Plugin", systemImage: "arrow.right.circle")
+                    }
+                    .buttonStyle(.borderless)
+                } else {
+                    Button {
+                        install(plugin)
+                    } label: {
+                        if isInstalling {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("Install", systemImage: "arrow.down.circle")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(isInstalling || plugin == nil)
+                }
+                if let installError {
+                    Label(installError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle("Store Plugin")
+    }
+
+    private func install(_ plugin: StorePlugin?) {
+        guard let plugin, let storeName = stores.stores.first(where: { $0.id == ref.storeID })?.displayName
+        else { return }
+        isInstalling = true
+        installError = nil
+        Task {
+            let error = await stores.install(plugin, from: storeName, into: PluginRegistry.directoryURL)
+            installError = error
+            registry.rescan()
+            isInstalling = false
+        }
+    }
+}
+
 // MARK: - Plugin details (library selection) — read-only, plus uninstall
 
 private struct PluginDetailView: View {
@@ -233,7 +399,7 @@ private struct PluginDetailView: View {
 
         Form {
             Section(pluginID) {
-                LabeledContent("Kind", value: origin.rawValue)
+                LabeledContent("Kind", value: origin.title)
                 LabeledContent("Version", value: meta.version ?? "—")
                 if let author = meta.author { LabeledContent("Author", value: author) }
                 if let summary = meta.summary {

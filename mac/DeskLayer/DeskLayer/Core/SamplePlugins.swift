@@ -13,10 +13,13 @@ nonisolated enum SamplePlugins {
     /// Plugins the app maintains — always present, not removable.
     static let builtinNames: Set<String> = ["AnalogClock", "SystemMonitor", "RemoteMonitor"]
 
-    /// Everything else bundled is an example the user may uninstall.
+    /// Bundled plugins are built-in or examples; a plugin installed from a
+    /// store keeps that store's category; anything else is user-installed.
     static func origin(of name: String) -> PluginOrigin {
         if builtinNames.contains(name) { return .builtin }
-        return all[name] != nil ? .example : .user
+        if all[name] != nil { return .example }
+        if let store = PluginStoreRegistry.storeName(forPlugin: name) { return .store(store) }
+        return .user
     }
 
     /// Samples are canonical: (re)written whenever the bundled source

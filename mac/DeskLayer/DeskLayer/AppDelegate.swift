@@ -25,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let layoutStore = LayoutStore()
     private let screenManager = ScreenManager()
     private let pluginRegistry = PluginRegistry()
+    private let storeRegistry = PluginStoreRegistry()
     private var coordinator: RuntimeCoordinator?
     private var managerWindow: ManagerWindowController?
     private var statusItem: StatusItemController?
@@ -38,11 +39,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.coordinator = coordinator
         coordinator.start()
 
+        storeRegistry.load()
         let manager = ManagerWindowController(
             store: layoutStore,
             registry: pluginRegistry,
             screens: screenManager,
-            coordinator: coordinator
+            coordinator: coordinator,
+            stores: storeRegistry
         )
         managerWindow = manager
         statusItem = StatusItemController(coordinator: coordinator) { [weak manager] in

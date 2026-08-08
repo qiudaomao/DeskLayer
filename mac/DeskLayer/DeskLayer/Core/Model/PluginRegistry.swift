@@ -13,13 +13,27 @@ import os
 
 /// Where a plugin came from — drives grouping in the library and whether it
 /// can be uninstalled.
-nonisolated enum PluginOrigin: String, CaseIterable {
-    case builtin = "Built-in"
-    case example = "Examples"
-    case user = "User Installed"
+nonisolated enum PluginOrigin: Hashable {
+    case builtin
+    case example
+    case user
+    /// Installed from a plugin store, grouped under its name.
+    case store(String)
+
+    var title: String {
+        switch self {
+        case .builtin: return "Built-in"
+        case .example: return "Examples"
+        case .user: return "User Installed"
+        case .store(let name): return name
+        }
+    }
 
     /// Built-ins ship with the app and can't be removed.
     var isRemovable: Bool { self != .builtin }
+
+    /// The local categories, in sidebar order (stores are appended after).
+    static let localCases: [PluginOrigin] = [.builtin, .example, .user]
 }
 
 nonisolated struct PluginDescriptor: Identifiable, Hashable {

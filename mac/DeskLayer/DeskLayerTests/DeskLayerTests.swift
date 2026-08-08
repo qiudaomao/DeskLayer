@@ -775,6 +775,57 @@ struct PluginInstanceTests {
         #expect(d.resizable == true)
     }
 
+    @Test func storeCatalogDecodesAndInstalls() async throws {
+        // Serve a catalog + plugin from a temp directory via file:// URLs.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-store-\(UUID().uuidString)", isDirectory: true)
+        let installDir = dir.appendingPathComponent("Plugins", isDirectory: true)
+        try FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let pluginURL = dir.appendingPathComponent("Greeting.js")
+        try """
+        let properties = [];
+        function render(ctx) {}
+        plugin.export = { version: "0.9.0", properties, render };
+        """.write(to: pluginURL, atomically: true, encoding: .utf8)
+
+        let catalogURL = dir.appendingPathComponent("catalog.json")
+        try """
+        {"name": "Demo Store", "plugins": [
+          {"name": "Greeting", "description": "Says hello.",
+           "preview": "https://example.com/p.png",
+           "url": "\(pluginURL.absoluteString)", "version": "0.9.0", "author": "Demo"}
+        ]}
+        """.write(to: catalogURL, atomically: true, encoding: .utf8)
+
+        let registry = await PluginStoreRegistry()
+        let added = await registry.addStore(urlString: catalogURL.absoluteString)
+        #expect(added)
+        let entry = await registry.stores.first
+        #expect(entry?.catalog?.name == "Demo Store")
+        #expect(entry?.catalog?.plugins.first?.description == "Says hello.")
+        #expect(entry?.catalog?.plugins.first?.preview == "https://example.com/p.png")
+        #expect(entry?.displayName == "Demo Store")
+
+        // Installing writes the plugin into the plugins folder…
+        let plugin = try #require(entry?.catalog?.plugins.first)
+        let error = await registry.install(plugin, from: "Demo Store", into: installDir)
+        #expect(error == nil)
+        let installed = installDir.appendingPathComponent("Greeting.js")
+        #expect(FileManager.default.fileExists(atPath: installed.path))
+        // …and remembers which store it came from, so it groups there.
+        #expect(PluginStoreRegistry.storeName(forPlugin: "Greeting") == "Demo Store")
+        #expect(SamplePlugins.origin(of: "Greeting") == .store("Demo Store"))
+
+        // A bad URL is rejected rather than added.
+        let bad = await registry.addStore(urlString: dir.appendingPathComponent("nope.json").absoluteString)
+        #expect(bad == false)
+
+        // Cleanup the recorded origin so other runs start clean.
+        UserDefaults.standard.removeObject(forKey: "DeskLayer.pluginStoreOrigins")
+    }
+
     @Test func pluginOriginClassification() {
         // Built-ins are app-maintained and can't be removed; other bundled
         // samples are examples; anything else is user-installed.

@@ -19,9 +19,22 @@ final class ManagerSelection: ObservableObject {
     /// …or a plugin picked in the library. The inspector shows whichever is
     /// selected; they're mutually exclusive.
     @Published var pluginID: String? {
-        didSet { if pluginID != nil { itemID = nil } }
+        didSet { if pluginID != nil { itemID = nil; storeID = nil; storePlugin = nil } }
+    }
+    /// …or a store category (shows the store's details).
+    @Published var storeID: String? {
+        didSet { if storeID != nil { itemID = nil; pluginID = nil; storePlugin = nil } }
+    }
+    /// …or a not-yet-installed plugin listed by a store: (storeURL, name).
+    @Published var storePlugin: StorePluginRef? {
+        didSet { if storePlugin != nil { itemID = nil; pluginID = nil; storeID = nil } }
     }
     @Published var displayUUID: String?
+}
+
+nonisolated struct StorePluginRef: Hashable {
+    let storeID: String
+    let name: String
 }
 
 struct ManagerRootView: View {
@@ -59,6 +72,12 @@ struct ManagerRootView: View {
             if newValue != nil { isInspectorShown = true }
         }
         .onChange(of: selection.pluginID) { _, newValue in
+            if newValue != nil { isInspectorShown = true }
+        }
+        .onChange(of: selection.storeID) { _, newValue in
+            if newValue != nil { isInspectorShown = true }
+        }
+        .onChange(of: selection.storePlugin) { _, newValue in
             if newValue != nil { isInspectorShown = true }
         }
         .toolbar {
