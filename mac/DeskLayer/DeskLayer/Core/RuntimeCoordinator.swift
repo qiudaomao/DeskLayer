@@ -273,6 +273,11 @@ final class RuntimeCoordinator: ObservableObject {
             host.onTreeJSON = { [weak self] json in
                 self?.widgetPublisher.publishDeclarative(itemID: itemID, pluginID: pluginID, treeJSON: json)
             }
+            // Declarative content lays out at its natural size; adopt it so
+            // the desktop and the manager's virtual desktop agree.
+            host.onContentSize = { [weak self] size in
+                self?.adoptContentSize(itemID: itemID, size: size)
+            }
             hostView?.addSubview(host.hostingView)
             host.isPaused = isUserPaused
             host.start()
@@ -409,6 +414,54 @@ final class RuntimeCoordinator: ObservableObject {
             }
         } else if commit && sizeChanged {
             rebuild()
+        }
+    }
+
+    /// Resizes an item's frame to the content's natural size (keeping its
+    /// top-left anchored, which is how the user perceives placement). The
+    /// live view is resized directly and the model updated without a
+    /// rebuild, so the manager's preview matches what's on the desktop.
+    private func adoptContentSize(itemID: UUID, size: CGSize) {
+        guard var item = store.layout.items.first(where: { $0.id == itemID }),
+              let controller = screens.controller(forDisplayUUID: item.displayUUID) else { return }
+        let screenFrame = controller.screen.frame
+        guard screenFrame.width > 0, screenFrame.height > 0 else { return }
+
+        let normalized = CGSize(
+            width: min(size.width / screenFrame.width, 1),
+            height: min(size.height / screenFrame.height, 1)
+        )
+        let current = item.normalizedFrame
+        guard abs(normalized.width - current.width) > 0.001
+                || abs(normalized.height - current.height) > 0.001 else { return }
+
+        // Only the size adapts — the origin stays exactly where the user put
+        // it. (Re-anchoring the top edge drifts, because each adopted size
+        // recomputes the anchor from an already-moved frame.)
+        item.normalizedFrame = CGRect(
+            x: current.minX, y: current.minY, width: normalized.width, height: normalized.height
+        )
+        suppressRebuild = true
+        store.update(item)
+        suppressRebuild = false
+
+        guard let runningItem = running[itemID] else { return }
+        if let panel = runningItem.panel {
+            // Floating: the content view fills the panel, so resize the panel
+            // (screen coordinates) and leave the hosting view autoresizing.
+            panel.setFrame(CGRect(
+                x: item.normalizedFrame.minX * screenFrame.width + screenFrame.minX,
+                y: item.normalizedFrame.minY * screenFrame.height + screenFrame.minY,
+                width: size.width,
+                height: size.height
+            ))
+        } else if case .declarative(let host) = runningItem.runtime {
+            host.hostingView.frame = CGRect(
+                x: item.normalizedFrame.minX * screenFrame.width,
+                y: item.normalizedFrame.minY * screenFrame.height,
+                width: size.width,
+                height: size.height
+            )
         }
     }
 

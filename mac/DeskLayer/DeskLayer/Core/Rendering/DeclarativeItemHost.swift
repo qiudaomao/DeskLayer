@@ -52,6 +52,12 @@ final class DeclarativeItemHost {
     var onThumbnail: ((CGImage) -> Void)?
     /// Fires on main whenever a changed tree is committed (widget publishing).
     var onTreeJSON: ((String) -> Void)?
+    /// The content's natural size after a render, when it differs from the
+    /// item's frame. SwiftUI lays out at its ideal size and NSHostingView
+    /// doesn't clip, so without this the desktop would draw outside the rect
+    /// the manager shows — the two would disagree.
+    var onContentSize: ((CGSize) -> Void)?
+    private var lastReportedSize: CGSize = .zero
 
     init(instance: PluginInstance, frame: CGRect) {
         self.instance = instance
@@ -109,10 +115,26 @@ final class DeclarativeItemHost {
                     return
                 }
                 self.model.node = node
+                // Size first, so the thumbnail is rendered at the frame the
+                // desktop actually uses (otherwise the preview's aspect is
+                // wrong whenever the content differs from the item rect).
+                self.reportContentSizeIfChanged()
                 self.publishThumbnailIfDue()
                 self.onTreeJSON?(json)
             }
         }
+    }
+
+    /// SwiftUI's ideal size for the current tree. Reported only when it
+    /// actually changes, so this can't feed back into a resize loop.
+    private func reportContentSizeIfChanged() {
+        guard let onContentSize else { return }
+        let ideal = hostingView.fittingSize
+        guard ideal.width > 1, ideal.height > 1 else { return }
+        guard abs(ideal.width - lastReportedSize.width) > 1
+                || abs(ideal.height - lastReportedSize.height) > 1 else { return }
+        lastReportedSize = ideal
+        onContentSize(ideal)
     }
 
     private func publishThumbnailIfDue() {
