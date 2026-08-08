@@ -205,18 +205,16 @@ nonisolated enum SamplePlugins {
         return VStack([ inner.frame(52, 52), Text(caption).fontSize(11).textColor('#FFFFFF99') ]).spacing(4);
     }
 
-    // Segmented memory ring built from Ring(from, to) arcs: used first, then
-    // cache/buffers in light gray, then free in green. Percentage in the
-    // middle is used-of-total.
+    // Segmented memory ring from Ring(from, to) arcs:
+    //   used = green (accent), cached = gray, free = the dim remainder.
     function memoryRing(s, accent, warn) {
         const total = s.memTotal || 1;
         const used = Math.min(Math.max(s.memUsed / total, 0), 1);
         const cached = Math.min(Math.max((s.memCached || 0) / total, 0), 1 - used);
-        const usedColor = used > 0.9 ? warn : '#FFFFFF4D';
         return ZStack([
-            Ring(0, used).lineWidth(6).ringColor(usedColor),
-            Ring(used, used + cached).lineWidth(6).ringColor('#C7C7CCCC'),  // cached
-            Ring(used + cached, 1).lineWidth(6).ringColor(accent),          // free
+            Ring(0, 1).lineWidth(6).ringColor('#FFFFFF14'),                  // free
+            Ring(0, used).lineWidth(6).ringColor(used > 0.9 ? warn : accent), // used
+            Ring(used, used + cached).lineWidth(6).ringColor('#C7C7CCCC'),   // cached
             Text(Math.round(used * 100) + '%').fontSize(12).textColor('#FFFFFFCC')
         ]);
     }
