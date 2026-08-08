@@ -11,11 +11,23 @@ import Combine
 import Foundation
 import os
 
+/// Where a plugin came from — drives grouping in the library and whether it
+/// can be uninstalled.
+nonisolated enum PluginOrigin: String, CaseIterable {
+    case builtin = "Built-in"
+    case example = "Examples"
+    case user = "User Installed"
+
+    /// Built-ins ship with the app and can't be removed.
+    var isRemovable: Bool { self != .builtin }
+}
+
 nonisolated struct PluginDescriptor: Identifiable, Hashable {
     let id: String
     let sourceURL: URL
     /// Folder holding the plugin's assets (.deskplugin form); nil for bare .js.
     var assetsURL: URL?
+    var origin: PluginOrigin = .user
 }
 
 @MainActor
@@ -36,12 +48,39 @@ final class PluginRegistry: ObservableObject {
 
     static let directoryURL = LayoutStore.directoryURL.appendingPathComponent("Plugins", isDirectory: true)
 
+    /// Bundled examples the user uninstalled; not reinstalled on launch.
+    private static let removedKey = "DeskLayer.removedSamplePlugins"
+    private var removedSamples: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.removedKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Self.removedKey) }
+    }
+
     func bootstrap() {
         try? FileManager.default.createDirectory(at: Self.directoryURL, withIntermediateDirectories: true)
-        SamplePlugins.installIfMissing(into: Self.directoryURL)
+        SamplePlugins.installIfMissing(into: Self.directoryURL, skipping: removedSamples)
         rescan()
         watch()
         Task { await self.autoUpdateAll() }
+    }
+
+    /// Deletes a plugin's file (or .deskplugin folder). Built-ins refuse.
+    /// Uninstalling a bundled example also remembers it so launch doesn't
+    /// put it back.
+    @discardableResult
+    func uninstall(_ id: String) -> Bool {
+        guard let descriptor = descriptor(for: id), descriptor.origin.isRemovable else { return false }
+        let target = descriptor.assetsURL ?? descriptor.sourceURL
+        do {
+            try FileManager.default.trashItem(at: target, resultingItemURL: nil)
+        } catch {
+            log.error("uninstall \(id, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+        if descriptor.origin == .example {
+            removedSamples.insert(id)
+        }
+        rescan()
+        return true
     }
 
     // MARK: - Metadata & updates
@@ -128,14 +167,19 @@ final class PluginRegistry: ObservableObject {
         )) ?? []
         for url in contents {
             if url.pathExtension == "js" {
-                found.append(PluginDescriptor(id: url.deletingPathExtension().lastPathComponent, sourceURL: url))
+                let id = url.deletingPathExtension().lastPathComponent
+                found.append(PluginDescriptor(
+                    id: id, sourceURL: url, origin: SamplePlugins.origin(of: id)
+                ))
             } else if url.pathExtension == "deskplugin" {
                 let main = url.appendingPathComponent("main.js")
                 if FileManager.default.fileExists(atPath: main.path) {
+                    let id = url.deletingPathExtension().lastPathComponent
                     found.append(PluginDescriptor(
-                        id: url.deletingPathExtension().lastPathComponent,
+                        id: id,
                         sourceURL: main,
-                        assetsURL: url
+                        assetsURL: url,
+                        origin: SamplePlugins.origin(of: id)
                     ))
                 }
             }

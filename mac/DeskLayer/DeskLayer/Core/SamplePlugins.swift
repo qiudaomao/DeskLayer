@@ -10,11 +10,22 @@
 import Foundation
 
 nonisolated enum SamplePlugins {
+    /// Plugins the app maintains — always present, not removable.
+    static let builtinNames: Set<String> = ["AnalogClock", "SystemMonitor", "RemoteMonitor"]
+
+    /// Everything else bundled is an example the user may uninstall.
+    static func origin(of name: String) -> PluginOrigin {
+        if builtinNames.contains(name) { return .builtin }
+        return all[name] != nil ? .example : .user
+    }
+
     /// Samples are canonical: (re)written whenever the bundled source
     /// differs. Users who want to hack on one should duplicate it under a
     /// new name — the folder watcher picks the copy up as its own plugin.
-    static func installIfMissing(into directory: URL) {
+    /// An uninstalled example stays gone (see PluginRegistry.uninstall).
+    static func installIfMissing(into directory: URL, skipping removed: Set<String> = []) {
         for (name, source) in all {
+            guard !removed.contains(name) else { continue }
             let url = directory.appendingPathComponent("\(name).js")
             if let existing = try? String(contentsOf: url, encoding: .utf8), existing == source {
                 continue

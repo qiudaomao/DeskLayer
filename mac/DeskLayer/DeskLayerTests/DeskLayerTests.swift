@@ -775,6 +775,40 @@ struct PluginInstanceTests {
         #expect(d.resizable == true)
     }
 
+    @Test func pluginOriginClassification() {
+        // Built-ins are app-maintained and can't be removed; other bundled
+        // samples are examples; anything else is user-installed.
+        #expect(SamplePlugins.origin(of: "AnalogClock") == .builtin)
+        #expect(SamplePlugins.origin(of: "SystemMonitor") == .builtin)
+        #expect(SamplePlugins.origin(of: "RemoteMonitor") == .builtin)
+        #expect(SamplePlugins.origin(of: "Particles") == .example)
+        #expect(SamplePlugins.origin(of: "HelloCard") == .example)
+        #expect(SamplePlugins.origin(of: "MyOwnPlugin") == .user)
+
+        #expect(PluginOrigin.builtin.isRemovable == false)
+        #expect(PluginOrigin.example.isRemovable)
+        #expect(PluginOrigin.user.isRemovable)
+    }
+
+    @Test func uninstalledExampleIsNotReinstalled() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-samples-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        SamplePlugins.installIfMissing(into: dir)
+        let particles = dir.appendingPathComponent("Particles.js")
+        #expect(FileManager.default.fileExists(atPath: particles.path))
+
+        // Simulate an uninstall, then a relaunch: the example stays gone…
+        try FileManager.default.removeItem(at: particles)
+        SamplePlugins.installIfMissing(into: dir, skipping: ["Particles"])
+        #expect(FileManager.default.fileExists(atPath: particles.path) == false)
+
+        // …while everything else is still restored.
+        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("AnalogClock.js").path))
+    }
+
     @Test func metadataScalePolicyAndLimits() {
         let ratio = PluginMetadata.extract(from: """
         plugin.export = { width: 200, height: 100, scaleMode: "ratio",

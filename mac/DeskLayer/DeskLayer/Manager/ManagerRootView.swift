@@ -12,7 +12,15 @@ import SwiftUI
 
 @MainActor
 final class ManagerSelection: ObservableObject {
-    @Published var itemID: UUID?
+    /// A placed item on the desktop canvas…
+    @Published var itemID: UUID? {
+        didSet { if itemID != nil { pluginID = nil } }
+    }
+    /// …or a plugin picked in the library. The inspector shows whichever is
+    /// selected; they're mutually exclusive.
+    @Published var pluginID: String? {
+        didSet { if pluginID != nil { itemID = nil } }
+    }
     @Published var displayUUID: String?
 }
 
@@ -48,6 +56,9 @@ struct ManagerRootView: View {
         }
         .onChange(of: selection.itemID) { _, newValue in
             // Selecting an item reveals the inspector, Finder-style.
+            if newValue != nil { isInspectorShown = true }
+        }
+        .onChange(of: selection.pluginID) { _, newValue in
             if newValue != nil { isInspectorShown = true }
         }
         .toolbar {

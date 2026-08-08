@@ -2,8 +2,10 @@
 //  PluginLibraryView.swift
 //  DeskLayer
 //
-//  Left pane: available plugins. Rows drag onto the virtual desktop
-//  (payload = pluginID string; drags never leave the app in v1).
+//  Left pane: available plugins as a two-level tree grouped by origin
+//  (Built-in / Examples / User Installed), each group collapsible. Rows
+//  drag onto the virtual desktop, and selecting one shows its details in
+//  the inspector.
 //
 
 import AppKit
@@ -16,12 +18,29 @@ struct PluginLibraryView: View {
     @EnvironmentObject private var selection: ManagerSelection
     @EnvironmentObject private var screens: ScreenManager
 
+    /// Collapsed groups are remembered for the session.
+    @State private var collapsed: Set<PluginOrigin> = []
+
     var body: some View {
-        List {
-            Section("Plugins") {
-                ForEach(registry.plugins) { plugin in
-                    PluginRow(plugin: plugin) {
-                        addToDesktop(plugin.id)
+        // Native list selection: proper highlight, arrow-key navigation, and
+        // it works with VoiceOver/automation (a custom tap gesture doesn't).
+        List(selection: pluginSelection) {
+            ForEach(PluginOrigin.allCases, id: \.self) { origin in
+                let plugins = registry.plugins.filter { $0.origin == origin }
+                if !plugins.isEmpty {
+                    DisclosureGroup(isExpanded: expansion(for: origin)) {
+                        ForEach(plugins) { plugin in
+                            PluginRow(plugin: plugin) { addToDesktop(plugin.id) }
+                                .tag(plugin.id)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(origin.rawValue)
+                            Text("\(plugins.count)")
+                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                        }
+                        .font(.caption.bold())
                     }
                 }
             }
@@ -29,22 +48,19 @@ struct PluginLibraryView: View {
         .listStyle(.sidebar)
         .navigationTitle("DeskLayer")
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Bottom action bar, Notes/Mail-style.
             VStack(spacing: 0) {
                 Divider()
                 HStack(spacing: 2) {
                     Button {
                         importPlugin()
                     } label: {
-                        Image(systemName: "plus")
-                            .frame(width: 22, height: 22)
+                        Image(systemName: "plus").frame(width: 22, height: 22)
                     }
                     .help("Import plugin…")
                     Button {
                         NSWorkspace.shared.open(PluginRegistry.directoryURL)
                     } label: {
-                        Image(systemName: "folder")
-                            .frame(width: 22, height: 22)
+                        Image(systemName: "folder").frame(width: 22, height: 22)
                     }
                     .help("Open plugins folder")
                     Spacer()
@@ -57,6 +73,23 @@ struct PluginLibraryView: View {
         }
     }
 
+    /// List selection ⇄ the shared inspector selection.
+    private var pluginSelection: Binding<String?> {
+        Binding(
+            get: { selection.pluginID },
+            set: { newValue in if let newValue { selection.pluginID = newValue } }
+        )
+    }
+
+    private func expansion(for origin: PluginOrigin) -> Binding<Bool> {
+        Binding(
+            get: { !collapsed.contains(origin) },
+            set: { isExpanded in
+                if isExpanded { collapsed.remove(origin) } else { collapsed.insert(origin) }
+            }
+        )
+    }
+
     private struct PluginRow: View {
         let plugin: PluginDescriptor
         let onAdd: () -> Void
@@ -67,7 +100,6 @@ struct PluginLibraryView: View {
                 Label(plugin.id, systemImage: "puzzlepiece.extension")
                     .lineLimit(1)
                 Spacer()
-                // Always present (visible + accessible); emphasized on hover.
                 Button(action: onAdd) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(isHovering ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
@@ -79,7 +111,7 @@ struct PluginLibraryView: View {
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
             .draggable(plugin.id)
-            .help("Drag onto the desktop canvas, or click + to add")
+            .help("Select for details, drag onto the canvas, or click + to add")
         }
     }
 

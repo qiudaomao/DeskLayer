@@ -18,7 +18,9 @@ struct InspectorView: View {
     @EnvironmentObject private var selection: ManagerSelection
 
     var body: some View {
-        if let item = selectedItem {
+        if let pluginID = selection.pluginID {
+            PluginDetailView(pluginID: pluginID)
+        } else if let item = selectedItem {
             Form {
                 Section(item.pluginID) {
                     if let error = coordinator.errorMessage(for: item.id) {
@@ -211,6 +213,128 @@ private struct PluginLogPanel: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Plugin details (library selection) — read-only, plus uninstall
+
+private struct PluginDetailView: View {
+    let pluginID: String
+    @EnvironmentObject private var registry: PluginRegistry
+    @EnvironmentObject private var store: LayoutStore
+    @EnvironmentObject private var selection: ManagerSelection
+    @State private var confirmUninstall = false
+
+    var body: some View {
+        let meta = registry.metadata(for: pluginID)
+        let descriptor = registry.descriptor(for: pluginID)
+        let origin = descriptor?.origin ?? .user
+        let usageCount = store.layout.items.filter { $0.pluginID == pluginID }.count
+
+        Form {
+            Section(pluginID) {
+                LabeledContent("Kind", value: origin.rawValue)
+                LabeledContent("Version", value: meta.version ?? "—")
+                if let author = meta.author { LabeledContent("Author", value: author) }
+                if let summary = meta.summary {
+                    Text(summary)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                LabeledContent("On desktop", value: usageCount == 0 ? "not placed"
+                               : "\(usageCount) item\(usageCount == 1 ? "" : "s")")
+            }
+
+            Section("Capabilities") {
+                let permissions = registry.declaredPermissions(for: pluginID)
+                LabeledContent("Permissions",
+                               value: permissions.isEmpty ? "none" : permissions.sorted().joined(separator: ", "))
+                if let size = meta.preferredSize {
+                    LabeledContent("Default size", value: "\(Int(size.width)) × \(Int(size.height))")
+                }
+                LabeledContent("Resize", value: resizeSummary(meta))
+                if let limits = limitsSummary(meta) {
+                    LabeledContent("Limits", value: limits)
+                }
+            }
+
+            Section("Properties") {
+                let declared = registry.declaredProperties(for: pluginID)
+                if declared.isEmpty {
+                    Text("No properties declared").foregroundStyle(.secondary)
+                }
+                // Read-only here: values are edited per placed item.
+                ForEach(declared, id: \.name) { property in
+                    LabeledContent(property.name, value: property.value.stringValue)
+                        .font(.caption)
+                }
+            }
+
+            Section("Source") {
+                if let url = descriptor?.sourceURL {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    } label: {
+                        Label("Reveal in Finder", systemImage: "folder")
+                    }
+                    .buttonStyle(.borderless)
+                }
+                Button(role: .destructive) {
+                    confirmUninstall = true
+                } label: {
+                    Label("Uninstall", systemImage: "trash")
+                }
+                .buttonStyle(.borderless)
+                .disabled(!origin.isRemovable)
+                .help(origin.isRemovable ? "Move this plugin to the Trash"
+                      : "Built-in plugins ship with DeskLayer and can't be removed")
+                if !origin.isRemovable {
+                    Text("Built-in plugins can't be uninstalled.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle("Plugin")
+        .confirmationDialog(
+            "Uninstall \(pluginID)?",
+            isPresented: $confirmUninstall,
+            titleVisibility: .visible
+        ) {
+            Button("Move to Trash", role: .destructive) {
+                registry.uninstall(pluginID)
+                selection.pluginID = nil
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(usageCount > 0
+                 ? "\(usageCount) item\(usageCount == 1 ? "" : "s") on your desktop use it and will stop rendering."
+                 : "The plugin file moves to the Trash.")
+        }
+    }
+
+    private func resizeSummary(_ meta: PluginMetadata) -> String {
+        guard meta.resizable else { return "fixed size" }
+        var parts = [meta.keepsAspect ? "keeps aspect" : "free"]
+        if meta.autoSizeWidth && meta.autoSizeHeight { parts.append("auto-sizes") }
+        else if meta.autoSizeHeight { parts.append("auto height") }
+        else if meta.autoSizeWidth { parts.append("auto width") }
+        return parts.joined(separator: ", ")
+    }
+
+    private func limitsSummary(_ meta: PluginMetadata) -> String? {
+        func range(_ min: Double?, _ max: Double?) -> String? {
+            switch (min, max) {
+            case let (min?, max?): return "\(Int(min))–\(Int(max))"
+            case let (min?, nil): return "≥ \(Int(min))"
+            case let (nil, max?): return "≤ \(Int(max))"
+            default: return nil
+            }
+        }
+        let w = range(meta.minWidth, meta.maxWidth).map { "W \($0)" }
+        let h = range(meta.minHeight, meta.maxHeight).map { "H \($0)" }
+        let parts = [w, h].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: "  ")
     }
 }
 
