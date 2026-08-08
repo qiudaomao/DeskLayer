@@ -23,17 +23,20 @@ struct ManagerRootView: View {
     @EnvironmentObject private var coordinator: RuntimeCoordinator
     @StateObject private var selection = ManagerSelection()
     @State private var isInspectorShown = true
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             PluginLibraryView()
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220)
         } detail: {
             DesktopCanvasView()
-                .inspector(isPresented: $isInspectorShown) {
-                    InspectorView()
-                        .inspectorColumnWidth(min: 240, ideal: 280, max: 400)
-                }
+        }
+        // Attached to the split view (not inside detail) so toggling never
+        // re-partitions the columns — the sidebar must not blink.
+        .inspector(isPresented: $isInspectorShown) {
+            InspectorView()
+                .inspectorColumnWidth(min: 240, ideal: 280, max: 400)
         }
         .frame(minWidth: 900, minHeight: 560)
         .environmentObject(selection)
@@ -48,7 +51,8 @@ struct ManagerRootView: View {
             if newValue != nil { isInspectorShown = true }
         }
         .toolbar {
-            ToolbarItem {
+            // Right-aligned, Xcode-style: actions at the trailing edge.
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     coordinator.isUserPaused.toggle()
                 } label: {
@@ -58,8 +62,7 @@ struct ManagerRootView: View {
                     )
                 }
                 .help(coordinator.isUserPaused ? "Resume rendering" : "Pause rendering")
-            }
-            ToolbarItem {
+
                 Button {
                     isInspectorShown.toggle()
                 } label: {

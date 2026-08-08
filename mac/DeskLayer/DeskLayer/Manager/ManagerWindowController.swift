@@ -32,8 +32,9 @@ final class ManagerWindowController: NSWindowController {
         window.title = "DeskLayer"
         // Full-height sidebar, Finder/Notes-style: content extends under a
         // transparent titlebar; NavigationSplitView manages the safe areas.
+        // Title stays visible — it anchors the toolbar's leading/trailing
+        // sections so primaryAction items sit at the right edge.
         window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
         window.toolbarStyle = .unified
         window.titlebarSeparatorStyle = .automatic
         window.center()
