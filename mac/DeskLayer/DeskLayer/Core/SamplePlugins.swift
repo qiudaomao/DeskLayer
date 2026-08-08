@@ -32,7 +32,54 @@ nonisolated enum SamplePlugins {
         "WeatherCard": weatherCard,
         "SystemMonitor": systemMonitor,
         "HookBoard": hookBoard,
+        "RemoteMonitor": remoteMonitor,
     ]
+
+    // Remote machine monitor over ssh(). Configure the destination in the
+    // inspector's SSH section; unconfigured, ssh() rejects with a message
+    // this plugin displays. Needs the "ssh" permission.
+    static let remoteMonitor = #"""
+    let properties = [
+        {"name": "interval", "valueType": "number", "value": "5"}
+    ];
+
+    let load = '—';
+    let mem = '—';
+    let status = 'connecting…';
+
+    function refresh() {
+        // `uptime` and free memory work on most Linux hosts.
+        ssh(['sh', '-c', "uptime | sed 's/.*load average/load/'; free -m 2>/dev/null | awk '/Mem:/{print $3\"/\"$2\" MB\"}'"])
+            .then(r => {
+                if (r.status !== 0) { status = 'exit ' + r.status + ': ' + (r.stderr || '').slice(0, 40); return; }
+                const lines = r.stdout.trim().split('\n');
+                load = (lines[0] || '').replace('load: ', '');
+                mem = lines[1] || '—';
+                status = 'ok';
+            })
+            .catch(e => { status = e.message; });
+    }
+    // Deferred: host APIs (ssh) are ready after load, not at top level.
+    setTimeout(refresh, 0);
+    setInterval(refresh, 5000);
+
+    render = () => view([
+        VStack([
+            HStack([
+                Image('server.rack').fontSize(13).textColor(status === 'ok' ? '#4CD964FF' : '#FF9500FF'),
+                Text('Remote').fontSize(13).bold().textColor('white')
+            ]).spacing(6),
+            status === 'ok'
+                ? VStack([
+                    Text(load).fontSize(12).textColor('#FFFFFFCC'),
+                    Text('mem ' + mem).fontSize(12).textColor('#FFFFFFCC')
+                  ]).spacing(2)
+                : Text(status).fontSize(11).textColor('#FF9500CC')
+        ]).spacing(6).padding(14).background('#0C0E16E6').cornerRadius(14)
+    ]);
+
+    plugin.export = { permissions: ['ssh'], properties, render };
+    """#
 
     // Live CPU / RAM / disk / network gauges via the native $system API —
     // no shell, no permissions. Declarative, updates once a second.

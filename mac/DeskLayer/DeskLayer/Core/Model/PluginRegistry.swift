@@ -24,6 +24,7 @@ final class PluginRegistry: ObservableObject {
 
     private var watcher: DispatchSourceFileSystemObject?
     private var propertiesCache: [String: [PluginProperty]] = [:]
+    private var permissionsCache: [String: Set<String>] = [:]
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "plugins")
 
     static let directoryURL = LayoutStore.directoryURL.appendingPathComponent("Plugins", isDirectory: true)
@@ -58,8 +59,22 @@ final class PluginRegistry: ObservableObject {
         return properties
     }
 
+    /// Permissions the plugin declares (plugin.export.permissions), for the
+    /// inspector to decide which host-config sections to show.
+    func declaredPermissions(for id: String) -> Set<String> {
+        if let cached = permissionsCache[id] { return cached }
+        guard let source = source(for: id),
+              let instance = PluginInstance(pluginID: id, source: source, overrides: [:])
+        else { return [] }
+        let result = instance.permissions
+        instance.invalidate()
+        permissionsCache[id] = result
+        return result
+    }
+
     func rescan() {
         propertiesCache.removeAll()
+        permissionsCache.removeAll()
         var found: [PluginDescriptor] = []
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: Self.directoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]

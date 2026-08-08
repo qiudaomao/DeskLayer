@@ -13,6 +13,24 @@ nonisolated enum RenderTarget: String, Codable {
     case floatingWindow
 }
 
+nonisolated enum SSHAuth: String, Codable {
+    case none
+    case password
+    case key
+}
+
+/// Remote destination for the ssh() host binding. The password is NOT stored
+/// here — it lives in the Keychain, keyed by the item id.
+nonisolated struct SSHConfig: Codable, Hashable {
+    var host: String = ""
+    var port: Int = 22
+    var user: String = ""
+    var auth: SSHAuth = .none
+    var keyPath: String = ""
+
+    var isConfigured: Bool { !host.isEmpty && !user.isEmpty && auth != .none }
+}
+
 nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
     var id: UUID
     var pluginID: String
@@ -29,6 +47,11 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
     /// is beneath; false = the panel accepts events (drag to move).
     /// Wallpaper items are inherently click-through.
     var clickThrough: Bool
+    /// Backdrop behind the plugin's own drawing. nil = fully transparent
+    /// (default); otherwise a CSS color string (#rrggbbaa supported).
+    var backgroundColor: String?
+    /// Remote destination for the ssh() binding (empty until configured).
+    var ssh: SSHConfig
 
     init(
         id: UUID = UUID(),
@@ -39,7 +62,9 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         propertyOverrides: [String: PropertyValue] = [:],
         isEnabled: Bool = true,
         zOrder: Int = 0,
-        clickThrough: Bool = false
+        clickThrough: Bool = false,
+        backgroundColor: String? = nil,
+        ssh: SSHConfig = SSHConfig()
     ) {
         self.id = id
         self.pluginID = pluginID
@@ -50,6 +75,8 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         self.isEnabled = isEnabled
         self.zOrder = zOrder
         self.clickThrough = clickThrough
+        self.backgroundColor = backgroundColor
+        self.ssh = ssh
     }
 
     // Custom decoding so layouts written before a field existed still load
@@ -65,6 +92,8 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         zOrder = try container.decodeIfPresent(Int.self, forKey: .zOrder) ?? 0
         clickThrough = try container.decodeIfPresent(Bool.self, forKey: .clickThrough) ?? false
+        backgroundColor = try container.decodeIfPresent(String.self, forKey: .backgroundColor)
+        ssh = try container.decodeIfPresent(SSHConfig.self, forKey: .ssh) ?? SSHConfig()
     }
 }
 

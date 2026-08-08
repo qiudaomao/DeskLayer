@@ -10,6 +10,7 @@
 
 import AppKit
 import Combine
+import DeskLayerKit
 import os
 
 @MainActor
@@ -174,6 +175,19 @@ final class RuntimeCoordinator: ObservableObject {
         let itemID = layoutItem.id
         let isFloating = layoutItem.target == .floatingWindow
 
+        // Supply the ssh() destination (password read from Keychain).
+        if instance.permissions.contains("ssh"), layoutItem.ssh.isConfigured {
+            let cfg = layoutItem.ssh
+            instance.configureSSH(HostBindings.ResolvedSSH(
+                host: cfg.host,
+                port: cfg.port,
+                user: cfg.user,
+                usesKey: cfg.auth == .key,
+                keyPath: cfg.keyPath,
+                password: cfg.auth == .password ? KeychainStore.password(forItem: itemID) : nil
+            ))
+        }
+
         // Wire $server.on(...) to the shared app-level hook receiver.
         if instance.permissions.contains("server") {
             let server = hookServer
@@ -206,6 +220,8 @@ final class RuntimeCoordinator: ObservableObject {
             contentFrame = localFrame
         }
         let hostView: NSView? = isFloating ? panel?.panel.contentView : controller.window.contentView
+        // nil / unparseable → clear (fully transparent).
+        let backgroundCGColor = layoutItem.backgroundColor.flatMap { CSSColor.parse($0) }
 
         switch instance.renderMode {
         case .canvas:
@@ -222,6 +238,9 @@ final class RuntimeCoordinator: ObservableObject {
             layer.contentsScale = scale
             layer.contentsGravity = .resize
             layer.zPosition = CGFloat(layoutItem.zOrder)
+            // Backdrop shows through the transparent parts of the plugin's
+            // frame; nil = fully transparent.
+            layer.backgroundColor = backgroundCGColor
             hostView?.layer?.addSublayer(layer)
 
             let scheduled = ScheduledItem(id: itemID, renderer: renderer, layer: layer)
@@ -244,6 +263,7 @@ final class RuntimeCoordinator: ObservableObject {
         case .declarative:
             let host = DeclarativeItemHost(instance: instance, frame: contentFrame)
             host.hostingView.layer?.zPosition = CGFloat(layoutItem.zOrder)
+            host.hostingView.layer?.backgroundColor = backgroundCGColor
             host.hostingView.autoresizingMask = isFloating ? [.width, .height] : []
             host.onThumbnail = { [weak self] image in
                 self?.thumbnails[itemID] = image

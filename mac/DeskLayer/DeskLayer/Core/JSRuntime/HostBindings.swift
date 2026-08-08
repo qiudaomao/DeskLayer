@@ -33,6 +33,18 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
     /// for the declared permission set. Host APIs are meant to be used from
     /// render()/handlers/timers, which all run after load.
     var permissions: Set<String> = []
+    /// Resolved SSH destination (with password from Keychain), set by the
+    /// coordinator at spawn. nil until the user configures one — ssh() then
+    /// rejects with a clear error.
+    struct ResolvedSSH: Sendable {
+        var host: String
+        var port: Int
+        var user: String
+        var usesKey: Bool
+        var keyPath: String
+        var password: String?
+    }
+    var ssh: ResolvedSSH?
     private let stats = SystemStats()
     private var isInvalidated = false
     var afterCallback: (@Sendable () -> Void)?
@@ -112,6 +124,18 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
         }
         context.setObject(applescript, forKeyedSubscript: "__dl_applescript" as NSString)
 
+        // ssh(argv) — run a command on the item's configured remote host.
+        let ssh: @convention(block) (JSValue, JSValue, JSValue) -> Void = { [weak self] argv, resolve, reject in
+            guard let self else { return }
+            guard self.permissions.contains("ssh") else {
+                reject.call(withArguments: ["permission 'ssh' not granted (add it to plugin.export.permissions)"])
+                return
+            }
+            let args = (argv.toArray() ?? []).map { String(describing: $0) }
+            self.runSSH(argv: args, resolve: resolve, reject: reject)
+        }
+        context.setObject(ssh, forKeyedSubscript: "__dl_ssh" as NSString)
+
         // Register a handler with the shared app-level HookServer. The
         // handler fires on this plugin's queue; its return value is ignored
         // (the server acks all registered plugins at once).
@@ -155,6 +179,15 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
     function applescript(source) {
         return new Promise(function (resolve, reject) {
             __dl_applescript(String(source), resolve, function (e) { reject(new Error(e)); });
+        });
+    }
+    // ssh('uptime') or ssh(['cat', '/proc/cpuinfo']) — runs on the item's
+    // configured remote host. A string is sent to the remote shell; an
+    // array is passed as argv (no local shell parsing).
+    function ssh(cmd) {
+        var argv = Array.isArray(cmd) ? cmd : [String(cmd)];
+        return new Promise(function (resolve, reject) {
+            __dl_ssh(argv, resolve, function (e) { reject(new Error(e)); });
         });
     }
     // The port is owned by the app; plugins only register handlers.
@@ -203,6 +236,82 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
                 resolve.call(withArguments: [["status": status, "stdout": stdout, "stderr": stderr] as [String: Any]])
             }
         }
+    }
+
+    // MARK: - ssh
+
+    private func runSSH(argv: [String], resolve: JSValue, reject: JSValue) {
+        guard !isInvalidated else { return }
+        guard let config = ssh, !config.host.isEmpty, !config.user.isEmpty else {
+            onQueue { reject.call(withArguments: ["no SSH destination configured for this item (set it in the inspector)"]) }
+            return
+        }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            var sshArgs = [
+                "-o", "BatchMode=" + (config.usesKey ? "yes" : "no"),
+                "-o", "StrictHostKeyChecking=accept-new",
+                "-o", "ConnectTimeout=10",
+                "-p", String(config.port),
+            ]
+            if config.usesKey, !config.keyPath.isEmpty {
+                sshArgs += ["-i", (config.keyPath as NSString).expandingTildeInPath, "-o", "IdentitiesOnly=yes"]
+            }
+            sshArgs.append("\(config.user)@\(config.host)")
+            // argv passed as remote command; ssh joins them for the remote shell.
+            sshArgs += argv
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+            process.arguments = sshArgs
+            var environment = ProcessInfo.processInfo.environment
+
+            // Password auth: feed it via a throwaway SSH_ASKPASS helper so
+            // it never appears on a command line or in the process table.
+            var askpassURL: URL?
+            if !config.usesKey, let password = config.password, !password.isEmpty {
+                let helper = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("dl-askpass-\(UUID().uuidString).sh")
+                let script = "#!/bin/sh\ncat \"\(helper.path).pw\"\n"
+                try? script.write(to: helper, atomically: true, encoding: .utf8)
+                try? password.write(toFile: helper.path + ".pw", atomically: true, encoding: .utf8)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: helper.path)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: helper.path + ".pw")
+                environment["SSH_ASKPASS"] = helper.path
+                environment["SSH_ASKPASS_REQUIRE"] = "force"
+                environment["DISPLAY"] = environment["DISPLAY"] ?? ":0"
+                askpassURL = helper
+            }
+            process.environment = environment
+
+            let out = Pipe(), err = Pipe()
+            process.standardOutput = out
+            process.standardError = err
+            process.standardInput = FileHandle.nullDevice
+            do {
+                try process.run()
+            } catch {
+                self?.cleanupAskpass(askpassURL)
+                self?.onQueue { reject.call(withArguments: [error.localizedDescription]) }
+                return
+            }
+            let timeout = DispatchWorkItem { if process.isRunning { process.terminate() } }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timeout)
+            let stdout = String(decoding: out.fileHandleForReading.readDataToEndOfFile().prefix(1 << 20), as: UTF8.self)
+            let stderr = String(decoding: err.fileHandleForReading.readDataToEndOfFile().prefix(1 << 20), as: UTF8.self)
+            process.waitUntilExit()
+            timeout.cancel()
+            self?.cleanupAskpass(askpassURL)
+            let status = Int(process.terminationStatus)
+            self?.onQueue {
+                resolve.call(withArguments: [["status": status, "stdout": stdout, "stderr": stderr] as [String: Any]])
+            }
+        }
+    }
+
+    private func cleanupAskpass(_ url: URL?) {
+        guard let url else { return }
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(atPath: url.path + ".pw")
     }
 
     // MARK: - applescript

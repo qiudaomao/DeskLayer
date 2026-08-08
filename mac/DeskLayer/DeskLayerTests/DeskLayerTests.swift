@@ -456,6 +456,70 @@ struct PluginInstanceTests {
         #expect(gotA.contains("Bash") && gotB.contains("Bash"))
     }
 
+    @Test func sshRejectsWithoutDestination() async throws {
+        // Permission granted, but no destination configured → clear error.
+        // Host APIs are called after load (render/timers), when permissions
+        // are resolved — mirror that with setTimeout.
+        let source = """
+        let properties = [];
+        let result = 'pending';
+        setTimeout(function () {
+            ssh(['uptime']).catch(function (e) { result = 'err:' + e.message; });
+        }, 0);
+        function render(ctx) {}
+        plugin.export = { permissions: ['ssh'], properties, render, read: function () { return result; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        #expect(instance.permissions.contains("ssh"))
+        try await Task.sleep(for: .milliseconds(300))
+        let result = await readExport(instance, "read")
+        #expect(result.contains("no SSH destination"))
+        instance.invalidate()
+    }
+
+    @Test func sshRejectsWithoutPermission() async throws {
+        let source = """
+        let properties = [];
+        let result = 'pending';
+        ssh(['uptime']).catch(function (e) { result = 'denied:' + e.message; });
+        function render(ctx) {}
+        plugin.export = { properties, render, read: function () { return result; } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        try await Task.sleep(for: .milliseconds(200))
+        let result = await readExport(instance, "read")
+        #expect(result.hasPrefix("denied:"))
+        instance.invalidate()
+    }
+
+    @Test func keychainRoundTrip() {
+        let id = UUID()
+        KeychainStore.setPassword("hunter2", forItem: id)
+        #expect(KeychainStore.password(forItem: id) == "hunter2")
+        KeychainStore.setPassword(nil, forItem: id)
+        #expect(KeychainStore.password(forItem: id) == nil)
+    }
+
+    @Test func layoutItemCarriesBackgroundAndSSH() throws {
+        // Old layouts (no new fields) still decode; round trip keeps them.
+        let old = """
+        {"id": "11111111-1111-1111-1111-111111111111", "pluginID": "P",
+         "displayUUID": "X", "normalizedFrame": [[0,0],[1,1]]}
+        """
+        let decoded = try JSONDecoder().decode(LayoutItem.self, from: Data(old.utf8))
+        #expect(decoded.backgroundColor == nil)
+        #expect(decoded.ssh.auth == .none)
+
+        var item = decoded
+        item.backgroundColor = "#112233ff"
+        item.ssh = SSHConfig(host: "h", port: 2222, user: "u", auth: .key, keyPath: "/k")
+        let data = try JSONEncoder().encode(item)
+        let round = try JSONDecoder().decode(LayoutItem.self, from: data)
+        #expect(round.backgroundColor == "#112233ff")
+        #expect(round.ssh.isConfigured)
+        #expect(round.ssh.port == 2222)
+    }
+
     private func readExport(_ instance: PluginInstance, _ name: String) async -> String {
         await withCheckedContinuation { continuation in
             instance.queue.async {

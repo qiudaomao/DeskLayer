@@ -51,6 +51,23 @@ struct InspectorView: View {
                         "Z-order: \(item.zOrder)",
                         value: binding(for: item) { $0.zOrder } set: { $0.zOrder = $1 }
                     )
+                    BackgroundColorEditor(
+                        hex: item.backgroundColor,
+                        onChange: { newValue in
+                            var updated = item
+                            updated.backgroundColor = newValue
+                            store.update(updated)
+                        }
+                    )
+                    .id(item.id)
+                }
+
+                let permissions = registry.declaredPermissions(for: item.pluginID)
+                if permissions.contains("ssh") {
+                    Section("SSH Destination") {
+                        SSHEditor(item: item) { updated in store.update(updated) }
+                            .id(item.id)
+                    }
                 }
 
                 Section("Frame (% of screen)") {
@@ -183,6 +200,120 @@ private struct PluginLogPanel: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Background color (transparent by default)
+
+private struct BackgroundColorEditor: View {
+    let hex: String?
+    let onChange: (String?) -> Void
+    @State private var isCustom = false
+    @State private var color = Color.black.opacity(0.6)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Background", isOn: $isCustom)
+                .onChange(of: isCustom) { _, on in
+                    onChange(on ? (color.hexString() ?? "#000000FF") : nil)
+                }
+            if isCustom {
+                ColorPicker("Color", selection: $color, supportsOpacity: true)
+                    .onChange(of: color) { _, newValue in
+                        if isCustom { onChange(newValue.hexString()) }
+                    }
+                Text("Set opacity to 0 for a see-through tint.")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            } else {
+                Text("Transparent").font(.caption).foregroundStyle(.tertiary)
+            }
+        }
+        .onAppear {
+            isCustom = hex != nil
+            if let hex, let parsed = Color(hexString: hex) { color = parsed }
+        }
+    }
+}
+
+// MARK: - SSH destination
+
+private struct SSHEditor: View {
+    let item: LayoutItem
+    let commit: (LayoutItem) -> Void
+
+    @State private var host = ""
+    @State private var port = "22"
+    @State private var user = ""
+    @State private var auth = SSHAuth.none
+    @State private var keyPath = ""
+    @State private var password = ""
+
+    var body: some View {
+        Group {
+            TextField("Host", text: $host).onChange(of: host) { _, _ in push() }
+            TextField("Port", text: $port).onChange(of: port) { _, _ in push() }
+            TextField("User", text: $user).onChange(of: user) { _, _ in push() }
+            Picker("Auth", selection: $auth) {
+                Text("None").tag(SSHAuth.none)
+                Text("Password").tag(SSHAuth.password)
+                Text("Identity Key").tag(SSHAuth.key)
+            }
+            .onChange(of: auth) { _, _ in push() }
+
+            switch auth {
+            case .password:
+                SecureField("Password", text: $password)
+                    .onChange(of: password) { _, newValue in
+                        KeychainStore.setPassword(newValue, forItem: item.id)
+                        commit(item) // re-spawn so ssh() picks up the new secret
+                    }
+                Text("Stored in your login Keychain, never in layout.json.")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            case .key:
+                HStack {
+                    Text(keyPath.isEmpty ? "No key selected" : (keyPath as NSString).lastPathComponent)
+                        .font(.caption).foregroundStyle(keyPath.isEmpty ? .tertiary : .secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    Button("Choose…") { chooseKey() }
+                }
+            case .none:
+                Text("Select an auth method to enable ssh().")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
+        }
+        .onAppear {
+            host = item.ssh.host
+            port = String(item.ssh.port)
+            user = item.ssh.user
+            auth = item.ssh.auth
+            keyPath = item.ssh.keyPath
+            password = KeychainStore.password(forItem: item.id) ?? ""
+        }
+    }
+
+    private func push() {
+        var updated = item
+        updated.ssh.host = host
+        updated.ssh.port = Int(port) ?? 22
+        updated.ssh.user = user
+        updated.ssh.auth = auth
+        updated.ssh.keyPath = keyPath
+        commit(updated)
+    }
+
+    private func chooseKey() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose an SSH identity (private key) file"
+        // ~/.ssh is hidden; let the user reveal it.
+        panel.showsHiddenFiles = true
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        keyPath = url.path
+        push()
     }
 }
 

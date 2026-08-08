@@ -251,6 +251,12 @@ nonisolated final class PluginInstance: @unchecked Sendable {
     /// Wire this instance's $server.on(...) registrations to the app-level
     /// HookServer. `register(method, handler)` adds; `unregister()` removes
     /// all of this item's handlers. Called by the coordinator at spawn.
+    /// Supplies the resolved SSH destination (Keychain password included) so
+    /// the ssh() binding knows where to connect. Call at spawn.
+    func configureSSH(_ config: HostBindings.ResolvedSSH?) {
+        hostBindings.ssh = config
+    }
+
     func connectHooks(
         register: @escaping (_ method: String, _ handler: @escaping @Sendable ([String: Any], String) -> Void) -> Void,
         unregister: @escaping () -> Void
