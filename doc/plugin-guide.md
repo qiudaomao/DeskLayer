@@ -99,9 +99,11 @@ plugin.export = {
 };
 ```
 
-- **Check for Update** (inspector button) fetches `updateURL`, reads the
-  `version` it declares, and — if it's newer (dotted numeric compare, so
-  `1.2.10 > 1.2.9`) — overwrites your installed file.
+- **Check for Update** (inspector button) fetches a small **manifest** — a
+  JSON file next to your plugin with the same name (`Clock.js` → `Clock.json`,
+  `{ "version": "1.2.0", "url": "https://…/Clock.js" }`) — compares versions
+  (dotted numeric, so `1.2.10 > 1.2.9`), and downloads the `.js` body only when
+  it's newer. No manifest? It falls back to fetching the `.js` directly.
 - **Auto-update** (inspector toggle, remembered per plugin) checks at launch.
 - Applying an update hot-reloads any running items using that plugin — no
   restart. Editing a plugin file in the folder hot-reloads it the same way.
@@ -254,6 +256,41 @@ crashing.
 
 > Tip: force declarative mode explicitly with `plugin.export.mode =
 > "declarative"` if your `render` happens to accept an unused argument.
+
+---
+
+## Webview mode
+
+Set `mode: "webview"` to render a live web page — no `render` function needed.
+`url`, `offsetX`, `offsetY`, and `zoom` are editable in the inspector; user
+agent, headers, and cookies come from a static `webview` config.
+
+```js
+let properties = [
+    { name: "url",     valueType: "string", value: "https://example.com" },
+    { name: "offsetX", valueType: "number", value: "0" },
+    { name: "offsetY", valueType: "number", value: "0" },   // scroll down to
+    { name: "zoom",    valueType: "number", value: "1" }     // show a region
+];
+
+plugin.export = {
+    mode: "webview",
+    version: "1.0.0",
+    properties,
+    webview: {
+        userAgent: "Mozilla/5.0 …",                 // optional
+        headers: { "Authorization": "Bearer …" },    // optional
+        cookies: [                                    // optional, seeded pre-load
+            { name: "session", value: "abc", domain: "example.com", path: "/" }
+        ]
+    }
+};
+```
+
+`offsetX`/`offsetY` scroll the page after load, and the item frame clips the
+rest — so you can frame just the part of a page you want (a dashboard panel, a
+live chart). Editing url/offset/zoom in the inspector reloads the view. The
+background color setting shows through transparent pages.
 
 ---
 

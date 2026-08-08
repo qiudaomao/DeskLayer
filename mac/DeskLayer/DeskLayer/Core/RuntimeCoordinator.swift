@@ -31,6 +31,7 @@ final class RuntimeCoordinator: ObservableObject {
     private enum ItemRuntime {
         case canvas(renderer: ItemRenderer, layer: CALayer)
         case declarative(host: DeclarativeItemHost)
+        case webview(host: WebViewHost)
     }
 
     private struct RunningItem {
@@ -96,6 +97,7 @@ final class RuntimeCoordinator: ObservableObject {
                         switch item.runtime {
                         case .canvas(let renderer, _): renderer.writeDebugSnapshot(to: url)
                         case .declarative(let host): host.writeDebugSnapshot(to: url)
+                        case .webview: break // no snapshot path for web content
                         }
                     }
                 }
@@ -127,6 +129,7 @@ final class RuntimeCoordinator: ObservableObject {
             switch item.runtime {
             case .canvas(_, let layer): layer.removeFromSuperlayer()
             case .declarative(let host): host.stop()
+            case .webview(let host): host.stop()
             }
             item.panel?.tearDown()
         }
@@ -288,6 +291,27 @@ final class RuntimeCoordinator: ObservableObject {
                 displayUUID: layoutItem.displayUUID,
                 panel: panel
             )
+
+        case .webview:
+            let host = WebViewHost(
+                pluginID: layoutItem.pluginID,
+                config: instance.webviewConfig ?? WebViewConfig(url: "", userAgent: nil, headers: [:], cookies: [], offsetX: 0, offsetY: 0, zoom: 1),
+                frame: contentFrame
+            )
+            host.webView.frame = contentFrame
+            host.webView.layer?.zPosition = CGFloat(layoutItem.zOrder)
+            host.webView.layer?.backgroundColor = backgroundCGColor
+            host.webView.autoresizingMask = isFloating ? [.width, .height] : []
+            host.onThumbnail = { [weak self] image in self?.thumbnails[itemID] = image }
+            hostView?.addSubview(host.webView)
+            host.start()
+            running[itemID] = RunningItem(
+                layoutID: itemID,
+                instance: instance,
+                runtime: .webview(host: host),
+                displayUUID: layoutItem.displayUUID,
+                panel: panel
+            )
         }
         panel?.show()
     }
@@ -304,6 +328,9 @@ final class RuntimeCoordinator: ObservableObject {
             suppressRebuild = false
         }
         if name == "fps" || name == "interval" {
+            rebuild()
+        } else if case .webview = running[itemID]?.runtime {
+            // url / offset / zoom are baked into the webview config at spawn.
             rebuild()
         } else if case .declarative(let host) = running[itemID]?.runtime {
             // Static declarative plugins re-render only on edits; ticking
@@ -350,6 +377,8 @@ final class RuntimeCoordinator: ObservableObject {
             case .declarative(let host):
                 // SwiftUI relayouts; no buffer reallocation ever needed.
                 host.hostingView.frame = frame
+            case .webview(let host):
+                host.webView.frame = frame
             }
         } else if commit && sizeChanged {
             rebuild()

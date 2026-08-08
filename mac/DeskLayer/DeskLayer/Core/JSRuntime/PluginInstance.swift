@@ -18,6 +18,20 @@ nonisolated enum PluginRenderMode: String {
     case canvas
     /// render() returns a view tree, rendered as native SwiftUI.
     case declarative
+    /// No render(); shows a web page (plugin.export.webview).
+    case webview
+}
+
+/// A webview plugin's configuration, resolved from plugin.export.webview and
+/// (for the live-editable bits) the plugin's properties.
+nonisolated struct WebViewConfig: Sendable, Equatable {
+    var url: String
+    var userAgent: String?
+    var headers: [String: String]
+    var cookies: [[String: String]]
+    var offsetX: Double
+    var offsetY: Double
+    var zoom: Double
 }
 
 nonisolated struct PluginLogEntry: Identifiable, Sendable {
@@ -81,12 +95,14 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
     private let vm: JSVirtualMachine
     let context: JSContext
-    private let renderFunction: JSValue
+    private let renderFunction: JSValue?
     private let exportValue: JSValue
     private let bindings: JSBindings
     private let hostBindings: HostBindings
     /// Host powers the plugin opted into via plugin.export.permissions.
     let permissions: Set<String>
+    /// Present only for webview-mode plugins.
+    let webviewConfig: WebViewConfig?
     private(set) var isErrored = false
     private(set) var errorMessage: String?
 
@@ -132,15 +148,25 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
         guard
             let export = context.objectForKeyedSubscript("plugin")?.objectForKeyedSubscript("export"),
-            !export.isUndefined, !export.isNull,
-            let render = export.objectForKeyedSubscript("render"),
-            !render.isUndefined, !render.isNull
+            !export.isUndefined, !export.isNull
         else {
-            renderLog.error("[\(pluginID, privacy: .public)] plugin.export.render missing")
+            renderLog.error("[\(pluginID, privacy: .public)] plugin.export missing")
             return nil
         }
         exportValue = export
-        renderFunction = render
+
+        let declaredMode = export.objectForKeyedSubscript("mode")?.toString()
+        let isWebview = declaredMode == "webview" || (export.objectForKeyedSubscript("webview")?.isObject ?? false)
+
+        let render = export.objectForKeyedSubscript("render")
+        if let render, !render.isUndefined, !render.isNull {
+            renderFunction = render
+        } else if isWebview {
+            renderFunction = nil // webview plugins need no render()
+        } else {
+            renderLog.error("[\(pluginID, privacy: .public)] plugin.export.render missing")
+            return nil
+        }
 
         // Parse declared properties, coercing by declared valueType.
         var declared: [PluginProperty] = []
@@ -176,12 +202,43 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
         // Mode: explicit plugin.export.mode wins; otherwise render's arity —
         // render(ctx) is canvas, render() is declarative.
-        if let mode = export.objectForKeyedSubscript("mode")?.toString(),
-           let parsed = PluginRenderMode(rawValue: mode) {
+        if isWebview {
+            renderMode = .webview
+        } else if let mode = declaredMode, let parsed = PluginRenderMode(rawValue: mode) {
             renderMode = parsed
         } else {
-            let arity = renderFunction.objectForKeyedSubscript("length")?.toInt32() ?? 1
+            let arity = renderFunction?.objectForKeyedSubscript("length")?.toInt32() ?? 1
             renderMode = arity >= 1 ? .canvas : .declarative
+        }
+
+        // Webview config: static plugin.export.webview merged with live
+        // properties (url / offsetX / offsetY / zoom are inspector-editable).
+        if renderMode == .webview {
+            let cfg = export.objectForKeyedSubscript("webview")
+            func prop(_ name: String) -> PropertyValue? { declared.first { $0.name == name }?.value }
+            let url = prop("url")?.stringValue
+                ?? (cfg?.objectForKeyedSubscript("url")?.isString == true ? cfg?.objectForKeyedSubscript("url")?.toString() : nil)
+                ?? ""
+            var headers: [String: String] = [:]
+            if let raw = cfg?.objectForKeyedSubscript("headers")?.toDictionary() as? [String: Any] {
+                for (k, v) in raw { headers[k] = String(describing: v) }
+            }
+            var cookies: [[String: String]] = []
+            if let raw = cfg?.objectForKeyedSubscript("cookies")?.toArray() as? [[String: Any]] {
+                cookies = raw.map { entry in entry.mapValues { String(describing: $0) } }
+            }
+            let ua = cfg?.objectForKeyedSubscript("userAgent")
+            webviewConfig = WebViewConfig(
+                url: url,
+                userAgent: (ua?.isString == true) ? ua?.toString() : nil,
+                headers: headers,
+                cookies: cookies,
+                offsetX: prop("offsetX")?.doubleValue ?? cfg?.objectForKeyedSubscript("offsetX")?.toDouble() ?? 0,
+                offsetY: prop("offsetY")?.doubleValue ?? cfg?.objectForKeyedSubscript("offsetY")?.toDouble() ?? 0,
+                zoom: prop("zoom")?.doubleValue ?? cfg?.objectForKeyedSubscript("zoom")?.toDouble() ?? 1
+            )
+        } else {
+            webviewConfig = nil
         }
 
         // Host powers the plugin opted into: plugin.export.permissions =
@@ -202,7 +259,7 @@ nonisolated final class PluginInstance: @unchecked Sendable {
 
     /// Invokes render(ctx). Returns false when the plugin threw.
     func callRender(with argument: JSValue?) -> Bool {
-        guard !isErrored else { return false }
+        guard !isErrored, let renderFunction else { return false }
         if let argument {
             renderFunction.call(withArguments: [argument])
         } else {
@@ -215,7 +272,7 @@ nonisolated final class PluginInstance: @unchecked Sendable {
     /// Declarative mode: invokes render() and returns the tree as JSON.
     /// Call only on `queue`.
     func callRenderTree() -> String? {
-        guard !isErrored else { return nil }
+        guard !isErrored, let renderFunction else { return nil }
         let result = renderFunction.call(withArguments: [])
         checkException()
         guard !isErrored, let result, !result.isUndefined, !result.isNull else { return nil }

@@ -575,6 +575,75 @@ struct PluginInstanceTests {
         #expect(again == .upToDate(version: "1.1.0"))
     }
 
+    @Test func updaterUsesManifest() async throws {
+        // A tiny .json manifest is checked; the .js body downloads only when
+        // the manifest reports a newer version.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-mani-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let jsURL = dir.appendingPathComponent("Plugin.js")
+        let manifestURL = dir.appendingPathComponent("Plugin.json")   // sibling, same name
+        let updateLine = "updateURL: \"\(jsURL.absoluteString)\""
+        let installed = "plugin.export = { version: \"1.0.0\", \(updateLine), render: function(){} };"
+        let newBody = "plugin.export = { version: \"2.0.0\", \(updateLine), render: function(){} };"
+        let manifest = "{ \"version\": \"2.0.0\", \"url\": \"\(jsURL.absoluteString)\" }"
+        try installed.write(to: dir.appendingPathComponent("Plugin_installed.js"), atomically: true, encoding: .utf8)
+        try newBody.write(to: jsURL, atomically: true, encoding: .utf8)
+        try manifest.write(to: manifestURL, atomically: true, encoding: .utf8)
+
+        let dest = dir.appendingPathComponent("Plugin_installed.js")
+        let updater = await PluginUpdater()
+        let result = await updater.check(pluginID: "Plugin", installedSource: installed, destination: dest)
+        #expect(result == .updated(from: "1.0.0", to: "2.0.0"))
+        #expect(try String(contentsOf: dest, encoding: .utf8).contains("2.0.0"))
+
+        // Manifest now equal → up to date, no re-download needed.
+        let again = await updater.check(pluginID: "Plugin", installedSource: newBody, destination: dest)
+        #expect(again == .upToDate(version: "2.0.0"))
+    }
+
+    @Test func webviewModeParsesConfig() throws {
+        let source = """
+        let properties = [
+            { name: "url", valueType: "string", value: "https://example.com/page" },
+            { name: "offsetY", valueType: "number", value: "120" }
+        ];
+        plugin.export = {
+            mode: "webview",
+            properties,
+            webview: {
+                userAgent: "DeskLayer/1.0",
+                headers: { "X-Test": "yes" },
+                cookies: [{ name: "s", value: "abc", domain: "example.com", path: "/" }],
+                zoom: 1.5
+            }
+        };
+        """
+        let instance = try #require(PluginInstance(pluginID: "w", source: source, overrides: [:]))
+        #expect(instance.renderMode == .webview)
+        let cfg = try #require(instance.webviewConfig)
+        #expect(cfg.url == "https://example.com/page")     // from a property
+        #expect(cfg.offsetY == 120)                        // from a property
+        #expect(cfg.userAgent == "DeskLayer/1.0")          // from webview config
+        #expect(cfg.headers["X-Test"] == "yes")
+        #expect(cfg.cookies.first?["value"] == "abc")
+        #expect(cfg.zoom == 1.5)
+        instance.invalidate()
+    }
+
+    @Test func webviewNeedsNoRenderFunction() throws {
+        // A webview plugin with no render() must still load.
+        let source = """
+        plugin.export = { mode: "webview", webview: { url: "https://example.com" } };
+        """
+        let instance = try #require(PluginInstance(pluginID: "w", source: source, overrides: [:]))
+        #expect(instance.renderMode == .webview)
+        #expect(instance.webviewConfig?.url == "https://example.com")
+        instance.invalidate()
+    }
+
     private func readExport(_ instance: PluginInstance, _ name: String) async -> String {
         await withCheckedContinuation { continuation in
             instance.queue.async {
