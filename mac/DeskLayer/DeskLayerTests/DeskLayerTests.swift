@@ -662,6 +662,56 @@ struct PluginInstanceTests {
         instance.invalidate()
     }
 
+    @Test func interactiveTreeCarriesActionsAndInvokes() async throws {
+        // Button/onTapGesture register callbacks in the action table and
+        // serialize a numeric id; __dl_invokeAction runs them.
+        let source = """
+        let properties = [];
+        let taps = 0; let lastText = "";
+        render = () => view([
+            VStack([
+                Button("inc", () => { taps += 1; }),
+                TextField("name", (e) => { lastText = e.text; }),
+                Text("card").onTapGesture((e) => { taps += 100; })
+            ])
+        ]);
+        plugin.export = { properties, render,
+            readTaps: () => taps, readText: () => lastText };
+        """
+        let instance = try #require(PluginInstance(pluginID: "t", source: source, overrides: [:]))
+        #expect(instance.renderMode == .declarative)
+
+        // Everything in one queue hop so the assertions can't race with
+        // parallel test teardown (JSValues are queue-confined).
+        struct Result: Sendable { let json: String?; let taps: String; let text: String }
+        let result: Result = await withCheckedContinuation { continuation in
+            instance.queue.async {
+                let json = instance.callRenderTree()
+                guard let json, let tree = ViewNode.decode(fromJSON: json),
+                      let stack = tree.children?.first,
+                      let button = stack.children?.first(where: { $0.type == "Button" }),
+                      let onTapID = button.modifiers?.first(where: { $0.name == "onTap" })?.firstDouble.map({ Int($0) }),
+                      let field = stack.children?.first(where: { $0.type == "TextField" }),
+                      let onChangeID = field.modifiers?.first(where: { $0.name == "onChange" })?.firstDouble.map({ Int($0) })
+                else {
+                    continuation.resume(returning: Result(json: json, taps: "?", text: "?")); return
+                }
+                instance.invokeAction(id: onTapID, payloadJSON: "{}")
+                instance.invokeAction(id: onChangeID, payloadJSON: "{\"text\":\"ada\"}")
+                func read(_ name: String) -> String {
+                    instance.context.objectForKeyedSubscript("plugin")?
+                        .objectForKeyedSubscript("export")?
+                        .objectForKeyedSubscript(name)?.call(withArguments: [])?.toString() ?? ""
+                }
+                continuation.resume(returning: Result(json: json, taps: read("readTaps"), text: read("readText")))
+            }
+        }
+        #expect(result.json != nil)
+        #expect(result.taps == "1")
+        #expect(result.text == "ada")
+        instance.invalidate()
+    }
+
     @Test func webviewNeedsNoRenderFunction() throws {
         // A webview plugin with no render() must still load.
         let source = """

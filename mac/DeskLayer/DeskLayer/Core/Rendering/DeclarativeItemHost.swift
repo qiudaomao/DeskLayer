@@ -18,6 +18,8 @@ import os
 @MainActor
 final class DeclarativeTreeModel: ObservableObject {
     @Published var node: ViewNode?
+    /// Set once by the host; forwards interactive events into plugin JS.
+    var onAction: NodeActionHandler?
 }
 
 /// Root wrapper bound to the host's observable model.
@@ -27,7 +29,7 @@ struct RootNodeView: View {
     var body: some View {
         Group {
             if let node = model.node {
-                NodeView(node: node)
+                NodeView(node: node, onAction: model.onAction)
             } else {
                 Color.clear
             }
@@ -57,6 +59,21 @@ final class DeclarativeItemHost {
         hostingView.frame = frame
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = .clear
+        // Interactive elements call back into plugin JS on its own queue,
+        // then a re-render reflects any state change. Only reachable in
+        // floating windows — the wallpaper layer ignores mouse events.
+        model.onAction = { [weak self] id, payload in
+            // SwiftUI delivers taps/edits on the main thread.
+            MainActor.assumeIsolated { self?.handleAction(id: id, payload: payload) }
+        }
+    }
+
+    private func handleAction(id: Int, payload: String) {
+        let instance = instance
+        instance.queue.async { [weak self] in
+            instance.invokeAction(id: id, payloadJSON: payload)
+            DispatchQueue.main.async { self?.renderOnce() }
+        }
     }
 
     func start() {

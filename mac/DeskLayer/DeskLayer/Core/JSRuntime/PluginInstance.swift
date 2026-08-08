@@ -112,6 +112,12 @@ nonisolated final class PluginInstance: @unchecked Sendable {
         self.pluginID = pluginID
         let queue = DispatchQueue(label: "desklayer.item.\(pluginID)", qos: .userInteractive)
         self.queue = queue
+        // Hold all async work (a top-level setTimeout(0), fetch/ssh callbacks)
+        // until init finishes — otherwise a callback can run on the queue
+        // before permissions/bindings are fully wired. Resumed at scope exit,
+        // success or failure.
+        queue.suspend()
+        defer { queue.resume() }
 
         vm = JSVirtualMachine()
         guard let jsContext = JSContext(virtualMachine: vm) else { return nil }
@@ -273,6 +279,8 @@ nonisolated final class PluginInstance: @unchecked Sendable {
     /// Call only on `queue`.
     func callRenderTree() -> String? {
         guard !isErrored, let renderFunction else { return nil }
+        // Fresh action table for this render's Button/tap/onChange ids.
+        context.objectForKeyedSubscript("__dl_resetActions")?.call(withArguments: [])
         let result = renderFunction.call(withArguments: [])
         checkException()
         guard !isErrored, let result, !result.isUndefined, !result.isNull else { return nil }
@@ -280,6 +288,15 @@ nonisolated final class PluginInstance: @unchecked Sendable {
             .invokeMethod("stringify", withArguments: [result])
         checkException()
         return json?.isString == true ? json?.toString() : nil
+    }
+
+    /// Fires a declarative action (Button/tap/text change) by id, passing a
+    /// JSON payload string. Call only on `queue`.
+    func invokeAction(id: Int, payloadJSON: String) {
+        guard !isErrored else { return }
+        context.objectForKeyedSubscript("__dl_invokeAction")?
+            .call(withArguments: [id, payloadJSON])
+        checkException()
     }
 
     func checkException() {

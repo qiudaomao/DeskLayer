@@ -239,16 +239,57 @@ plugin.export = { properties, render };
 
 ### Elements
 
-`view([...])` (root), `VStack`, `HStack`, `ZStack`, `Text("...")`,
-`Image("sf.symbol.name")`, `Spacer()`.
-Aliases: `Section` = `VStack`, `Paragraph` = `Text`.
-`Image` first tries an SF Symbol name, then a file in the plugin folder.
+Layout & text: `view([...])` (root), `VStack`, `HStack`, `ZStack`,
+`Text("...")`, `Spacer()`. Aliases: `Section` = `VStack`, `Paragraph` = `Text`.
+
+`Image(name)` — an SF Symbol name, a file in the plugin folder, **or an
+`http(s)`/`file` URL** (loaded async).
+
+`Spinner()` — indeterminate activity indicator.
+`ProgressBar(value)` — determinate bar, `value` 0…1.
+`Video(url)` — plays a video; `.loop(true)`, `.muted(false)`.
+
+Interactive (see below): `Button(label, handler?)`, `TextField(placeholder,
+onChange?)`.
 
 ### Modifiers (chainable)
 
 `.textColor(css)` / `.foregroundColor(css)`, `.fontSize(pt)`, `.bold()`,
 `.padding(pt)`, `.background(css)`, `.cornerRadius(pt)`, `.frame(w, h)`,
 `.opacity(0–1)`, `.spacing(pt)` (on stacks).
+
+### Interactivity (floating windows only)
+
+Buttons, taps, and text input work **only for floating-window items** — the
+wallpaper layer ignores mouse events, so interactive plugins should be shown
+as a Floating Window (inspector → Show as), with click-through **off**.
+
+```js
+let count = 0;
+let name = "friend";
+
+render = () => view([
+    VStack([
+        Text("Hi, " + name).bold(),
+        TextField("your name", (e) => { name = e.text; }).value(name),
+        HStack([
+            Button("−", () => { count = Math.max(0, count - 1); }),
+            Text(String(count)),
+            Button("+", () => { count += 1; })
+        ]),
+        Text("tap me").onTapGesture((e) => { count += 1; })   // e.x, e.y in points
+    ])
+]);
+```
+
+- `Button(label, handler)` — or `Button(label).onTap(handler)`.
+- `.onTapGesture((e) => …)` on any element; `e.x` / `e.y` are local points.
+- `TextField(placeholder, (e) => …)` — `e.text` is the current string;
+  `.value(str)` sets the initial/controlled text.
+
+Handlers mutate your plugin's variables; DeskLayer re-renders right after, so
+the UI reflects the new state. (Your plugin holds the state and returns a fresh
+tree — like React.)
 
 Unchanged trees are skipped automatically, so returning the same structure is
 cheap. Unknown elements/modifiers render a small warning badge instead of
