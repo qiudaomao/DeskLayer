@@ -528,6 +528,9 @@ these work. In a sandboxed build they return a clear error.
 | `updateURL` | string | Optional; URL of the latest `.js`, enables update checks. |
 | `width`, `height` | number | Optional preferred size in points. A newly added item adopts this aspect so its rect matches the content. |
 | `resizable` | bool | Optional (default true). `false` hides the resize handle. |
+| `scaleMode` | string | `"ratio"` keeps the aspect while resizing, `"free"` lets width and height move independently. Default: ratio when `width`/`height` are declared, free otherwise. Shift inverts it while dragging. |
+| `minWidth`, `maxWidth`, `minHeight`, `maxHeight` | number | Optional size limits in points, enforced for drags, inspector edits, and auto-sizing alike. |
+| `autoSize` | string | `"height"`, `"width"`, or `"both"` — those axes follow the rendered content instead of the frame you set. Default none, so a manual resize is never undone. Use `"height"` for stacking content (see `RemoteMonitor`, whose height follows the number of servers). |
 
 ### Special property names
 

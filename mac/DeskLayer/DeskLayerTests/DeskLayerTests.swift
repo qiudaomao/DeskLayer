@@ -775,6 +775,32 @@ struct PluginInstanceTests {
         #expect(d.resizable == true)
     }
 
+    @Test func metadataScalePolicyAndLimits() {
+        let ratio = PluginMetadata.extract(from: """
+        plugin.export = { width: 200, height: 100, scaleMode: "ratio",
+                          minWidth: 150, maxWidth: 400, minHeight: 80, maxHeight: 300,
+                          render: function(){} };
+        """)
+        #expect(ratio.keepsAspect)
+        #expect(ratio.clamp(CGSize(width: 100, height: 50)) == CGSize(width: 150, height: 80))
+        #expect(ratio.clamp(CGSize(width: 900, height: 900)) == CGSize(width: 400, height: 300))
+        #expect(ratio.clamp(CGSize(width: 250, height: 120)) == CGSize(width: 250, height: 120))
+
+        // scaleMode "free" opts out of aspect locking…
+        let free = PluginMetadata.extract(from: """
+        plugin.export = { width: 200, height: 100, scaleMode: "free", render: function(){} };
+        """)
+        #expect(free.keepsAspect == false)
+        // …and with nothing declared, a natural size implies a locked aspect,
+        // while a plugin with no size resizes freely.
+        let sized = PluginMetadata.extract(from: "plugin.export = { width: 10, height: 10, render: function(){} };")
+        let unsized = PluginMetadata.extract(from: "plugin.export = { render: function(){} };")
+        #expect(sized.keepsAspect)
+        #expect(unsized.keepsAspect == false)
+        // A limit may be one-sided.
+        #expect(unsized.clamp(CGSize(width: 5, height: 5)) == CGSize(width: 5, height: 5))
+    }
+
     @Test func preferredSizeMapsToScreenFraction() {
         // 260pt on a 1300pt-wide screen → 0.2 width.
         let size = PluginLibraryView.defaultNormalizedSize(

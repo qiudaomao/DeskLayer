@@ -282,6 +282,10 @@ nonisolated enum SamplePlugins {
         author: "DeskLayer",
         description: "Remote host dashboard over SSH: load and memory rings, network and disk I/O rates.",
         width: 430, height: 190,
+        // Height follows the number of servers; width stays whatever you set.
+        scaleMode: "free",
+        autoSize: "height",
+        minWidth: 340, maxWidth: 760,
         permissions: ['ssh'],
         properties,
         render
@@ -380,6 +384,8 @@ nonisolated enum SamplePlugins {
         author: "DeskLayer",
         description: "Live CPU, memory, disk, and network gauges.",
         width: 320, height: 170,
+        scaleMode: "free",         // rows reflow, so width and height are independent
+        minWidth: 260, maxWidth: 640, minHeight: 120, maxHeight: 360,
         properties,
         render
     };
@@ -508,6 +514,8 @@ nonisolated enum SamplePlugins {
         author: "DeskLayer",
         description: "An analog clock with a custom face color and label.",
         width: 260, height: 260,   // square: rect matches the round face
+        scaleMode: "ratio",        // stays circular when resized
+        minWidth: 120, maxWidth: 600, minHeight: 120, maxHeight: 600,
         properties,
         render
     };

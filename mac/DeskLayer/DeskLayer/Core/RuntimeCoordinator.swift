@@ -377,6 +377,7 @@ final class RuntimeCoordinator: ObservableObject {
     /// during a live resize the layer just stretches (contentsGravity).
     func setFrame(itemID: UUID, normalizedFrame: CGRect, commit: Bool) {
         guard var item = store.layout.items.first(where: { $0.id == itemID }) else { return }
+        let normalizedFrame = clampedToPluginLimits(normalizedFrame, item: item)
         let sizeChanged = item.normalizedFrame.size != normalizedFrame.size
         item.normalizedFrame = normalizedFrame
         suppressRebuild = true
@@ -417,6 +418,26 @@ final class RuntimeCoordinator: ObservableObject {
         }
     }
 
+    /// Applies the plugin's declared min/max size (points) to a normalized
+    /// frame. Central, so drags, inspector edits, and content auto-sizing
+    /// all obey the same limits.
+    func clampedToPluginLimits(_ frame: CGRect, item: LayoutItem) -> CGRect {
+        let meta = plugins.metadata(for: item.pluginID)
+        guard meta.minWidth != nil || meta.maxWidth != nil
+                || meta.minHeight != nil || meta.maxHeight != nil else { return frame }
+        guard let screen = screens.controller(forDisplayUUID: item.displayUUID)?.screen.frame.size,
+              screen.width > 0, screen.height > 0 else { return frame }
+
+        let points = CGSize(width: frame.width * screen.width, height: frame.height * screen.height)
+        let clamped = meta.clamp(points)
+        guard clamped != points else { return frame }
+        return CGRect(
+            x: frame.minX, y: frame.minY,
+            width: min(clamped.width / screen.width, 1),
+            height: min(clamped.height / screen.height, 1)
+        )
+    }
+
     /// Resizes an item's frame to the content's natural size (keeping its
     /// top-left anchored, which is how the user perceives placement). The
     /// live view is resized directly and the model updated without a
@@ -427,11 +448,16 @@ final class RuntimeCoordinator: ObservableObject {
         let screenFrame = controller.screen.frame
         guard screenFrame.width > 0, screenFrame.height > 0 else { return }
 
-        let normalized = CGSize(
-            width: min(size.width / screenFrame.width, 1),
-            height: min(size.height / screenFrame.height, 1)
-        )
+        let meta = plugins.metadata(for: item.pluginID)
+        // Only axes the plugin declares as content-driven follow the content;
+        // otherwise the user's size is kept (else a resize would snap back).
+        guard meta.autoSizeWidth || meta.autoSizeHeight else { return }
+        let limited = meta.clamp(size)
         let current = item.normalizedFrame
+        let normalized = CGSize(
+            width: meta.autoSizeWidth ? min(limited.width / screenFrame.width, 1) : current.width,
+            height: meta.autoSizeHeight ? min(limited.height / screenFrame.height, 1) : current.height
+        )
         guard abs(normalized.width - current.width) > 0.001
                 || abs(normalized.height - current.height) > 0.001 else { return }
 
@@ -445,6 +471,11 @@ final class RuntimeCoordinator: ObservableObject {
         store.update(item)
         suppressRebuild = false
 
+        // The live view uses the clamped size, not the raw content size.
+        let size = CGSize(
+            width: item.normalizedFrame.width * screenFrame.width,
+            height: item.normalizedFrame.height * screenFrame.height
+        )
         guard let runningItem = running[itemID] else { return }
         if let panel = runningItem.panel {
             // Floating: the content view fills the panel, so resize the panel

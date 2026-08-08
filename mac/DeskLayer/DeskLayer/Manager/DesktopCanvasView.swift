@@ -247,8 +247,11 @@ private struct CanvasItemView: View {
                 let maxWidth = canvasSize.width - anchor.minX
                 let maxHeight = canvasSize.height - anchor.minY
 
-                // Aspect-preserving by default; hold Shift for free resize.
-                if NSEvent.modifierFlags.contains(.shift) {
+                // The plugin decides: scaleMode "ratio" keeps the aspect,
+                // "free" doesn't. Shift inverts whichever it declared.
+                let keepsAspect = registry.metadata(for: item.pluginID).keepsAspect
+                    != NSEvent.modifierFlags.contains(.shift)
+                if !keepsAspect {
                     frame.size.width = min(max(anchor.width + value.translation.width, 24), maxWidth)
                     frame.size.height = min(max(anchor.height + value.translation.height, 24), maxHeight)
                 } else {

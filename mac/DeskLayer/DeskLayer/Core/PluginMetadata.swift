@@ -23,6 +23,35 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
     var preferredSize: CGSize?
     /// Whether the item may be resized on the canvas (default true).
     var resizable: Bool = true
+    /// Resize policy: `scaleMode: "ratio"` keeps the aspect, `"free"` lets
+    /// width and height move independently. nil = decide from preferredSize
+    /// (a declared size implies a natural aspect worth keeping).
+    var lockAspect: Bool?
+    /// Size limits in points; any component may be absent.
+    var minWidth: Double?
+    var maxWidth: Double?
+    var minHeight: Double?
+    var maxHeight: Double?
+    /// Which axes follow the rendered content instead of the user's frame.
+    /// `autoSize: "height"` suits stacking content (a list of servers);
+    /// "both" for fully content-driven items. Default "none" — the size the
+    /// user sets is kept, so resizing isn't undone on the next render.
+    var autoSizeWidth: Bool = false
+    var autoSizeHeight: Bool = false
+
+    /// Whether a corner drag should keep the aspect ratio, given the
+    /// plugin's declarations.
+    var keepsAspect: Bool { lockAspect ?? (preferredSize != nil) }
+
+    /// Clamp a point size to the declared limits.
+    func clamp(_ size: CGSize) -> CGSize {
+        var w = size.width, h = size.height
+        if let minWidth { w = max(w, minWidth) }
+        if let maxWidth { w = min(w, maxWidth) }
+        if let minHeight { h = max(h, minHeight) }
+        if let maxHeight { h = min(h, maxHeight) }
+        return CGSize(width: w, height: h)
+    }
 
     var isEmpty: Bool { version == nil && author == nil && summary == nil && updateURL == nil }
 
@@ -79,13 +108,28 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
         let resizableValue = export.objectForKeyedSubscript("resizable")
         let resizable = (resizableValue?.isBoolean == true) ? resizableValue!.toBool() : true
 
+        // scaleMode: "ratio" | "free" (alias: lockAspect: true/false)
+        var lockAspect: Bool?
+        if let mode = string("scaleMode")?.lowercased() {
+            lockAspect = (mode == "ratio" || mode == "aspect" || mode == "locked")
+        } else if let value = export.objectForKeyedSubscript("lockAspect"), value.isBoolean {
+            lockAspect = value.toBool()
+        }
+
         return PluginMetadata(
             version: string("version"),
             author: string("author"),
             summary: string("description"),
             updateURL: string("updateURL") ?? string("updateUrl"),
             preferredSize: size,
-            resizable: resizable
+            resizable: resizable,
+            lockAspect: lockAspect,
+            minWidth: number("minWidth"),
+            maxWidth: number("maxWidth"),
+            minHeight: number("minHeight"),
+            maxHeight: number("maxHeight"),
+            autoSizeWidth: ["both", "width"].contains(string("autoSize")?.lowercased() ?? ""),
+            autoSizeHeight: ["both", "height"].contains(string("autoSize")?.lowercased() ?? "")
         )
     }
 }
