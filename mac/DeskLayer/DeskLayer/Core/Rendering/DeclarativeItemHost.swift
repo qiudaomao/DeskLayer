@@ -34,7 +34,11 @@ struct RootNodeView: View {
                 Color.clear
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Top-leading, not the default centre: an item is placed by its
+        // top-left corner, and until the frame catches up with a newly
+        // measured content size the tree is laid out in the old bounds —
+        // centred, that reads as the whole plugin sliding as it grows.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -108,19 +112,24 @@ final class DeclarativeItemHost {
             guard let json = instance.callRenderTree() else { return }
             DispatchQueue.main.async {
                 guard let self else { return }
-                guard json != self.lastJSON else { return } // unchanged tree
-                self.lastJSON = json
-                guard let node = ViewNode.decode(fromJSON: json) else {
-                    renderLog.error("[\(instance.pluginID, privacy: .public)] render() returned undecodable tree")
-                    return
+                if json != self.lastJSON {
+                    self.lastJSON = json
+                    guard let node = ViewNode.decode(fromJSON: json) else {
+                        renderLog.error("[\(instance.pluginID, privacy: .public)] render() returned undecodable tree")
+                        return
+                    }
+                    self.model.node = node
+                    self.onTreeJSON?(json)
+                    self.publishThumbnailIfDue()
+                    // SwiftUI lays the new tree out after this turn of the
+                    // run loop, so the measurement below still sees the old
+                    // one. Measure again once it has, or the frame trails the
+                    // content by a whole render — seconds, on a slow cadence.
+                    DispatchQueue.main.async { self.reportContentSizeIfChanged() }
                 }
-                self.model.node = node
-                // Size first, so the thumbnail is rendered at the frame the
-                // desktop actually uses (otherwise the preview's aspect is
-                // wrong whenever the content differs from the item rect).
+                // Safety net: an unchanged tree still gets measured, so a
+                // frame that missed its correction can never stay wrong.
                 self.reportContentSizeIfChanged()
-                self.publishThumbnailIfDue()
-                self.onTreeJSON?(json)
             }
         }
     }
@@ -129,6 +138,9 @@ final class DeclarativeItemHost {
     /// actually changes, so this can't feed back into a resize loop.
     private func reportContentSizeIfChanged() {
         guard let onContentSize else { return }
+        // Flush any pending SwiftUI layout so this measures the tree that is
+        // on screen rather than the one before it.
+        hostingView.layoutSubtreeIfNeeded()
         let ideal = hostingView.fittingSize
         guard ideal.width > 1, ideal.height > 1 else { return }
         guard abs(ideal.width - lastReportedSize.width) > 1
