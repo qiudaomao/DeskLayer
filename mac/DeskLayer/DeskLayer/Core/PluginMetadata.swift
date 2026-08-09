@@ -53,6 +53,33 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
         return CGSize(width: w, height: h)
     }
 
+    /// Which side of a size the user just typed into.
+    enum SizeAxis { case width, height }
+
+    /// The size an editor should settle on after the user types one: limits
+    /// applied, and for aspect-locked plugins the untouched axis follows the
+    /// edited one. Out-of-range input snaps to the limit rather than being
+    /// kept, so the field never shows a size the item can't take.
+    func resolvedSize(entered: CGSize, edited: SizeAxis?, floor: Double = 8) -> CGSize {
+        var size = entered
+        if let edited, keepsAspect, let preferred = preferredSize, preferred.height > 0 {
+            let ratio = preferred.width / preferred.height
+            switch edited {
+            case .width: size.height = size.width / ratio
+            case .height: size.width = size.height * ratio
+            }
+            // Clamp, then re-derive the edited axis: its partner may have hit
+            // a limit first, and the aspect has to survive that.
+            size = clamp(size)
+            switch edited {
+            case .width: size.width = size.height * ratio
+            case .height: size.height = size.width / ratio
+            }
+        }
+        size = clamp(size)
+        return CGSize(width: max(size.width, floor), height: max(size.height, floor))
+    }
+
     var isEmpty: Bool { version == nil && author == nil && summary == nil && updateURL == nil }
 
     /// Evaluates `source` in an isolated context with inert globals and reads

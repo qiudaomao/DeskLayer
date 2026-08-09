@@ -82,9 +82,14 @@ struct InspectorView: View {
                     }
                 }
 
-                Section("Frame (% of screen)") {
-                    let resizable = registry.metadata(for: item.pluginID).resizable
-                    FrameEditor(item: item, resizable: resizable) { newFrame in
+                Section("Frame (points)") {
+                    let metadata = registry.metadata(for: item.pluginID)
+                    let resizable = metadata.resizable
+                    FrameEditor(
+                        item: item,
+                        metadata: metadata,
+                        screenSize: screenSize(for: item)
+                    ) { newFrame in
                         coordinator.setFrame(itemID: item.id, normalizedFrame: newFrame, commit: true)
                     }
                     .id(item.id)
@@ -141,6 +146,15 @@ struct InspectorView: View {
     private var selectedItem: LayoutItem? {
         guard let id = selection.itemID else { return nil }
         return store.layout.items.first { $0.id == id }
+    }
+
+    /// The display an item's normalized frame is measured against — the same
+    /// `screen.frame` the coordinator uses to place it. An offline display
+    /// falls back to the main screen so the fields still show something sane.
+    private func screenSize(for item: LayoutItem) -> CGSize {
+        screens.controller(forDisplayUUID: item.displayUUID)?.screen.frame.size
+            ?? NSScreen.main?.frame.size
+            ?? CGSize(width: 1920, height: 1080)
     }
 
     /// Read-modify-write binding into the store (structural edits rebuild).
@@ -814,37 +828,85 @@ private struct FrameEditor: View {
     @State private var width = 0.0
     @State private var height = 0.0
 
+    private var resizable: Bool { metadata.resizable }
+
     var body: some View {
         Group {
-            percentField("X", value: $x)
-            percentField("Y (from bottom)", value: $y)
-            percentField("Width", value: $width)
+            // String(localized:) at the call site: the label crosses a
+            // String parameter, so a bare literal would never be localized.
+            pointField(String(localized: "X"), value: $x)
+            pointField(String(localized: "Y (from top)"), value: $y)
+            pointField(String(localized: "Width"), value: $width, axis: .width)
                 .disabled(!resizable)
-            percentField("Height", value: $height)
+            pointField(String(localized: "Height"), value: $height, axis: .height)
                 .disabled(!resizable)
+            if let limits = limitsDescription {
+                Text(limits).font(.caption2).foregroundStyle(.tertiary)
+            }
         }
         .onAppear { load() }
         .onChange(of: item.normalizedFrame) { _, _ in load() }
+        .onChange(of: screenSize) { _, _ in load() }
+    }
+
+    private var limitsDescription: String? {
+        func range(_ min: Double?, _ max: Double?) -> String? {
+            switch (min, max) {
+            case let (min?, max?): "\(Int(min))–\(Int(max))"
+            case let (min?, nil): "≥ \(Int(min))"
+            case let (nil, max?): "≤ \(Int(max))"
+            default: nil
+            }
+        }
+        let parts = [
+            range(metadata.minWidth, metadata.maxWidth).map { "W \($0)" },
+            range(metadata.minHeight, metadata.maxHeight).map { "H \($0)" },
+        ].compactMap { $0 }
+        guard !parts.isEmpty else { return nil }
+        let ranges = parts.joined(separator: "  ")
+        return String(localized: "Limits: \(ranges) pt")
     }
 
     private func load() {
-        x = item.normalizedFrame.minX * 100
-        y = item.normalizedFrame.minY * 100
-        width = item.normalizedFrame.width * 100
-        height = item.normalizedFrame.height * 100
+        let frame = item.normalizedFrame
+        x = (frame.minX * screenSize.width).rounded()
+        // Stored bottom-left, edited top-left: an item is placed by its
+        // top-left corner, so that is the number the user should see.
+        y = ((1 - frame.minY - frame.height) * screenSize.height).rounded()
+        width = (frame.width * screenSize.width).rounded()
+        height = (frame.height * screenSize.height).rounded()
     }
 
-    private func percentField(_ label: String, value: Binding<Double>) -> some View {
-        TextField(label, value: value, format: .number.precision(.fractionLength(0...1)))
-            .onSubmit {
-                let frame = CGRect(
-                    x: min(max(x / 100, 0), 1),
-                    y: min(max(y / 100, 0), 1),
-                    width: min(max(width / 100, 0.02), 1),
-                    height: min(max(height / 100, 0.02), 1)
-                )
-                commit(frame)
-            }
+    private func pointField(_ label: String, value: Binding<Double>, axis: Axis? = nil) -> some View {
+        TextField(label, value: value, format: .number.precision(.fractionLength(0)))
+            .onSubmit { submit(edited: axis) }
+    }
+
+    /// Out-of-range sizes snap back to the declared limit rather than being
+    /// silently kept: the coordinator would clamp the frame anyway, and when
+    /// the clamp lands on the value already stored no model change comes back
+    /// to correct the field.
+    private func submit(edited axis: Axis?) {
+        guard screenSize.width > 0, screenSize.height > 0 else { return }
+        let size = metadata.resolvedSize(
+            entered: CGSize(width: width, height: height),
+            edited: axis.map { $0 == .width ? .width : .height }
+        )
+
+        width = size.width.rounded()
+        height = size.height.rounded()
+        x = min(max(x, 0), screenSize.width)
+        y = min(max(y, 0), screenSize.height)
+
+        // Back to bottom-left for storage. Height changes grow downward,
+        // because y is the top edge and stays put.
+        let bottom = max(screenSize.height - y - size.height, 0)
+        commit(CGRect(
+            x: min(x / screenSize.width, 1),
+            y: min(bottom / screenSize.height, 1),
+            width: min(size.width / screenSize.width, 1),
+            height: min(size.height / screenSize.height, 1)
+        ))
     }
 }
 

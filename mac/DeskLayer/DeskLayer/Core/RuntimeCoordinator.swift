@@ -522,15 +522,16 @@ final class RuntimeCoordinator: ObservableObject {
         guard let item = store.layout.items.first(where: { $0.id == itemID }) else { return nil }
         guard let runningItem = running[itemID] else {
             if screens.controller(forDisplayUUID: item.displayUUID) == nil {
-                return "offline — display not connected"
+                return String(localized: "offline — display not connected")
             }
             if plugins.descriptor(for: item.pluginID) == nil {
-                return "plugin \"\(item.pluginID)\" not found"
+                return String(localized: "plugin \"\(item.pluginID)\" not found")
             }
-            return item.isEnabled ? "failed to start (see log)" : nil
+            return item.isEnabled ? String(localized: "failed to start (see log)") : nil
         }
         if runningItem.instance.isErrored {
-            return runningItem.instance.errorMessage ?? "plugin threw an exception"
+            // A JS exception message is the engine's own text, left as-is.
+            return runningItem.instance.errorMessage ?? String(localized: "plugin threw an exception")
         }
         return nil
     }
