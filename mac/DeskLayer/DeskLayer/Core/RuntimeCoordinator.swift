@@ -104,6 +104,9 @@ final class RuntimeCoordinator: ObservableObject {
         power.$policy
             .sink { [weak self] _ in self?.pushPolicies() }
             .store(in: &cancellables)
+        power.didWake
+            .sink { [weak self] in self?.resumeAfterWake() }
+            .store(in: &cancellables)
 
         store.load()
 
@@ -126,6 +129,26 @@ final class RuntimeCoordinator: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Waking is not just "unpause". The display link is gone once its
+    /// display has slept, and occlusion is remembered from a notification
+    /// that may never arrive again — leaving every item computing as paused
+    /// until something else disturbs it. Re-assert both, then repaint, so
+    /// the desktop comes back on its own rather than after a manual
+    /// pause/resume.
+    private func resumeAfterWake() {
+        for controller in screens.controllers.values {
+            controller.refreshAfterWake()
+        }
+        pushPolicies()
+        for item in running.values {
+            switch item.runtime {
+            case .declarative(let host): host.renderOnce()
+            case .canvas, .webview: break
+            }
+        }
+        log.info("resumed after wake: \(self.running.count) items")
     }
 
     private func pushPolicies() {

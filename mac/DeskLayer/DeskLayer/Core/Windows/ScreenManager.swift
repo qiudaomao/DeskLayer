@@ -49,6 +49,13 @@ final class DesktopWindowController: NSObject {
     @objc private func occlusionChanged() {
         scheduler.isOccluded = !window.occlusionState.contains(.visible)
     }
+
+    /// Re-reads state that a missed notification would have left stale, and
+    /// rebuilds the display link, which does not survive display sleep.
+    func refreshAfterWake() {
+        occlusionChanged()
+        scheduler.rebuildLink()
+    }
 }
 
 @MainActor

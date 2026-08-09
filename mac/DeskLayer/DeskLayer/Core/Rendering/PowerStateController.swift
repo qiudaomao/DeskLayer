@@ -22,6 +22,12 @@ enum RenderPolicy: Equatable {
 final class PowerStateController: ObservableObject {
     @Published private(set) var policy: RenderPolicy = .run
 
+    /// Fires when the machine or its displays wake. The policy going back to
+    /// .run isn't enough on its own: a display link doesn't survive the
+    /// display sleeping, and occlusion is only known from a notification
+    /// that may not arrive again, so both have to be re-asserted.
+    let didWake = PassthroughSubject<Void, Never>()
+
     private var isAsleep = false
     private var isLocked = false
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "power")
@@ -63,8 +69,14 @@ final class PowerStateController: ObservableObject {
                 new = .run
             }
             if new != policy {
+                // Announce any return from paused, not one particular
+                // notification: waking a slept display often arrives as an
+                // unlock rather than a wake, and the runtime has to be
+                // re-asserted either way.
+                let wasPaused = policy == .paused
                 policy = new
                 log.info("render policy → \(String(describing: new), privacy: .public)")
+                if wasPaused, new != .paused { didWake.send() }
             }
         }
     }
