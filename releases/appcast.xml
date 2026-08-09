@@ -3,6 +3,39 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.1.2</title>
+            <pubDate>Mon, 10 Aug 2026 07:53:30 +0800</pubDate>
+            <sparkle:version>6</sparkle:version>
+            <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>New</h2>
+<ul>
+<li><b>Menu bar app when the manager is closed.</b> Closing the manager window removes the Dock icon and Cmd-Tab entry; DeskLayer keeps rendering your desktop and stays in the menu bar. Open Manager from the menu bar icon brings the Dock icon back.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>新功能</h2>
+<ul>
+<li><b>关闭管理器后成为菜单栏应用。</b>关闭管理器窗口会移除 Dock 图标和 Cmd-Tab 条目；DeskLayer 继续渲染桌面并保留在菜单栏。从菜单栏图标打开管理器时，Dock 图标会一并恢复。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>新機能</h2>
+<ul>
+<li><b>マネージャを閉じるとメニューバーアプリに。</b>マネージャウィンドウを閉じると Dock アイコンと Cmd-Tab の項目が消え、DeskLayer はデスクトップの描画を続けたままメニューバーに残ります。メニューバーアイコンからマネージャを開くと Dock アイコンも戻ります。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer-1.1.2.dmg" length="4141846" type="application/octet-stream" sparkle:edSignature="NgiaVlADasCP3AbyNMi61biLnQiPfW1+eTK3vMsW4nXGLYiUcMJKC+MEqEODmXZfnb9PHUVEz303EdUfb99yBQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer6-5.delta" sparkle:deltaFrom="5" length="154850" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="gEjFckQ5IqpXUvWvlZc64hzekZ4oA3nBf3beTXq0xo63hTTDHf04DA3iwA1hfn++F1aIhEMv8BYicM/UV7s3BQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer6-4.delta" sparkle:deltaFrom="4" length="214654" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Ow0iG5F1dd2eKukn01DcTTQ0QqjRU61lECAjDXRm3KAcIZlInhxMYhJM8/CCtrGNocOdPHinEixH59MgGtw8Cw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer6-3.delta" sparkle:deltaFrom="3" length="439170" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ljK3/h0NI+q/FvJ08zL/v6diUhI73spfoIgS3h3WAf3/s6JIEIYua1OUFgAHEPElXIvUoKxiJwBplOvnWt0tCw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer6-2.delta" sparkle:deltaFrom="2" length="486278" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="uPuBIpnp0dddMmqHumsDmB40qNDOqDyCeIOcysPj2orFg8WersQqB8PvTwOzfr/bOR4N9WaVV2Oi4YYoqHndAw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.2/DeskLayer6-1.delta" sparkle:deltaFrom="1" length="804454" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="FciEzj/3128gUs/ClWgXDIMzaqH5JDbQvhHrLiou5cYYzoTV6kRdQ0KGWQQGzMRPOIzLVfWmDfRUVaXnB6NFBw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.1.1</title>
             <pubDate>Sun, 09 Aug 2026 23:59:34 +0800</pubDate>
             <sparkle:version>5</sparkle:version>
@@ -42,6 +75,17 @@
             <pubDate>Sun, 09 Aug 2026 23:24:12 +0800</pubDate>
             <sparkle:version>4</sparkle:version>
             <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>New</h2>
+<ul>
+<li><b>Create Plugin with AI</b> — describe what you want and an OpenAI-compatible model writes the plugin against DeskLayer's API. Nothing installs until it passes validation, and requested permissions are shown first.</li>
+<li><b>Rewrite an existing plugin</b> — replace it (the old version is kept as .js.bak) or keep both. Store-installed plugins are always rewritten as a copy, so a store update can't wipe your changes.</li>
+<li><b>Model picker</b> — fetch your endpoint's model list once and pick from it; the list is cached until you fetch again.</li>
+<li><b>Rename plugins</b> — rename a local plugin from the inspector; items on your desktop follow automatically.</li>
+</ul>
+<h2>Fixed</h2>
+<ul><li>The Official/Sample store names in the Add menu are now localized.</li></ul>
+            ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
 <h2>新功能</h2>
 <ul>
@@ -71,28 +115,6 @@
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer4-2.delta" sparkle:deltaFrom="2" length="466618" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="yJ8+a/wehX7IoAm5K2dSV9zTpbF5bssFyGXr9OlC4nwq5XgXzpPMe9OHpnYr8umwZ7msoJzvBzXf9QMebOLGCg=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer4-1.delta" sparkle:deltaFrom="1" length="795934" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="8WDBf7cQzJNzUq18edsYxx6AioFBIPvtMMc1n3mtkdkncMk7At2b0KMqqaDg5aD+j6+mJeqzPpv85YlU4kuzCA=="/>
             </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.0.2</title>
-            <pubDate>Sun, 09 Aug 2026 16:35:24 +0800</pubDate>
-            <sparkle:version>3</sparkle:version>
-            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
-            <description xml:lang="zh-Hans"><![CDATA[
-<ul>
-<li>Mac 从睡眠唤醒后自动恢复渲染。</li>
-<li>商店刷新始终获取最新目录；每个插件在检查器中都有独立的更新/重新安装按钮。</li>
-<li>插件可自行声明更新地址，无需商店即可更新。</li>
-</ul>
-            ]]></description>
-            <description xml:lang="ja"><![CDATA[
-<ul>
-<li>Mac のスリープ復帰後、描画が自動的に再開されるようになりました。</li>
-<li>ストアの更新が常に最新のカタログを取得し、各プラグインにインスペクタから個別の更新/再インストールボタンが付きました。</li>
-<li>プラグインが自身の更新 URL を宣言でき、ストアなしで更新できます。</li>
-</ul>
-            ]]></description>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer-1.0.2.dmg" length="3931658" type="application/octet-stream" sparkle:edSignature="xTBVDHzm4EZVx6pjFkuPLpqp8KWRjKWq1q1FzEmNqnjeD7t/BNV6koIK/+aSXkR7Gg0iCmk1ZCk94MkCBX+kCw=="/>
         </item>
         <item>
             <title>1.0.0</title>
