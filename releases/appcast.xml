@@ -7,6 +7,39 @@
             <pubDate>Sun, 09 Aug 2026 23:24:12 +0800</pubDate>
             <sparkle:version>4</sparkle:version>
             <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>New</h2>
+<ul>
+<li><b>Create Plugin with AI</b> — describe what you want and an OpenAI-compatible model writes the plugin against DeskLayer's API. Nothing installs until it passes validation, and requested permissions are shown first.</li>
+<li><b>Rewrite an existing plugin</b> — replace it (the old version is kept as .js.bak) or keep both. Store-installed plugins are always rewritten as a copy, so a store update can't wipe your changes.</li>
+<li><b>Model picker</b> — fetch your endpoint's model list once and pick from it; the list is cached until you fetch again.</li>
+<li><b>Rename plugins</b> — rename a local plugin from the inspector; items on your desktop follow automatically.</li>
+</ul>
+<h2>Fixed</h2>
+<ul><li>The Official/Sample store names in the Add menu are now localized.</li></ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>新功能</h2>
+<ul>
+<li><b>AI 生成插件</b> —— 描述你想要的效果，兼容 OpenAI 的模型会基于 DeskLayer 的插件 API 编写 JavaScript。只有通过校验才会安装，并会先展示插件申请的权限。</li>
+<li><b>改写现有插件</b> —— 可以替换原插件（旧版本保留为 .js.bak），也可以两者都保留。来自商店的插件始终另存为副本，商店更新不会覆盖你的修改。</li>
+<li><b>模型选择</b> —— 一键获取接口的模型列表并从中选择；列表会缓存，直到你再次获取。</li>
+<li><b>重命名插件</b> —— 在检查器中重命名本地插件，桌面上的项目会自动跟随。</li>
+</ul>
+<h2>修复</h2>
+<ul><li>添加菜单中的官方商店/示例商店名称现已本地化。</li></ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>新機能</h2>
+<ul>
+<li><b>AI でプラグインを生成</b> — 欲しいものを書くだけで、OpenAI 互換モデルが DeskLayer のプラグイン API に沿って JavaScript を書きます。検証を通るまでインストールされず、要求される権限も先に表示されます。</li>
+<li><b>既存プラグインの書き換え</b> — 置き換え（旧版は .js.bak として保持）か、両方残すかを選べます。ストア由来のプラグインは常にコピーとして保存され、ストアの更新で変更が消えることはありません。</li>
+<li><b>モデル選択</b> — エンドポイントのモデル一覧を取得してピッカーから選択。一覧は次に取得するまでキャッシュされます。</li>
+<li><b>プラグインの名称変更</b> — インスペクタからローカルプラグインの名前を変更でき、デスクトップ上の項目も自動で追従します。</li>
+</ul>
+<h2>修正</h2>
+<ul><li>追加メニューの公式/サンプルストア名がローカライズされました。</li></ul>
+            ]]></description>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer-1.1.0.dmg" length="4130564" type="application/octet-stream" sparkle:edSignature="GSxau2zRhX3/jRhPxKD2PBzMAScdFDhuu9gprGUXyU9x6TBfkMxKcpdlmAXbiscXfLoMvAaq/PuUBs5NsbtxCA=="/>
             <sparkle:deltas>
@@ -20,6 +53,27 @@
             <pubDate>Sun, 09 Aug 2026 16:35:24 +0800</pubDate>
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+            <description><![CDATA[
+<ul>
+<li>Rendering resumes automatically after the Mac wakes from sleep.</li>
+<li>Store refresh now always sees the latest catalog, and each plugin has its own update / reinstall button in the inspector.</li>
+<li>Plugins can declare their own update URL and update without a store.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<ul>
+<li>Mac 从睡眠唤醒后自动恢复渲染。</li>
+<li>商店刷新始终获取最新目录；每个插件在检查器中都有独立的更新/重新安装按钮。</li>
+<li>插件可自行声明更新地址，无需商店即可更新。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<ul>
+<li>Mac のスリープ復帰後、描画が自動的に再開されるようになりました。</li>
+<li>ストアの更新が常に最新のカタログを取得し、各プラグインにインスペクタから個別の更新/再インストールボタンが付きました。</li>
+<li>プラグインが自身の更新 URL を宣言でき、ストアなしで更新できます。</li>
+</ul>
+            ]]></description>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer-1.0.2.dmg" length="3931658" type="application/octet-stream" sparkle:edSignature="xTBVDHzm4EZVx6pjFkuPLpqp8KWRjKWq1q1FzEmNqnjeD7t/BNV6koIK/+aSXkR7Gg0iCmk1ZCk94MkCBX+kCw=="/>
         </item>
@@ -28,6 +82,15 @@
             <pubDate>Sun, 09 Aug 2026 13:53:42 +0800</pubDate>
             <sparkle:version>2</sparkle:version>
             <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <description><![CDATA[
+<ul><li>Now runs on macOS 14 Sonoma and later (previously required a newer macOS).</li></ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<ul><li>现已支持 macOS 14 Sonoma 及以上版本（此前要求更新的 macOS）。</li></ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<ul><li>macOS 14 Sonoma 以降で動作するようになりました（以前はより新しい macOS が必要でした）。</li></ul>
+            ]]></description>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.1/DeskLayer-1.0.1.dmg" length="3922915" type="application/octet-stream" sparkle:edSignature="DjG0hVtKDo4bTYF/jvzJW5+EcROTlhuaY/sVKcF7RQ3MkSPIlLkvx/18uXWjWsCwUK1l39owfzfKHkgkfqglAA=="/>
             <sparkle:deltas>
@@ -39,17 +102,16 @@
             <pubDate>Sun, 09 Aug 2026 13:35:04 +0800</pubDate>
             <sparkle:version>1</sparkle:version>
             <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <description><![CDATA[
+<ul><li>First release: JavaScript plugins rendered onto the wallpaper or floating windows, plugin stores, and automatic updates.</li></ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<ul><li>首个版本：JavaScript 插件渲染到桌面壁纸或浮动窗口，插件商店，自动更新。</li></ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<ul><li>初回リリース：JavaScript プラグインを壁紙やフローティングウィンドウに描画。プラグインストアと自動アップデート対応。</li></ul>
+            ]]></description>
             <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h3>DeskLayer 1.0.0</h3>
-<p>First release. JavaScript plugins rendered onto the desktop wallpaper, into
-floating windows, or as macOS widgets, managed from a three-pane manager.</p>
-<ul>
-  <li>Plugins install from a store — an Official and a Sample store are offered in the ＋ menu, and any JSON catalog URL works.</li>
-  <li>Canvas, declarative SwiftUI, and webview render modes.</li>
-  <li>Host APIs for plugins: system stats, shell, AppleScript, SSH, and a local HTTP hook server.</li>
-  <li>English, 简体中文, and 日本語.</li>
-</ul>
-]]></description>
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.0/DeskLayer-1.0.0.dmg" length="3326438" type="application/octet-stream" sparkle:edSignature="cBg/wzp4K/fU+Q8/6qnHGhfDwIM2Pzf2/6hMvzmcY8stw7dIf4KvJ77dYxTQRXBW9yo1CgckEUVpPqeoPFZiCQ=="/>
         </item>
     </channel>
