@@ -775,6 +775,129 @@ struct PluginInstanceTests {
         #expect(d.resizable == true)
     }
 
+    @Test func inspectorSizeSnapsBackToDeclaredLimits() {
+        // The Clock's shape: aspect-locked, 140–700 on both axes.
+        let ratio = PluginMetadata.extract(from: """
+        function render(ctx) {}
+        plugin.export = { width: 300, height: 300, scaleMode: "ratio",
+                          minWidth: 140, maxWidth: 700,
+                          minHeight: 140, maxHeight: 700, render };
+        """)
+        // Over the maximum snaps down; the locked axis follows.
+        #expect(ratio.resolvedSize(entered: CGSize(width: 900, height: 300), edited: .width)
+                == CGSize(width: 700, height: 700))
+        // Under the minimum snaps up.
+        #expect(ratio.resolvedSize(entered: CGSize(width: 50, height: 300), edited: .width)
+                == CGSize(width: 140, height: 140))
+        // Editing height drives width the same way.
+        #expect(ratio.resolvedSize(entered: CGSize(width: 300, height: 9000), edited: .height)
+                == CGSize(width: 700, height: 700))
+        // In range, the entered size stands.
+        #expect(ratio.resolvedSize(entered: CGSize(width: 420, height: 300), edited: .width)
+                == CGSize(width: 420, height: 420))
+
+        // Free scaling: each axis is clamped on its own, the other untouched.
+        let free = PluginMetadata.extract(from: """
+        function render(ctx) {}
+        plugin.export = { width: 300, height: 200, scaleMode: "free",
+                          maxWidth: 500, minHeight: 100, render };
+        """)
+        #expect(free.resolvedSize(entered: CGSize(width: 800, height: 250), edited: .width)
+                == CGSize(width: 500, height: 250))
+        #expect(free.resolvedSize(entered: CGSize(width: 300, height: 20), edited: .height)
+                == CGSize(width: 300, height: 100))
+
+        // No declared limits: only the floor that stops an item vanishing.
+        let plain = PluginMetadata.extract(from: "function render(ctx){}; plugin.export = { render };")
+        #expect(plain.resolvedSize(entered: CGSize(width: 0, height: 4), edited: .width)
+                == CGSize(width: 8, height: 8))
+    }
+
+    /// The store-origin map is global to the process and these tests run in
+    /// parallel, so each removes only its own plugin rather than the key.
+    private func forgetStoreOrigin(_ pluginID: String) {
+        let key = "DeskLayer.pluginStoreOrigins"
+        var map = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
+        map.removeValue(forKey: pluginID)
+        UserDefaults.standard.set(map, forKey: key)
+    }
+
+    private func rememberStoreOrigin(_ pluginID: String, store: String) {
+        let key = "DeskLayer.pluginStoreOrigins"
+        var map = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
+        map[pluginID] = store
+        UserDefaults.standard.set(map, forKey: key)
+    }
+
+    @MainActor
+    @Test func storeFallsBackToMirrorWhenPrimaryFails() async throws {
+        // The China/GitHub case: the primary address is unreachable, so both
+        // the catalog and the plugin have to come from the mirror.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-mirror-\(UUID().uuidString)", isDirectory: true)
+        let installDir = dir.appendingPathComponent("Plugins", isDirectory: true)
+        try FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let pluginURL = dir.appendingPathComponent("Mirrored.js")
+        try """
+        let properties = [];
+        function render(ctx) {}
+        plugin.export = { version: "1.0.0", properties, render };
+        """.write(to: pluginURL, atomically: true, encoding: .utf8)
+
+        let missing = dir.appendingPathComponent("gone.json").absoluteString
+        let missingPlugin = dir.appendingPathComponent("gone.js").absoluteString
+        let catalogURL = dir.appendingPathComponent("mirror-catalog.json")
+        try """
+        {"name": "Mirror Store",
+         "website": "https://example.com/store",
+         "plugins": [
+          {"name": "Mirrored", "url": "\(missingPlugin)",
+           "mirrors": ["\(pluginURL.absoluteString)"], "version": "1.0.0"}
+        ]}
+        """.write(to: catalogURL, atomically: true, encoding: .utf8)
+
+        let registry = PluginStoreRegistry()
+        // Primary 404s; the mirror carries the catalog.
+        let added = await registry.addStore(urlString: missing,
+                                            mirrors: [catalogURL.absoluteString])
+        #expect(added)
+        let entry = try #require(registry.stores.first)
+        #expect(entry.catalog?.name == "Mirror Store")
+        #expect(entry.catalog?.website == "https://example.com/store")
+        // The address that worked is remembered and tried first next time.
+        #expect(entry.lastGoodURL == catalogURL.absoluteString)
+        #expect(entry.candidateURLs.first == catalogURL.absoluteString)
+        #expect(entry.fetchedAt != nil)
+        #expect(entry.isFresh())
+
+        // Installing walks the plugin's mirrors the same way.
+        let plugin = try #require(entry.catalog?.plugins.first)
+        let error = await registry.install(plugin, from: "Mirror Store", into: installDir)
+        #expect(error == nil)
+        #expect(FileManager.default.fileExists(
+            atPath: installDir.appendingPathComponent("Mirrored.js").path))
+
+        registry.removeStore(entry.id)
+        forgetStoreOrigin("Mirrored")
+    }
+
+    @Test func storeCatalogCachesForADay() {
+        var entry = PluginStoreEntry(url: "https://example.com/catalog.json")
+        entry.catalog = StoreCatalog(name: "S", plugins: [])
+        // Never fetched, or fetched longer ago than the window: stale.
+        #expect(entry.isFresh() == false)
+        entry.fetchedAt = Date().addingTimeInterval(-(PluginStoreEntry.cacheLifetime + 60))
+        #expect(entry.isFresh() == false)
+        // Inside the window: served from cache, no request on launch.
+        entry.fetchedAt = Date().addingTimeInterval(-60)
+        #expect(entry.isFresh())
+        // A cached timestamp with no catalog is not usable either.
+        entry.catalog = nil
+        #expect(entry.isFresh() == false)
+    }
+
     @Test func storeCatalogDecodesAndInstalls() async throws {
         // Serve a catalog + plugin from a temp directory via file:// URLs.
         let dir = FileManager.default.temporaryDirectory
@@ -816,48 +939,34 @@ struct PluginInstanceTests {
         #expect(FileManager.default.fileExists(atPath: installed.path))
         // …and remembers which store it came from, so it groups there.
         #expect(PluginStoreRegistry.storeName(forPlugin: "Greeting") == "Demo Store")
-        #expect(SamplePlugins.origin(of: "Greeting") == .store("Demo Store"))
 
         // A bad URL is rejected rather than added.
         let bad = await registry.addStore(urlString: dir.appendingPathComponent("nope.json").absoluteString)
         #expect(bad == false)
 
         // Cleanup the recorded origin so other runs start clean.
-        UserDefaults.standard.removeObject(forKey: "DeskLayer.pluginStoreOrigins")
+        forgetStoreOrigin("Greeting")
     }
 
     @Test func pluginOriginClassification() {
-        // Built-ins are app-maintained and can't be removed; other bundled
-        // samples are examples; anything else is user-installed.
-        #expect(SamplePlugins.origin(of: "AnalogClock") == .builtin)
-        #expect(SamplePlugins.origin(of: "SystemMonitor") == .builtin)
-        #expect(SamplePlugins.origin(of: "RemoteMonitor") == .builtin)
-        #expect(SamplePlugins.origin(of: "Particles") == .example)
-        #expect(SamplePlugins.origin(of: "HelloCard") == .example)
-        #expect(SamplePlugins.origin(of: "MyOwnPlugin") == .user)
+        // Nothing ships with the app: a plugin belongs to the store it came
+        // from, and everything else is simply installed.
+        // A name of this test's own, so a parallel store test can't race it.
+        rememberStoreOrigin("OriginProbe", store: "Demo Store")
+        defer { forgetStoreOrigin("OriginProbe") }
 
-        #expect(PluginOrigin.builtin.isRemovable == false)
-        #expect(PluginOrigin.example.isRemovable)
+        #expect(PluginStoreRegistry.storeName(forPlugin: "OriginProbe") == "Demo Store")
+        #expect(PluginStoreRegistry.storeName(forPlugin: "MyOwnPlugin") == nil)
+
+        // The group title is localized, so compare against the same lookup
+        // rather than an English literal — this suite also runs on machines
+        // whose language isn't English.
+        #expect(PluginOrigin.user.title == String(localized: "Installed"))
+        // A store's name comes from its catalog and is never translated.
+        #expect(PluginOrigin.store("Demo Store").title == "Demo Store")
         #expect(PluginOrigin.user.isRemovable)
-    }
-
-    @Test func uninstalledExampleIsNotReinstalled() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dl-samples-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
-
-        SamplePlugins.installIfMissing(into: dir)
-        let particles = dir.appendingPathComponent("Particles.js")
-        #expect(FileManager.default.fileExists(atPath: particles.path))
-
-        // Simulate an uninstall, then a relaunch: the example stays gone…
-        try FileManager.default.removeItem(at: particles)
-        SamplePlugins.installIfMissing(into: dir, skipping: ["Particles"])
-        #expect(FileManager.default.fileExists(atPath: particles.path) == false)
-
-        // …while everything else is still restored.
-        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("AnalogClock.js").path))
+        #expect(PluginOrigin.store("Demo Store").isRemovable)
+        #expect(PluginOrigin.localCases == [.user])
     }
 
     @Test func metadataScalePolicyAndLimits() {
