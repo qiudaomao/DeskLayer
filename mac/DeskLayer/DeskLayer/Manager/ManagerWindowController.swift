@@ -11,6 +11,8 @@ import SwiftUI
 
 @MainActor
 final class ManagerWindowController: NSWindowController {
+    private static let frameAutosaveName = "ManagerWindow"
+
     convenience init(
         store: LayoutStore,
         registry: PluginRegistry,
@@ -39,9 +41,20 @@ final class ManagerWindowController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         window.titlebarSeparatorStyle = .automatic
-        window.center()
-        window.setFrameAutosaveName("ManagerWindow")
-        window.contentViewController = NSHostingController(rootView: root)
+
+        // Content first, and with sizing options cleared: an NSHostingController
+        // otherwise pushes SwiftUI's ideal size onto the window, which would
+        // overwrite whatever frame the autosave restores below.
+        let hosting = NSHostingController(rootView: root)
+        hosting.sizingOptions = []
+        window.contentViewController = hosting
+
+        // setFrameAutosaveName restores the saved frame if there is one, so
+        // only fall back to centring for a first run.
+        let hadSavedFrame = UserDefaults.standard
+            .string(forKey: "NSWindow Frame \(Self.frameAutosaveName)") != nil
+        window.setFrameAutosaveName(Self.frameAutosaveName)
+        if !hadSavedFrame { window.center() }
         window.isReleasedWhenClosed = false
         self.init(window: window)
     }
