@@ -88,6 +88,34 @@ nonisolated struct PluginStoreEntry: Codable, Hashable, Identifiable {
     /// having to think about it. The Refresh button ignores this.
     static let cacheLifetime: TimeInterval = 24 * 60 * 60
 
+    private enum CodingKeys: String, CodingKey {
+        case url, catalog, lastError, fetchedAt, mirrors, lastGoodURL
+    }
+
+    init(url: String, catalog: StoreCatalog? = nil, lastError: String? = nil,
+         fetchedAt: Date? = nil, mirrors: [String] = [], lastGoodURL: String? = nil) {
+        self.url = url
+        self.catalog = catalog
+        self.lastError = lastError
+        self.fetchedAt = fetchedAt
+        self.mirrors = mirrors
+        self.lastGoodURL = lastGoodURL
+    }
+
+    /// Every field but the URL is optional on the way in. Synthesized
+    /// decoding would reject a stored entry that predates a field added
+    /// later — and since one bad entry fails the whole array, the user's
+    /// stores would silently disappear on upgrade.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        url = try c.decode(String.self, forKey: .url)
+        catalog = try c.decodeIfPresent(StoreCatalog.self, forKey: .catalog)
+        lastError = try c.decodeIfPresent(String.self, forKey: .lastError)
+        fetchedAt = try c.decodeIfPresent(Date.self, forKey: .fetchedAt)
+        mirrors = try c.decodeIfPresent([String].self, forKey: .mirrors) ?? []
+        lastGoodURL = try c.decodeIfPresent(String.self, forKey: .lastGoodURL)
+    }
+
     func isFresh(now: Date = Date()) -> Bool {
         guard catalog != nil, let fetchedAt else { return false }
         let age = now.timeIntervalSince(fetchedAt)
@@ -136,8 +164,20 @@ final class PluginStoreRegistry: ObservableObject {
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config)
     }()
+
+    /// Never served from cache: raw.githubusercontent.com sends
+    /// Cache-Control: max-age=300, so a user who edits a catalog and hits
+    /// Refresh would keep seeing the old one for five minutes.
+    private func request(_ url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        return request
+    }
+
 
     // MARK: - Persistence
 
@@ -215,7 +255,7 @@ final class PluginStoreRegistry: ObservableObject {
         for candidate in entry.candidateURLs {
             guard let url = URL(string: candidate) else { continue }
             do {
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await session.data(for: request(url))
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     failures.append("\(candidate): HTTP \(http.statusCode)")
                     continue
@@ -253,7 +293,7 @@ final class PluginStoreRegistry: ObservableObject {
         for candidate in plugin.candidateURLs {
             guard let url = URL(string: candidate), url.scheme != nil else { continue }
             do {
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await session.data(for: request(url))
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     lastError = "HTTP \(http.statusCode)"
                     continue

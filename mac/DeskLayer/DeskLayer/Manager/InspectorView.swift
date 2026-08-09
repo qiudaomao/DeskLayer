@@ -435,6 +435,21 @@ private struct StorePluginDetailView: View {
 
 // MARK: - Plugin details (library selection) — read-only, plus uninstall
 
+extension PluginAboutView {
+    /// Downloads the catalog's copy over the installed one. Same path as a
+    /// first install, so mirrors and the plugin.export check still apply.
+    fileprivate func reinstall(_ plugin: StorePlugin, from store: String) {
+        isChecking = true
+        storeStatus = nil
+        Task {
+            let error = await stores.install(plugin, from: store, into: PluginRegistry.directoryURL)
+            registry.rescan()
+            storeStatus = error ?? String(localized: "Installed \(plugin.version ?? "")")
+            isChecking = false
+        }
+    }
+}
+
 private struct PluginDetailView: View {
     let pluginID: String
     @EnvironmentObject private var registry: PluginRegistry
@@ -460,6 +475,12 @@ private struct PluginDetailView: View {
                 }
                 LabeledContent("On desktop", value: usageCount == 0 ? "not placed"
                                : "\(usageCount) item\(usageCount == 1 ? "" : "s")")
+            }
+
+            // Selecting a plugin in the library is where you go to update it,
+            // whether or not it is placed on the desktop.
+            Section("Updates") {
+                PluginAboutView(pluginID: pluginID, showsHeader: false).id(pluginID)
             }
 
             Section("Capabilities") {
@@ -553,21 +574,42 @@ private struct PluginDetailView: View {
 
 private struct PluginAboutView: View {
     let pluginID: String
+    /// The library's detail pane already lists version, author and summary.
+    var showsHeader = true
     @EnvironmentObject private var registry: PluginRegistry
+    @EnvironmentObject private var stores: PluginStoreRegistry
     @State private var isChecking = false
+    @State private var storeStatus: String?
+
+    /// A store that offers this plugin. The store it was installed from wins
+    /// when that is known, but any added store listing the same name will do:
+    /// a plugin copied into the folder by hand, or installed before its store
+    /// was added, has no recorded origin and would otherwise be left with no
+    /// way to update at all.
+    private var storeSource: (store: String, plugin: StorePlugin)? {
+        let origin = PluginStoreRegistry.storeName(forPlugin: pluginID)
+        let matches = stores.stores.compactMap { entry -> (String, StorePlugin)? in
+            guard let listed = entry.catalog?.plugins.first(where: { $0.name == pluginID })
+            else { return nil }
+            return (entry.displayName, listed)
+        }
+        return matches.first { $0.0 == origin } ?? matches.first
+    }
 
     var body: some View {
         let meta = registry.metadata(for: pluginID)
         VStack(alignment: .leading, spacing: 6) {
-            LabeledContent("Version", value: meta.version ?? "—")
-            if let author = meta.author {
-                LabeledContent("Author", value: author)
-            }
-            if let summary = meta.summary {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            if showsHeader {
+                LabeledContent("Version", value: meta.version ?? "—")
+                if let author = meta.author {
+                    LabeledContent("Author", value: author)
+                }
+                if let summary = meta.summary {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             if meta.updateURL != nil {
@@ -597,6 +639,41 @@ private struct PluginAboutView: View {
                     Text(status.message)
                         .font(.caption)
                         .foregroundStyle(statusColor(status))
+                }
+            } else if let source = storeSource {
+                // A store-installed plugin has no updateURL of its own — the
+                // catalog is its source of truth, so update straight from it
+                // rather than leaving the user with no button at all.
+                Divider()
+                LabeledContent("Store", value: source.store)
+                let listed = source.plugin.version
+                let installed = meta.version
+                let newer = listed.map { l in
+                    installed.map { compareVersions(l, $0) == .orderedDescending } ?? true
+                } ?? false
+                HStack {
+                    Button {
+                        reinstall(source.plugin, from: source.store)
+                    } label: {
+                        if isChecking {
+                            ProgressView().controlSize(.small)
+                        } else if newer, let listed {
+                            Text("Update to \(listed)")
+                        } else {
+                            Text("Reinstall from Store")
+                        }
+                    }
+                    .disabled(isChecking)
+                    Spacer()
+                }
+                if newer, let listed {
+                    Text("The store lists \(listed).")
+                        .font(.caption).foregroundStyle(.orange)
+                } else if let status = storeStatus {
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Refresh the store category to look for a newer version.")
+                        .font(.caption2).foregroundStyle(.tertiary)
                 }
             } else {
                 Text("No update URL declared")

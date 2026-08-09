@@ -32,8 +32,20 @@ final class PluginUpdater {
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config)
     }()
+
+    /// Never served from cache: raw.githubusercontent.com sends
+    /// Cache-Control: max-age=300, so a user who edits a plugin and checks for
+    /// an update would keep seeing the old one for five minutes.
+    private func request(_ url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        return request
+    }
+
 
     // Per-plugin "auto-update" preference, persisted in UserDefaults.
     private static let autoKey = "DeskLayer.autoUpdatePlugins"
@@ -81,7 +93,7 @@ final class PluginUpdater {
 
         // 2) Fallback: fetch the .js directly and read its declared version.
         do {
-            let (data, response) = try await session.data(from: updateURL)
+            let (data, response) = try await session.data(for: request(updateURL))
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 return .failed("HTTP \(http.statusCode)")
             }
@@ -123,7 +135,7 @@ final class PluginUpdater {
 
     private func fetchManifest(for updateURL: URL) async -> Manifest? {
         let url = manifestURL(for: updateURL)
-        guard let (data, response) = try? await session.data(from: url) else { return nil }
+        guard let (data, response) = try? await session.data(for: request(url)) else { return nil }
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) { return nil }
         return try? JSONDecoder().decode(Manifest.self, from: data)
     }
@@ -132,7 +144,7 @@ final class PluginUpdater {
         _ url: URL, into destination: URL, from localVersion: String, to remoteVersion: String, pluginID: String
     ) async -> UpdateResult {
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.data(for: request(url))
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 return .failed("HTTP \(http.statusCode) fetching plugin body")
             }

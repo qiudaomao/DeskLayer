@@ -50,6 +50,9 @@ final class DeclarativeItemHost {
     private var timer: Timer?
     private var lastJSON: String?
     private var lastThumbnailTime: CFTimeInterval = 0
+    /// A render already on its way to the plugin's queue. Further requests
+    /// are dropped rather than queued behind it.
+    private var isRenderInFlight = false
 
     var isPaused = false
     /// Throttled preview for the manager's virtual desktop (main thread).
@@ -107,11 +110,21 @@ final class DeclarativeItemHost {
     }
 
     func renderOnce() {
+        // Drop, don't queue. render() runs on the plugin's serial queue and
+        // can be slow — one that shells out or polls a host takes as long as
+        // that takes — while requests arrive from the timer, from property
+        // edits, from interactions, and from waking. Stacked renders would
+        // each start fresh work of their own, so a wake would fan out into
+        // several rounds of it. Canvas items have always worked this way.
+        guard !isRenderInFlight else { return }
+        isRenderInFlight = true
         let instance = instance
         instance.queue.async { [weak self] in
-            guard let json = instance.callRenderTree() else { return }
+            let json = instance.callRenderTree()
             DispatchQueue.main.async {
                 guard let self else { return }
+                defer { self.isRenderInFlight = false }
+                guard let json else { return }
                 if json != self.lastJSON {
                     self.lastJSON = json
                     guard let node = ViewNode.decode(fromJSON: json) else {
