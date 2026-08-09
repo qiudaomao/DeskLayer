@@ -12,11 +12,20 @@ import SwiftUI
 struct CreatePluginSheet: View {
     @EnvironmentObject private var author: PluginAuthorSession
     @EnvironmentObject private var selection: ManagerSelection
+    @EnvironmentObject private var registry: PluginRegistry
     let onClose: () -> Void
 
     @State private var prompt = ""
     @State private var apiKey = ""
     @State private var showsEndpoint = false
+    /// Empty means "write something new"; otherwise the plugin to change.
+    @State private var basePluginID = ""
+    @State private var replacesBase = true
+
+    private var subject: PluginAuthorSession.Subject {
+        guard !basePluginID.isEmpty else { return .newPlugin }
+        return replacesBase ? .replace(basePluginID) : .copy(of: basePluginID)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -25,12 +34,35 @@ struct CreatePluginSheet: View {
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
+            Picker("Start from", selection: $basePluginID) {
+                Text("A new plugin").tag("")
+                ForEach(registry.plugins) { plugin in
+                    Text(plugin.id).tag(plugin.id)
+                }
+            }
+            .disabled(author.isRunning)
+
+            if !basePluginID.isEmpty {
+                Picker("Result", selection: $replacesBase) {
+                    Text("Replace \(basePluginID)").tag(true)
+                    Text("Keep both, make a copy").tag(false)
+                }
+                .pickerStyle(.radioGroup)
+                .disabled(author.isRunning)
+                if replacesBase {
+                    Text("The current version is kept as \(basePluginID).js.bak.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+
             TextEditor(text: $prompt)
                 .font(.body)
                 .frame(height: 70)
                 .overlay(alignment: .topLeading) {
                     if prompt.isEmpty {
-                        Text("A clock with a sweeping second hand and the date underneath")
+                        Text(basePluginID.isEmpty
+                             ? "A clock with a sweeping second hand and the date underneath"
+                             : "Make the bars thinner and show the temperature too")
                             .foregroundStyle(.tertiary)
                             .padding(.top, 8).padding(.leading, 5)
                             .allowsHitTesting(false)
@@ -97,7 +129,9 @@ struct CreatePluginSheet: View {
                 if author.isRunning {
                     Button("Stop") { author.cancel() }
                 } else {
-                    Button("Create") { author.start(prompt: prompt) }
+                    Button(basePluginID.isEmpty ? "Create" : "Rewrite") {
+                        author.start(prompt: prompt, subject: subject)
+                    }
                         .keyboardShortcut(.defaultAction)
                         .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -105,8 +139,14 @@ struct CreatePluginSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .onChange(of: basePluginID) { _, _ in author.clearResult() }
         .onAppear {
             apiKey = author.apiKey
+            // Selecting a plugin in the library first is the natural way to
+            // say "change this one".
+            if let selected = selection.pluginID, registry.descriptor(for: selected) != nil {
+                basePluginID = selected
+            }
             // Nudge the user to the settings when there is nothing to call.
             showsEndpoint = author.apiKey.isEmpty || !author.settings.isConfigured
         }

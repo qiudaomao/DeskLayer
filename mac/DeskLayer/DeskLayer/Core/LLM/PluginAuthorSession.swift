@@ -26,6 +26,21 @@ final class PluginAuthorSession: ObservableObject {
         var isError = false
     }
 
+    /// What a run is working on. Editing feeds the existing source to the
+    /// model; replacing installs over the original, copying leaves it alone.
+    enum Subject: Equatable {
+        case newPlugin
+        case replace(String)
+        case copy(of: String)
+
+        var basePluginID: String? {
+            switch self {
+            case .newPlugin: return nil
+            case .replace(let id), .copy(let id): return id
+            }
+        }
+    }
+
     @Published private(set) var steps: [Step] = []
     @Published private(set) var isRunning = false
     /// Set when a run finishes with a plugin installed.
@@ -50,6 +65,15 @@ final class PluginAuthorSession: ObservableObject {
         set { LLMSettings.apiKey = newValue.isEmpty ? nil : newValue }
     }
 
+    /// Clears the last run's outcome — the "Show X" button shouldn't point at
+    /// a previous result once the user picks a different base.
+    func clearResult() {
+        guard !isRunning else { return }
+        installedPluginID = nil
+        error = nil
+        steps = []
+    }
+
     func cancel() {
         task?.cancel()
         task = nil
@@ -58,7 +82,7 @@ final class PluginAuthorSession: ObservableObject {
     }
 
     /// Asks the model for a plugin and installs what it produces.
-    func start(prompt: String) {
+    func start(prompt: String, subject: Subject = .newPlugin) {
         guard !isRunning else { return }
         guard settings.isConfigured else {
             error = String(localized: "Set the base URL and model first.")
@@ -75,17 +99,17 @@ final class PluginAuthorSession: ObservableObject {
 
         let tools = PluginTools(registry: registry)
         task = Task { [weak self] in
-            await self?.run(prompt: prompt, tools: tools)
+            await self?.run(prompt: prompt, subject: subject, tools: tools)
             tools.cleanUp()
         }
     }
 
-    private func run(prompt: String, tools: PluginTools) async {
+    private func run(prompt: String, subject: Subject, tools: PluginTools) async {
         defer { isRunning = false }
         let key = LLMSettings.apiKey ?? ""
         var messages: [ChatMessage] = [
             .system(systemPrompt()),
-            .user(prompt),
+            .user(request(prompt, for: subject)),
         ]
 
         add(String(localized: "Asking \(settings.model)…"))
@@ -105,7 +129,7 @@ final class PluginAuthorSession: ObservableObject {
 
             case .text(let text):
                 // No more tools wanted: the model is done talking.
-                await finish(text: text, tools: tools)
+                await finish(text: text, subject: subject, tools: tools)
                 return
 
             case .toolCalls(let calls, let assistant):
@@ -123,7 +147,7 @@ final class PluginAuthorSession: ObservableObject {
                 }
                 if turn == max(settings.maxTurns, 1) {
                     add(String(localized: "Reached the turn limit."), isError: true)
-                    await finish(text: "", tools: tools)
+                    await finish(text: "", subject: subject, tools: tools)
                     return
                 }
             }
@@ -131,15 +155,19 @@ final class PluginAuthorSession: ObservableObject {
     }
 
     /// Installs whatever validated, or explains why nothing did.
-    private func finish(text: String, tools: PluginTools) async {
-        guard let name = tools.written.first else {
+    private func finish(text: String, subject: Subject, tools: PluginTools) async {
+        guard let written = tools.written.first else {
             error = text.isEmpty
                 ? String(localized: "The model didn't write a plugin.")
                 : text
             add(String(localized: "No plugin was written."), detail: text, isError: true)
             return
         }
-        guard let staged = tools.stagedURL(for: name),
+        // Where it lands is the app's decision, not the model's: replacing
+        // must hit the original even if the model renamed it, and copying
+        // must never overwrite the plugin it was based on.
+        let name = installName(written: written, subject: subject)
+        guard let staged = tools.stagedURL(for: written),
               let source = try? String(contentsOf: staged, encoding: .utf8) else {
             error = String(localized: "Couldn't read the generated plugin.")
             return
@@ -178,6 +206,60 @@ final class PluginAuthorSession: ObservableObject {
         if let version = meta.version { detail += " v\(version)" }
         add(String(localized: "Installed \(name)"), detail: detail)
         log.info("authored plugin \(name, privacy: .public)")
+    }
+
+    /// The name to install under, given what the model called its file.
+    func installName(written: String, subject: Subject) -> String {
+        switch subject {
+        case .newPlugin:
+            return written
+        case .replace(let base):
+            return base
+        case .copy(let base):
+            guard written == base else { return written }
+            // The model reused the base's name for what should be a copy;
+            // step it aside rather than clobbering the original.
+            var candidate = base + " 2"
+            var n = 2
+            while registry.descriptor(for: candidate) != nil {
+                n += 1
+                candidate = "\(base) \(n)"
+            }
+            return candidate
+        }
+    }
+
+    /// The user's request, with the existing source when editing — pasting it
+    /// in is more reliable than hoping the model calls read_file first.
+    private func request(_ prompt: String, for subject: Subject) -> String {
+        guard let base = subject.basePluginID,
+              let descriptor = registry.descriptor(for: base),
+              let source = try? String(contentsOf: descriptor.sourceURL, encoding: .utf8)
+        else { return prompt }
+
+        let naming: String
+        switch subject {
+        case .replace:
+            naming = "Write the result with write_plugin using the same name, \"\(base)\"."
+        case .copy:
+            naming = "This is a variation: write it with write_plugin under a NEW name, not \"\(base)\"."
+        case .newPlugin:
+            naming = ""
+        }
+        return """
+        Change this existing plugin. Keep what works and change only what the \
+        request asks for.
+
+        Request: \(prompt)
+
+        \(naming)
+
+        Current source of "\(base)":
+
+        ```js
+        \(source)
+        ```
+        """
     }
 
     // MARK: - Prompt

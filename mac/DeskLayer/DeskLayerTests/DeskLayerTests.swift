@@ -964,6 +964,24 @@ struct PluginInstanceTests {
             name: "read_file", arguments: "{\"name\": \"NoSuchPlugin\"}"))).contains("list_plugins"))
     }
 
+    @MainActor
+    @Test func editingInstallsUnderTheRightName() {
+        let session = PluginAuthorSession(registry: PluginRegistry())
+
+        // A fresh plugin keeps whatever the model called it.
+        #expect(session.installName(written: "Weather", subject: .newPlugin) == "Weather")
+
+        // Replacing lands on the original even when the model renamed it —
+        // otherwise "make the bars thinner" would quietly create a second
+        // plugin and leave the one on the desktop untouched.
+        #expect(session.installName(written: "Weather v2", subject: .replace("Weather")) == "Weather")
+        #expect(session.installName(written: "Weather", subject: .replace("Weather")) == "Weather")
+
+        // A copy must never land on its base, whatever the model called it.
+        #expect(session.installName(written: "Weather", subject: .copy(of: "Weather")) == "Weather 2")
+        #expect(session.installName(written: "Weather Bright", subject: .copy(of: "Weather")) == "Weather Bright")
+    }
+
     @Test func toolCallDecodingToleratesProviderQuirks() {
         // Arguments as a string — what the spec says.
         let spec = """
