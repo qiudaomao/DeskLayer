@@ -50,7 +50,7 @@ say "Verifying the signature"
 codesign --verify --deep --strict --verbose=2 "$APP"
 codesign -dv --verbose=4 "$APP" 2>&1 | grep -E "Authority|TeamIdentifier|flags"
 
-say "Submitting to Apple for notarization (a few minutes)"
+say "Submitting the app to Apple for notarization (a few minutes)"
 ditto -c -k --keepParent "$APP" "$OUT/DeskLayer.zip"
 xcrun notarytool submit "$OUT/DeskLayer.zip" \
     --keychain-profile "$NOTARY_PROFILE" --wait
@@ -67,6 +67,12 @@ cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "DeskLayer" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
+
+say "Notarizing the disk image too"
+# A ticket covers the exact artifact that was submitted, so the DMG needs
+# its own pass — stapling one notarized only via the app's zip fails with
+# "Could not find base64 encoded ticket".
+xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 xcrun stapler staple "$DMG"
 
 say "Checking Gatekeeper accepts it"
