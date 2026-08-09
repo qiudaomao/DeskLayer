@@ -358,14 +358,17 @@ final class RuntimeCoordinator: ObservableObject {
     /// the Keychain (never stored in layout.json).
     static func resolveSSH(for item: LayoutItem) -> [HostBindings.ResolvedSSH] {
         item.sshHosts.filter(\.isConfigured).map { cfg in
+            // In alias mode ssh reads everything from ~/.ssh/config, so any
+            // manual values left over from before the switch are dropped
+            // rather than silently overriding the alias.
             HostBindings.ResolvedSSH(
                 name: cfg.name,
                 host: cfg.host,
-                port: cfg.port,
-                user: cfg.user,
-                usesKey: cfg.auth == .key,
-                keyPath: cfg.keyPath,
-                password: cfg.auth == .password
+                port: cfg.usesAlias ? 22 : cfg.port,
+                user: cfg.usesAlias ? "" : cfg.user,
+                usesKey: !cfg.usesAlias && cfg.auth == .key,
+                keyPath: cfg.usesAlias ? "" : cfg.keyPath,
+                password: !cfg.usesAlias && cfg.auth == .password
                     ? KeychainStore.password(forItem: item.id, host: cfg.id) : nil
             )
         }

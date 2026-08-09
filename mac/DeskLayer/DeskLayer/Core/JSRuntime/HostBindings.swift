@@ -341,10 +341,26 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
             timeout.cancel()
             self?.cleanupAskpass(askpassURL)
             let status = Int(process.terminationStatus)
+            let detail = Self.annotated(stderr: stderr, status: status)
             self?.onQueue {
-                resolve.call(withArguments: [["status": status, "stdout": stdout, "stderr": stderr] as [String: Any]])
+                resolve.call(withArguments: [["status": status, "stdout": stdout, "stderr": detail] as [String: Any]])
             }
         }
+    }
+
+    /// macOS gates connections to hosts on the same link behind the Local
+    /// Network privacy permission. Without it ssh can't even open the socket,
+    /// which surfaces as a bare "exit 255" — hosts reached through a gateway
+    /// keep working, so the failure looks arbitrary. Say what it actually is.
+    private static func annotated(stderr: String, status: Int) -> String {
+        guard status == 255,
+              stderr.contains("connect to host"),
+              stderr.contains("Operation timed out") || stderr.contains("No route to host")
+                || stderr.contains("Network is unreachable") || stderr.contains("Host is down")
+        else { return stderr }
+        return stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            + "\nIf the host is on your local network, allow DeskLayer in"
+            + " System Settings > Privacy & Security > Local Network."
     }
 
     private func cleanupAskpass(_ url: URL?) {

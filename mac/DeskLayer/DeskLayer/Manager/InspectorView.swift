@@ -630,7 +630,7 @@ private struct SSHEditor: View {
                     },
                     canRemove: hosts.count > 1
                 )
-                if config.id != hosts.last?.id { Divider() }
+                if config.id != hosts.last?.id { Divider().padding(.vertical, 4) }
             }
             Button {
                 hosts.append(SSHConfig(name: suggestedName()))
@@ -677,7 +677,9 @@ private struct SSHHostRow: View {
     @State private var isSeeded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // Matches the breathing room of the form rows above; tighter than
+        // this and the settings read as one dense block.
+        VStack(alignment: .leading, spacing: 13) {
             HStack {
                 TextField("name", text: $config.name)
                     .font(.caption.bold())
@@ -691,24 +693,39 @@ private struct SSHHostRow: View {
                 }
             }
 
-            // Alias from ~/.ssh/config — supplies user, port, and identity.
-            if !aliases.isEmpty {
-                Picker("Alias", selection: aliasBinding) {
-                    Text("Custom…").tag("")
-                    ForEach(aliases, id: \.self) { Text($0).tag($0) }
+            // Alias mode is the common case and needs one control, so the
+            // manual fields stay out of the way until it's switched off.
+            Toggle("Use ~/.ssh/config alias", isOn: $config.usesAlias)
+                .controlSize(.small)
+                .onChange(of: config.usesAlias) { _, _ in onChange() }
+
+            if config.usesAlias {
+                if aliases.isEmpty {
+                    TextField("Alias", text: $config.host)
+                        .onChange(of: config.host) { _, _ in onChange() }
+                    Text("No hosts found in ~/.ssh/config.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                } else {
+                    Picker("Alias", selection: aliasBinding) {
+                        Text("Choose…").tag("")
+                        ForEach(aliases, id: \.self) { Text($0).tag($0) }
+                    }
+                    Text("ssh resolves the host name, user, port, and key.")
+                        .font(.caption2).foregroundStyle(.tertiary)
                 }
-            }
-
-            TextField("Host or ~/.ssh/config alias", text: $config.host)
-                .onChange(of: config.host) { _, _ in onChange() }
-
-            DisclosureGroup("Overrides") {
-                TextField("User (blank = from ssh config)", text: $config.user)
-                    .onChange(of: config.user) { _, _ in onChange() }
+            } else {
+                // One field per row: in a form a TextField's placeholder is
+                // the row label, so pairing two on a line splits the label
+                // column and wraps.
+                TextField("Host", text: $config.host)
+                    .onChange(of: config.host) { _, _ in onChange() }
                 TextField("Port", value: $config.port, format: .number)
                     .onChange(of: config.port) { _, _ in onChange() }
+                TextField("User", text: $config.user)
+                    .onChange(of: config.user) { _, _ in onChange() }
+
                 Picker("Auth", selection: $config.auth) {
-                    Text("ssh config / agent").tag(SSHAuth.none)
+                    Text("Agent").tag(SSHAuth.none)
                     Text("Password").tag(SSHAuth.password)
                     Text("Identity Key").tag(SSHAuth.key)
                 }
@@ -725,29 +742,30 @@ private struct SSHHostRow: View {
                     Text("Stored in your login Keychain, never in layout.json.")
                         .font(.caption2).foregroundStyle(.tertiary)
                 case .key:
-                    HStack {
-                        Text(config.keyPath.isEmpty ? "No key selected"
-                             : (config.keyPath as NSString).lastPathComponent)
-                            .font(.caption)
-                            .foregroundStyle(config.keyPath.isEmpty ? .tertiary : .secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                        Spacer()
-                        Button("Choose…") { chooseKey() }
+                    LabeledContent("Key") {
+                        HStack(spacing: 6) {
+                            Text(config.keyPath.isEmpty ? "None"
+                                 : (config.keyPath as NSString).lastPathComponent)
+                                .foregroundStyle(config.keyPath.isEmpty ? .tertiary : .secondary)
+                                .lineLimit(1).truncationMode(.middle)
+                            Button("Choose…") { chooseKey() }
+                        }
                     }
                 case .none:
-                    Text("Uses ~/.ssh/config and your agent — nothing else to set.")
+                    Text("Uses your ssh agent.")
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }
-            .font(.caption)
         }
+        .textFieldStyle(.roundedBorder)
         .onAppear {
             password = KeychainStore.password(forItem: itemID, host: config.id) ?? ""
             isSeeded = true
         }
     }
 
-    /// Picking an alias fills the host field; editing host by hand clears it.
+    /// In alias mode `host` holds the ~/.ssh/config entry; ssh resolves its
+    /// hostname, user, port, and identity from there.
     private var aliasBinding: Binding<String> {
         Binding(
             get: { aliases.contains(config.host) ? config.host : "" },
@@ -778,9 +796,17 @@ private struct SSHHostRow: View {
 
 // MARK: - Frame editor (percent units; origin = bottom-left, AppKit-style)
 
+/// Frames are stored normalized (0…1 of the screen) so items survive a
+/// resolution change, but points are what an author actually thinks in — so
+/// the editor converts both ways against the item's display.
 private struct FrameEditor: View {
+    private enum Axis { case width, height }
+
     let item: LayoutItem
-    var resizable: Bool = true
+    /// Declared size limits and resize policy for this plugin.
+    let metadata: PluginMetadata
+    /// Size in points of the display this item lives on.
+    let screenSize: CGSize
     let commit: (CGRect) -> Void
 
     @State private var x = 0.0

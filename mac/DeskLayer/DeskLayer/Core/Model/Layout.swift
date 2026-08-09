@@ -31,17 +31,25 @@ nonisolated struct SSHConfig: Codable, Hashable, Identifiable {
     var user: String = ""
     var auth: SSHAuth = .none
     var keyPath: String = ""
+    /// Alias mode: `host` is a ~/.ssh/config entry and ssh supplies the rest,
+    /// so the inspector shows nothing but the alias. Off, the user fills in
+    /// host, port, user, and credentials by hand.
+    var usesAlias: Bool = true
 
     /// A host name alone is enough: it may be a ~/.ssh/config alias, which
     /// supplies user, port, and identity. User/auth are optional overrides.
     var isConfigured: Bool { !host.isEmpty }
 
-    private enum CodingKeys: String, CodingKey { case id, name, host, port, user, auth, keyPath }
+    private enum CodingKeys: String, CodingKey {
+        case id, name, host, port, user, auth, keyPath, usesAlias
+    }
 
     init(id: UUID = UUID(), name: String = "default", host: String = "", port: Int = 22,
-         user: String = "", auth: SSHAuth = .none, keyPath: String = "") {
+         user: String = "", auth: SSHAuth = .none, keyPath: String = "",
+         usesAlias: Bool = true) {
         self.id = id; self.name = name; self.host = host
         self.port = port; self.user = user; self.auth = auth; self.keyPath = keyPath
+        self.usesAlias = usesAlias
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +61,10 @@ nonisolated struct SSHConfig: Codable, Hashable, Identifiable {
         user = try c.decodeIfPresent(String.self, forKey: .user) ?? ""
         auth = try c.decodeIfPresent(SSHAuth.self, forKey: .auth) ?? .none
         keyPath = try c.decodeIfPresent(String.self, forKey: .keyPath) ?? ""
+        // Layouts written before the alias toggle: treat a bare host with no
+        // manual settings as an alias, anything hand-tuned as manual.
+        usesAlias = try c.decodeIfPresent(Bool.self, forKey: .usesAlias)
+            ?? (user.isEmpty && port == 22 && auth == .none)
     }
 }
 
