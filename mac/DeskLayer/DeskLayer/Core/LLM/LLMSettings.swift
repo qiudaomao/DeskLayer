@@ -19,15 +19,21 @@ nonisolated struct LLMSettings: Codable, Equatable {
     /// How many times the model may call tools before the run is stopped.
     /// A confused model can otherwise read files forever.
     var maxTurns: Int = 12
+    /// Models last fetched from the endpoint. Kept so the picker is populated
+    /// on the next launch without asking the server again — the list only
+    /// changes when the user fetches it.
+    var cachedModels: [String] = []
 
-    private enum CodingKeys: String, CodingKey { case baseURL, model, maxTurns }
+    private enum CodingKeys: String, CodingKey { case baseURL, model, maxTurns, cachedModels }
 
     init(baseURL: String = "https://api.openai.com/v1",
          model: String = "gpt-4o",
-         maxTurns: Int = 12) {
+         maxTurns: Int = 12,
+         cachedModels: [String] = []) {
         self.baseURL = baseURL
         self.model = model
         self.maxTurns = maxTurns
+        self.cachedModels = cachedModels
     }
 
     /// Every field optional on the way in, so settings written by an older
@@ -37,6 +43,7 @@ nonisolated struct LLMSettings: Codable, Equatable {
         baseURL = try c.decodeIfPresent(String.self, forKey: .baseURL) ?? "https://api.openai.com/v1"
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? "gpt-4o"
         maxTurns = try c.decodeIfPresent(Int.self, forKey: .maxTurns) ?? 12
+        cachedModels = try c.decodeIfPresent([String].self, forKey: .cachedModels) ?? []
     }
 
     /// `{baseURL}/chat/completions`, however the user typed the base.
@@ -48,6 +55,17 @@ nonisolated struct LLMSettings: Codable, Equatable {
         // pasting the full URL from a provider's docs works too.
         if trimmed.hasSuffix("/chat/completions") { return URL(string: trimmed) }
         return URL(string: trimmed + "/chat/completions")
+    }
+
+    /// `{baseURL}/models` — the OpenAI-compatible listing endpoint.
+    var modelsURL: URL? {
+        var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmed.hasSuffix("/chat/completions") {
+            trimmed = String(trimmed.dropLast("/chat/completions".count))
+        }
+        guard !trimmed.isEmpty else { return nil }
+        return URL(string: trimmed + "/models")
     }
 
     var isConfigured: Bool {

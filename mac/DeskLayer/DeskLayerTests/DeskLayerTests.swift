@@ -982,6 +982,60 @@ struct PluginInstanceTests {
         #expect(session.installName(written: "Weather Bright", subject: .copy(of: "Weather")) == "Weather Bright")
     }
 
+    @MainActor
+    @Test func storePluginsAreCopiedNeverReplaced() {
+        let session = PluginAuthorSession(registry: PluginRegistry())
+        rememberStoreOrigin("dl-store-owned", store: "Official")
+        defer { forgetStoreOrigin("dl-store-owned") }
+        forgetStoreOrigin("dl-hand-written")
+
+        // A plugin the user wrote or imported is theirs to overwrite.
+        #expect(session.resolved(.replace("dl-hand-written")) == .replace("dl-hand-written"))
+
+        // One that came from a store is not: the store's next update would
+        // overwrite the rewrite and take the user's changes with it.
+        #expect(session.resolved(.replace("dl-store-owned")) == .copy(of: "dl-store-owned"))
+        // Everything else passes through untouched.
+        #expect(session.resolved(.copy(of: "dl-store-owned")) == .copy(of: "dl-store-owned"))
+        #expect(session.resolved(.newPlugin) == .newPlugin)
+    }
+
+    @Test func modelListDecodingAndEndpoint() {
+        #expect(LLMSettings(baseURL: "https://api.openai.com/v1").modelsURL?.absoluteString
+                == "https://api.openai.com/v1/models")
+        // A base pasted as the full completions URL still lists models.
+        #expect(LLMSettings(baseURL: "https://x.example/v1/chat/completions").modelsURL?.absoluteString
+                == "https://x.example/v1/models")
+        #expect(LLMSettings(baseURL: "").modelsURL == nil)
+
+        // The fetched list is part of the saved settings, so the picker is
+        // populated on the next launch without asking the endpoint again.
+        var settings = LLMSettings()
+        settings.cachedModels = ["a", "b"]
+        let data = try? JSONEncoder().encode(settings)
+        let decoded = data.flatMap { try? JSONDecoder().decode(LLMSettings.self, from: $0) }
+        #expect(decoded?.cachedModels == ["a", "b"])
+        // The listing itself, in the shapes providers actually send: an "id"
+        // per the spec, a "name" from gateways that renamed it, and entries
+        // with neither, which are dropped rather than failing the fetch.
+        let body = """
+        {"object": "list", "data": [
+            {"id": "gpt-4o", "object": "model"},
+            {"name": "llama3"},
+            {"object": "model"}
+        ]}
+        """
+        let list = try? JSONDecoder().decode(ChatClient.ModelListResponse.self, from: Data(body.utf8))
+        #expect(list?.data.map(\.id) == ["gpt-4o", "llama3", ""])
+        // A body with no data at all decodes to an empty list, not a throw.
+        #expect((try? JSONDecoder().decode(ChatClient.ModelListResponse.self,
+                                           from: Data("{}".utf8)))?.data.isEmpty == true)
+
+        // And settings written before the field existed still load.
+        let old = #"{"baseURL": "https://x.example/v1"}"#
+        #expect((try? JSONDecoder().decode(LLMSettings.self, from: Data(old.utf8)))?.cachedModels == [])
+    }
+
     @Test func toolCallDecodingToleratesProviderQuirks() {
         // Arguments as a string — what the spec says.
         let spec = """

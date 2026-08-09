@@ -21,10 +21,35 @@ struct CreatePluginSheet: View {
     /// Empty means "write something new"; otherwise the plugin to change.
     @State private var basePluginID = ""
     @State private var replacesBase = true
+    /// Set when the user wants a model the endpoint didn't list.
+    @State private var typesModel = false
 
     private var subject: PluginAuthorSession.Subject {
         guard !basePluginID.isEmpty else { return .newPlugin }
-        return replacesBase ? .replace(basePluginID) : .copy(of: basePluginID)
+        // Store plugins are copied, never replaced — the session enforces the
+        // same rule, this just keeps the UI honest about it.
+        guard replacesBase, !baseIsFromStore else { return .copy(of: basePluginID) }
+        return .replace(basePluginID)
+    }
+
+    /// The store a base plugin was installed from, if any.
+    private var baseStoreName: String? {
+        basePluginID.isEmpty ? nil : PluginStoreRegistry.storeName(forPlugin: basePluginID)
+    }
+
+    private var baseIsFromStore: Bool { baseStoreName != nil }
+
+    /// Fetched models, with whatever is currently selected kept in the list so
+    /// a hand-typed name doesn't vanish when the picker appears.
+    private var modelChoices: [String] {
+        var list = author.settings.cachedModels
+        let current = author.settings.model.trimmingCharacters(in: .whitespaces)
+        if !current.isEmpty, !list.contains(current) { list.insert(current, at: 0) }
+        return list
+    }
+
+    private var canFetchModels: Bool {
+        author.settings.modelsURL != nil && !apiKey.isEmpty
     }
 
     var body: some View {
@@ -43,15 +68,24 @@ struct CreatePluginSheet: View {
             .disabled(author.isRunning)
 
             if !basePluginID.isEmpty {
-                Picker("Result", selection: $replacesBase) {
-                    Text("Replace \(basePluginID)").tag(true)
-                    Text("Keep both, make a copy").tag(false)
-                }
-                .pickerStyle(.radioGroup)
-                .disabled(author.isRunning)
-                if replacesBase {
-                    Text("The current version is kept as \(basePluginID).js.bak.")
+                if let store = baseStoreName {
+                    // Replacing in place would be undone by the store's next
+                    // update, silently. Only the copy is offered.
+                    Text("Result: a copy")
+                    Text("\(basePluginID) was installed from \(store). An update from the store would overwrite changes made here, so the rewrite is saved as a separate plugin.")
                         .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Picker("Result", selection: $replacesBase) {
+                        Text("Replace \(basePluginID)").tag(true)
+                        Text("Keep both, make a copy").tag(false)
+                    }
+                    .pickerStyle(.radioGroup)
+                    .disabled(author.isRunning)
+                    if replacesBase {
+                        Text("The current version is kept as \(basePluginID).js.bak.")
+                            .font(.caption2).foregroundStyle(.tertiary)
+                    }
                 }
             }
 
@@ -74,9 +108,33 @@ struct CreatePluginSheet: View {
             DisclosureGroup(isExpanded: $showsEndpoint) {
                 VStack(alignment: .leading, spacing: 6) {
                     TextField("Base URL", text: $author.settings.baseURL)
-                    TextField("Model", text: $author.settings.model)
                     SecureField("API key", text: $apiKey)
                         .onChange(of: apiKey) { _, newValue in author.apiKey = newValue }
+                    // Below the key: fetching the list needs it.
+                    HStack(spacing: 6) {
+                        if author.settings.cachedModels.isEmpty || typesModel {
+                            TextField("Model", text: $author.settings.model)
+                        } else {
+                            Picker("Model", selection: $author.settings.model) {
+                                ForEach(modelChoices, id: \.self) { Text($0).tag($0) }
+                            }
+                            .labelsHidden()
+                        }
+                        if !author.settings.cachedModels.isEmpty {
+                            Button {
+                                typesModel.toggle()
+                            } label: {
+                                Image(systemName: typesModel ? "list.bullet" : "pencil")
+                            }
+                            .help(typesModel ? "Choose from the fetched models"
+                                             : "Type a model name instead")
+                        }
+                        Button(author.isFetchingModels ? "Fetching…" : "Fetch Models") {
+                            typesModel = false
+                            author.fetchModels()
+                        }
+                        .disabled(!canFetchModels || author.isFetchingModels)
+                    }
                     Text("Any OpenAI-compatible endpoint. The key is stored in your login Keychain.")
                         .font(.caption2).foregroundStyle(.tertiary)
                 }

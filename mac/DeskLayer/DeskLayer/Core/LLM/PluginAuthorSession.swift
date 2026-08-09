@@ -43,6 +43,8 @@ final class PluginAuthorSession: ObservableObject {
 
     @Published private(set) var steps: [Step] = []
     @Published private(set) var isRunning = false
+    /// True while the model list is being fetched, so the button can say so.
+    @Published private(set) var isFetchingModels = false
     /// Set when a run finishes with a plugin installed.
     @Published private(set) var installedPluginID: String?
     @Published var error: String?
@@ -63,6 +65,46 @@ final class PluginAuthorSession: ObservableObject {
     var apiKey: String {
         get { LLMSettings.apiKey ?? "" }
         set { LLMSettings.apiKey = newValue.isEmpty ? nil : newValue }
+    }
+
+    /// A plugin that came from a store must not be rewritten in place: the
+    /// store's next update overwrites the file, and the user's changes go with
+    /// it. Rewrites of those are installed as copies instead.
+    nonisolated static func isStoreInstalled(_ pluginID: String) -> Bool {
+        PluginStoreRegistry.storeName(forPlugin: pluginID) != nil
+    }
+
+    /// Applies that rule. Called on the way in, so the whole run — the prompt,
+    /// the install name — agrees on what is being written.
+    func resolved(_ subject: Subject) -> Subject {
+        guard case .replace(let base) = subject, Self.isStoreInstalled(base) else { return subject }
+        return .copy(of: base)
+    }
+
+    /// Fills the model picker from `{baseURL}/models`. Only ever called from
+    /// the button: the list is cached until the user asks again.
+    func fetchModels() {
+        guard !isFetchingModels else { return }
+        isFetchingModels = true
+        error = nil
+        let settings = settings
+        let key = LLMSettings.apiKey ?? ""
+        Task { [weak self] in
+            let result = await ChatClient().listModels(settings: settings, apiKey: key)
+            guard let self else { return }
+            self.isFetchingModels = false
+            switch result {
+            case .models(let models):
+                self.settings.cachedModels = models
+                // A model that is gone from the endpoint would fail at the
+                // first request; move to one that exists.
+                if !models.contains(self.settings.model), let first = models.first {
+                    self.settings.model = first
+                }
+            case .failed(let message):
+                self.error = message
+            }
+        }
     }
 
     /// Clears the last run's outcome — the "Show X" button shouldn't point at
@@ -96,6 +138,11 @@ final class PluginAuthorSession: ObservableObject {
         error = nil
         installedPluginID = nil
         isRunning = true
+
+        let subject = resolved(subject)
+        if case .copy(let base) = subject, Self.isStoreInstalled(base) {
+            add(String(localized: "\(base) came from a store, so this is saved as a copy."))
+        }
 
         let tools = PluginTools(registry: registry)
         task = Task { [weak self] in

@@ -17,6 +17,22 @@
         }
       }
     },
+    "%@ came from a store, so this is saved as a copy.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアから入手した %@ のため、これはコピーとして保存されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 来自插件商店，因此本次改写将另存为副本。"
+          }
+        }
+      }
+    },
     "%@ item": {
       "localizations": {
         "ja": {
@@ -29,6 +45,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 个项目"
+          }
+        }
+      }
+    },
+    "%@ was installed from %@. An update from the store would overwrite changes made here, so the rewrite is saved as a separate plugin.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ は %2$@ からインストールされました。ストアの更新でここでの変更が上書きされてしまうため、書き換えたものは別のプラグインとして保存されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 安装自 %2$@。商店更新会覆盖在此处所做的修改，因此改写结果会另存为独立插件。"
           }
         }
       }
@@ -545,6 +577,22 @@
         }
       }
     },
+    "Choose from the fetched models": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得したモデルから選ぶ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从已获取的模型中选择"
+          }
+        }
+      }
+    },
     "Choose…": {
       "localizations": {
         "ja": {
@@ -877,6 +925,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "失败"
+          }
+        }
+      }
+    },
+    "Fetch Models": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルを取得"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取模型"
+          }
+        }
+      }
+    },
+    "Fetching…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取中…"
           }
         }
       }
@@ -2049,6 +2129,22 @@
         }
       }
     },
+    "Result: a copy": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結果：コピー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结果：副本"
+          }
+        }
+      }
+    },
     "Resume": {
       "localizations": {
         "ja": {
@@ -2465,6 +2561,22 @@
         }
       }
     },
+    "The endpoint listed no models.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンドポイントはモデルを返しませんでした。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该接口未返回任何模型。"
+          }
+        }
+      }
+    },
     "The endpoint returned no reply.": {
       "localizations": {
         "ja": {
@@ -2589,6 +2701,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "透明"
+          }
+        }
+      }
+    },
+    "Type a model name instead": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル名を入力する"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动输入模型名称"
           }
         }
       }

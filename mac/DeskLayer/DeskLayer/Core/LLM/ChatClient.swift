@@ -95,6 +95,13 @@ nonisolated struct ToolSpec: Encodable {
     }
 }
 
+/// What a model listing produced. An enum, not Result — errors here are text
+/// for the user, not Swift `Error`s, the same as `ChatTurn`.
+nonisolated enum ModelList {
+    case models([String])
+    case failed(String)
+}
+
 /// What one turn produced.
 nonisolated enum ChatTurn {
     case text(String)
@@ -159,6 +166,52 @@ nonisolated final class ChatClient {
         } catch {
             return .failed(error.localizedDescription)
         }
+    }
+
+    /// The models the endpoint offers. Sorted, because providers return
+    /// them in creation order, which is not useful in a picker.
+    func listModels(settings: LLMSettings, apiKey: String) async -> ModelList {
+        guard let url = settings.modelsURL else {
+            return .failed(String(localized: "That base URL isn't valid."))
+        }
+        var request = URLRequest(url: url)
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                return .failed(Self.errorMessage(in: data) ?? "HTTP \(http.statusCode)")
+            }
+            let decoded = try JSONDecoder().decode(ModelListResponse.self, from: data)
+            let ids = decoded.data.map(\.id).filter { !$0.isEmpty }
+            guard !ids.isEmpty else {
+                return .failed(String(localized: "The endpoint listed no models."))
+            }
+            return .models(ids.sorted())
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    /// Not private: the tests decode provider samples directly.
+    struct ModelListResponse: Decodable {
+        var data: [Entry]
+        struct Entry: Decodable {
+            var id: String
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                // Some gateways use "name" instead of "id".
+                id = (try? c.decodeIfPresent(String.self, forKey: .id))
+                    ?? (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            }
+            enum CodingKeys: String, CodingKey { case id, name }
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            data = try c.decodeIfPresent([Entry].self, forKey: .data) ?? []
+        }
+        enum CodingKeys: String, CodingKey { case data }
     }
 
     /// `{"error": {"message": "..."}}` or `{"error": "..."}`, both seen.
