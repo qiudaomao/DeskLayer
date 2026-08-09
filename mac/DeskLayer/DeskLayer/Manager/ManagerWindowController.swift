@@ -59,9 +59,24 @@ final class ManagerWindowController: NSWindowController {
         if !hadSavedFrame { window.center() }
         window.isReleasedWhenClosed = false
         self.init(window: window)
+
+        // A menu bar app while the manager is closed: no Dock icon, no
+        // Cmd-Tab entry — the status item is how you come back. The Dock
+        // icon returns whenever the window is open, so the app behaves like
+        // a normal one while you're actually working in it.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
     }
 
     func show() {
+        // Back to a regular app while the window is up. Policy first: an
+        // accessory app can't become active, so activate would be a no-op.
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
