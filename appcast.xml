@@ -3,16 +3,25 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.1.0</title>
+            <pubDate>Sun, 09 Aug 2026 23:24:12 +0800</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer-1.1.0.dmg" length="4130564" type="application/octet-stream" sparkle:edSignature="GSxau2zRhX3/jRhPxKD2PBzMAScdFDhuu9gprGUXyU9x6TBfkMxKcpdlmAXbiscXfLoMvAaq/PuUBs5NsbtxCA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer4-3.delta" sparkle:deltaFrom="3" length="418798" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="pN+m+2afylcQye/pYDQzy+WNxYf82TZd1CdqbheSJyntrfjWx8auUiwV7o/NSyOM0lNrrG8JBXBNO/JxLoP3AQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer4-2.delta" sparkle:deltaFrom="2" length="466618" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="yJ8+a/wehX7IoAm5K2dSV9zTpbF5bssFyGXr9OlC4nwq5XgXzpPMe9OHpnYr8umwZ7msoJzvBzXf9QMebOLGCg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.0/DeskLayer4-1.delta" sparkle:deltaFrom="1" length="795934" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="8WDBf7cQzJNzUq18edsYxx6AioFBIPvtMMc1n3mtkdkncMk7At2b0KMqqaDg5aD+j6+mJeqzPpv85YlU4kuzCA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.0.2</title>
             <pubDate>Sun, 09 Aug 2026 16:35:24 +0800</pubDate>
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer-1.0.2.dmg" length="3931658" type="application/octet-stream" sparkle:edSignature="xTBVDHzm4EZVx6pjFkuPLpqp8KWRjKWq1q1FzEmNqnjeD7t/BNV6koIK/+aSXkR7Gg0iCmk1ZCk94MkCBX+kCw=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer3-2.delta" sparkle:deltaFrom="2" length="226926" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="DoO85GIObnXijKwYsEC/Ch1hrqYlK6StMU+4XaBitn5cpxwEikmYwn7i/IrgWLprirqP2mSpuj9DshGsXbfEBw=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer3-1.delta" sparkle:deltaFrom="1" length="619078" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="2rLIHxhvpKz4/uZKvFwLrLKSgaJUJbkXElNzPqIlo92qRujbjc7V9ePNcdNyjEoixEg6dT/pnTZsOaJXvLw3CA=="/>
-            </sparkle:deltas>
         </item>
         <item>
             <title>1.0.1</title>
