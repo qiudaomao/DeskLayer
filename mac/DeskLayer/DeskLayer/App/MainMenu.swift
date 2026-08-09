@@ -10,7 +10,9 @@
 import AppKit
 
 enum MainMenu {
-    static func build(appName: String = "DeskLayer") -> NSMenu {
+    /// Target for "Check for Updates…" — the app delegate's UpdateController
+    /// wrapper, held weakly by the menu item like any other action target.
+    static func build(appName: String = "DeskLayer", updateTarget: AnyObject? = nil) -> NSMenu {
         let mainMenu = NSMenu()
 
         // App menu
@@ -20,6 +22,12 @@ enum MainMenu {
         appItem.submenu = appMenu
         appMenu.addItem(withTitle: String(localized: "About \(appName)"),
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        if let updateTarget {
+            appMenu.addItem(.separator())
+            let update = appMenu.addItem(withTitle: String(localized: "Check for Updates…"),
+                                         action: Selector(("checkForUpdatesAction:")), keyEquivalent: "")
+            update.target = updateTarget
+        }
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: String(localized: "Hide \(appName)"),
                         action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")

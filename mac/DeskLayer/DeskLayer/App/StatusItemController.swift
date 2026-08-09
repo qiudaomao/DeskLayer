@@ -17,7 +17,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let pauseMenuItem: NSMenuItem
     private let loginMenuItem: NSMenuItem
 
-    init(coordinator: RuntimeCoordinator, showManager: @escaping () -> Void) {
+    init(
+        coordinator: RuntimeCoordinator,
+        updateTarget: AnyObject? = nil,
+        showManager: @escaping () -> Void
+    ) {
         self.coordinator = coordinator
         self.showManager = showManager
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -43,6 +47,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(openFolder)
         loginMenuItem.target = self
         menu.addItem(loginMenuItem)
+        if let updateTarget {
+            let update = NSMenuItem(title: String(localized: "Check for Updates…"),
+                                    action: Selector(("checkForUpdatesAction:")), keyEquivalent: "")
+            update.target = updateTarget
+            menu.addItem(update)
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: String(localized: "Quit DeskLayer"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu

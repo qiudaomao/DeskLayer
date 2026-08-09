@@ -183,6 +183,7 @@
 			name = DeskLayer;
 			packageProductDependencies = (
 				AA512E570000000000000A02 /* DeskLayerKit */,
+				AA512E570000000000000E02 /* DeskLayerUpdater */,
 			);
 			productName = DeskLayer;
 			productReference = E92E093F3026A85D0099B400 /* DeskLayer.app */;
@@ -266,6 +267,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA512E570000000000000A01 /* XCLocalSwiftPackageReference "DeskLayerKit" */,
+				AA512E570000000000000E01 /* XCLocalSwiftPackageReference "DeskLayerUpdater" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E92E09403026A85D0099B400 /* Products */;
@@ -531,6 +533,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskLayer/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "DeskLayer plugins reach devices on your local network, for example to monitor a server over SSH.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -566,6 +569,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DeskLayer/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "DeskLayer plugins reach devices on your local network, for example to monitor a server over SSH.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -717,9 +721,17 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = DeskLayerKit;
 		};
+		AA512E570000000000000E01 /* XCLocalSwiftPackageReference "DeskLayerUpdater" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = DeskLayerUpdater;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		AA512E570000000000000E02 /* DeskLayerUpdater */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DeskLayerUpdater;
+		};
 		AA512E570000000000000A02 /* DeskLayerKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DeskLayerKit;

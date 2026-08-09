@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Base plist: Xcode merges the generated keys (bundle id, version,
+	     usage descriptions) on top of this. Only Sparkle's keys live here,
+	     because INFOPLIST_KEY_* build settings cover Apple's keys only. -->
+
+	<!-- Where the app looks for updates. -->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/qiudaomao/DeskLayer/main/appcast.xml</string>
+
+	<!-- Public half of the EdDSA key pair. An update is installed only if it
+	     is signed by the private half, which never leaves the keychain — so
+	     whoever serves the feed still can't ship code of their own. Safe to
+	     commit; it verifies, it doesn't sign. -->
+	<key>SUPublicEDKey</key>
+	<string>tIEKy75Y4+rBdn1QJ3UVHU13moENDw2HGy1uVWStzqY=</string>
+
+	<!-- Check in the background. Sparkle still asks the user on first launch
+	     before it phones home. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+</dict>
+</plist>

@@ -4,6 +4,7 @@
 //
 
 import Cocoa
+import DeskLayerUpdater
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,10 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
-        app.mainMenu = MainMenu.build()
         let delegate = AppDelegate()
         delegateRef = delegate
         app.delegate = delegate
+        // Built after the delegate exists: "Check for Updates…" targets it.
+        app.mainMenu = MainMenu.build(updateTarget: delegate)
         app.run()
     }
 
@@ -29,6 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: RuntimeCoordinator?
     private var managerWindow: ManagerWindowController?
     private var statusItem: StatusItemController?
+    private let updates = UpdateController()
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         let coordinator = RuntimeCoordinator(
@@ -48,10 +51,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             stores: storeRegistry
         )
         managerWindow = manager
-        statusItem = StatusItemController(coordinator: coordinator) { [weak manager] in
+        statusItem = StatusItemController(coordinator: coordinator, updateTarget: self) { [weak manager] in
             manager?.show()
         }
         manager.show()
+    }
+
+    /// Menu action for "Check for Updates…" in both the app menu and the
+    /// status item. Sparkle shows its own UI from here, including the
+    /// "you're up to date" case.
+    @objc func checkForUpdatesAction(_ sender: Any?) {
+        updates.checkForUpdates()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

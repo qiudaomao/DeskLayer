@@ -73,4 +73,24 @@ say "Checking Gatekeeper accepts it"
 spctl -a -vvv -t install "$APP"
 xcrun stapler validate "$DMG"
 
+say "Updating the Sparkle appcast"
+# generate_appcast signs each build with the private EdDSA key from the
+# keychain and writes appcast.xml describing the whole directory, so keep
+# older DMGs in releases/ — deleting one removes it from the feed.
+GENERATE_APPCAST="$(find "$OUT/.." -name generate_appcast -path '*sparkle*' 2>/dev/null | head -1)"
+if [ -z "$GENERATE_APPCAST" ]; then
+    GENERATE_APPCAST="$(find ~/Library/Developer/Xcode/DerivedData -name generate_appcast \
+        -path '*sparkle*' 2>/dev/null | head -1)"
+fi
+mkdir -p releases
+cp "$DMG" releases/
+if [ -n "$GENERATE_APPCAST" ]; then
+    "$GENERATE_APPCAST" releases \
+        --download-url-prefix "https://github.com/qiudaomao/DeskLayer/releases/download/$VERSION/"
+    cp releases/appcast.xml appcast.xml
+    echo "appcast.xml updated — commit it, and upload $DMG to the $VERSION release"
+else
+    echo "generate_appcast not found; build once so SPM checks Sparkle out, then rerun"
+fi
+
 say "Done: $DMG"

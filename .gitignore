@@ -12,3 +12,7 @@ build/
 .swiftpm/
 .build/
 *.profraw
+
+# Release artifacts (DMGs are attached to GitHub releases, not committed)
+build/
+releases/*.dmg
