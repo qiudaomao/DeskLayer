@@ -3,21 +3,45 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.1.1</title>
+            <pubDate>Sun, 09 Aug 2026 23:59:34 +0800</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>Fixed</h2>
+<ul>
+<li><b>Added stores no longer vanish.</b> A store entry the app couldn't read used to silently discard the whole list, and the next save overwrote it for good — typically right after an update. Unreadable data is now kept aside, readable entries are recovered individually, and the app refuses to save an empty list over your stores.</li>
+<li>Only one copy of DeskLayer runs at a time — a second launch (an old version from login, a copy from the DMG) quits the older one instead of the two overwriting each other's settings.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>修复</h2>
+<ul>
+<li><b>已添加的商店不再丢失。</b>以前只要有一条商店数据无法读取，整个列表会被悄悄丢弃，下一次保存就把它永久覆盖——通常发生在更新之后。现在无法读取的数据会被妥善保留，可读的条目逐条恢复，应用也不会再用空列表覆盖你的商店。</li>
+<li>DeskLayer 同时只运行一个实例——再次启动（登录时的旧版本、从 DMG 打开的副本）会让旧实例退出，避免两个实例互相覆盖设置。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>修正</h2>
+<ul>
+<li><b>追加したストアが消えなくなりました。</b>読み取れないストアデータが 1 件でもあるとリスト全体が黙って破棄され、次の保存で完全に上書きされていました（多くはアップデート直後）。読み取れないデータは退避され、読めるエントリは個別に復元され、空のリストでストアを上書きすることもなくなりました。</li>
+<li>DeskLayer は常に 1 つだけ起動するようになりました。2 つ目の起動（ログイン時の旧バージョン、DMG からのコピー）があると古い方が終了し、設定の上書き合戦を防ぎます。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.1/DeskLayer-1.1.1.dmg" length="4141039" type="application/octet-stream" sparkle:edSignature="qg4/cLup5P89q8N9N6yF/41l6wAu6c6WZ64Q3YPVSpKX5KSF0lEMWS0sTyDY0xKS5Pays2KnKO60u76Hnc3ACg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.1/DeskLayer5-4.delta" sparkle:deltaFrom="4" length="204826" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Zx1XZBCZlGFqSEgyVevr4/TntTJD5u3RtoupcxhhfiflXJc3w5C9a57lPw5tAnZmicI1WKQ6g/IFVR+WdS7WAg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.1/DeskLayer5-3.delta" sparkle:deltaFrom="3" length="438538" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="0czONL5NSixQWv+iK9GMGu77l8yEI8yWBTdGD8nq9tqI3N36yuQkzGoivGfsByOxHhDJzKc2jrKH1YNzhvtwBQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.1/DeskLayer5-2.delta" sparkle:deltaFrom="2" length="483502" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="C1FG/6sdJnTcN0O3wkTVHMSsMN2jVO2B5yE6Iw0Ex2yDVvAtAEsRsEtM1Z2gtgj/D0GNlBpQRh+ifmDIyGADDg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.1/DeskLayer5-1.delta" sparkle:deltaFrom="1" length="803974" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="bcM9J7BqW8EsTUNCfzwDy3oZ7Er5oNmlnhaqlHn9w+jbK8KOWXWef0XPYazRKefOToApHRc1AKwRxdXjUs0tDg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.1.0</title>
             <pubDate>Sun, 09 Aug 2026 23:24:12 +0800</pubDate>
             <sparkle:version>4</sparkle:version>
             <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
-            <description><![CDATA[
-<h2>New</h2>
-<ul>
-<li><b>Create Plugin with AI</b> — describe what you want and an OpenAI-compatible model writes the plugin against DeskLayer's API. Nothing installs until it passes validation, and requested permissions are shown first.</li>
-<li><b>Rewrite an existing plugin</b> — replace it (the old version is kept as .js.bak) or keep both. Store-installed plugins are always rewritten as a copy, so a store update can't wipe your changes.</li>
-<li><b>Model picker</b> — fetch your endpoint's model list once and pick from it; the list is cached until you fetch again.</li>
-<li><b>Rename plugins</b> — rename a local plugin from the inspector; items on your desktop follow automatically.</li>
-</ul>
-<h2>Fixed</h2>
-<ul><li>The Official/Sample store names in the Add menu are now localized.</li></ul>
-            ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
 <h2>新功能</h2>
 <ul>
@@ -53,13 +77,6 @@
             <pubDate>Sun, 09 Aug 2026 16:35:24 +0800</pubDate>
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
-            <description><![CDATA[
-<ul>
-<li>Rendering resumes automatically after the Mac wakes from sleep.</li>
-<li>Store refresh now always sees the latest catalog, and each plugin has its own update / reinstall button in the inspector.</li>
-<li>Plugins can declare their own update URL and update without a store.</li>
-</ul>
-            ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
 <ul>
 <li>Mac 从睡眠唤醒后自动恢复渲染。</li>
@@ -78,33 +95,20 @@
             <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.2/DeskLayer-1.0.2.dmg" length="3931658" type="application/octet-stream" sparkle:edSignature="xTBVDHzm4EZVx6pjFkuPLpqp8KWRjKWq1q1FzEmNqnjeD7t/BNV6koIK/+aSXkR7Gg0iCmk1ZCk94MkCBX+kCw=="/>
         </item>
         <item>
-            <title>1.0.1</title>
-            <pubDate>Sun, 09 Aug 2026 13:53:42 +0800</pubDate>
-            <sparkle:version>2</sparkle:version>
-            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
-            <description><![CDATA[
-<ul><li>Now runs on macOS 14 Sonoma and later (previously required a newer macOS).</li></ul>
-            ]]></description>
-            <description xml:lang="zh-Hans"><![CDATA[
-<ul><li>现已支持 macOS 14 Sonoma 及以上版本（此前要求更新的 macOS）。</li></ul>
-            ]]></description>
-            <description xml:lang="ja"><![CDATA[
-<ul><li>macOS 14 Sonoma 以降で動作するようになりました（以前はより新しい macOS が必要でした）。</li></ul>
-            ]]></description>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.1/DeskLayer-1.0.1.dmg" length="3922915" type="application/octet-stream" sparkle:edSignature="DjG0hVtKDo4bTYF/jvzJW5+EcROTlhuaY/sVKcF7RQ3MkSPIlLkvx/18uXWjWsCwUK1l39owfzfKHkgkfqglAA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.1/DeskLayer2-1.delta" sparkle:deltaFrom="1" length="584178" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="pOOPGFoQWPJsAKXmNImKj3UcdIyy5kDMa6zzsI5iYl/tdPYXDUp2n9AhveXCMOgTbWztsyyJx+OZgOP4gdOiBA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
             <title>1.0.0</title>
             <pubDate>Sun, 09 Aug 2026 13:35:04 +0800</pubDate>
             <sparkle:version>1</sparkle:version>
             <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
-            <description><![CDATA[
-<ul><li>First release: JavaScript plugins rendered onto the wallpaper or floating windows, plugin stores, and automatic updates.</li></ul>
-            ]]></description>
+            <description><![CDATA[<h3>DeskLayer 1.0.0</h3>
+<p>First release. JavaScript plugins rendered onto the desktop wallpaper, into
+floating windows, or as macOS widgets, managed from a three-pane manager.</p>
+<ul>
+  <li>Plugins install from a store — an Official and a Sample store are offered in the ＋ menu, and any JSON catalog URL works.</li>
+  <li>Canvas, declarative SwiftUI, and webview render modes.</li>
+  <li>Host APIs for plugins: system stats, shell, AppleScript, SSH, and a local HTTP hook server.</li>
+  <li>English, 简体中文, and 日本語.</li>
+</ul>
+]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
 <ul><li>首个版本：JavaScript 插件渲染到桌面壁纸或浮动窗口，插件商店，自动更新。</li></ul>
             ]]></description>
