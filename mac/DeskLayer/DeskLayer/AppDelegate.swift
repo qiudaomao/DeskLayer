@@ -33,8 +33,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var managerWindow: ManagerWindowController?
     private var statusItem: StatusItemController?
     private let updates = UpdateController()
+    /// Posted by every launching copy; older copies quit when they hear it.
+    private static let instanceNote =
+        Notification.Name("com.qiudaomao.DeskLayer.instance-launched")
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // Two copies of the app (an old version still running from login, a
+        // dev build beside the installed one) share UserDefaults, and the
+        // last one to save wins — an instance holding an empty store list
+        // will happily write it over the other's. One instance only: each
+        // copy announces its launch, and any copy that hears another quits
+        // itself. Self-termination needs no permissions, unlike asking the
+        // other process to quit (Apple-event quits are TCC-gated and get
+        // silently dropped). Skipped under tests, where this process hosts
+        // the test runner and must not react to the user's real copy.
+        if NSClassFromString("XCTestCase") == nil {
+            let pid = String(ProcessInfo.processInfo.processIdentifier)
+            let center = DistributedNotificationCenter.default()
+            center.addObserver(forName: Self.instanceNote, object: nil, queue: .main) { note in
+                guard (note.object as? String) != pid else { return }
+                // A newer copy just launched; it wins.
+                NSApp.terminate(nil)
+            }
+            center.postNotificationName(Self.instanceNote, object: pid, userInfo: nil,
+                                        deliverImmediately: true)
+        }
+
         let coordinator = RuntimeCoordinator(
             store: layoutStore,
             screens: screenManager,

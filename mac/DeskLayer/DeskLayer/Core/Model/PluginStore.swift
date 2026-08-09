@@ -54,6 +54,48 @@ nonisolated struct StoreCatalog: Codable, Hashable {
     /// a store only has to be reachable once for its mirrors to be learned.
     var mirrors: [String]?
     var plugins: [StorePlugin]
+
+    private enum CodingKeys: String, CodingKey { case name, url, website, mirrors, plugins }
+
+    init(name: String, url: String? = nil, website: String? = nil,
+         mirrors: [String]? = nil, plugins: [StorePlugin]) {
+        self.name = name
+        self.url = url
+        self.website = website
+        self.mirrors = mirrors
+        self.plugins = plugins
+    }
+
+    /// One malformed plugin drops that plugin, not the whole catalog — and
+    /// with it, on the persistence path, every store the user added.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        url = try c.decodeIfPresent(String.self, forKey: .url)
+        website = try c.decodeIfPresent(String.self, forKey: .website)
+        mirrors = try c.decodeIfPresent([String].self, forKey: .mirrors)
+        plugins = (try? c.decodeIfPresent(LossyArray<StorePlugin>.self, forKey: .plugins))
+            .flatMap { $0 }?.elements ?? []
+    }
+}
+
+/// Decodes each element on its own; a malformed one is dropped instead of
+/// failing the whole array. One corrupt entry must never take the user's
+/// other stores with it.
+nonisolated struct LossyArray<Element: Decodable>: Decodable {
+    var elements: [Element] = []
+    init(from decoder: Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        while !c.isAtEnd {
+            if let element = try? c.decode(Element.self) {
+                elements.append(element)
+            } else {
+                // The failed decode didn't consume the element; skip it.
+                // JSONValue accepts any JSON, so this always advances.
+                _ = try? c.decode(JSONValue.self)
+            }
+        }
+    }
 }
 
 /// A store the user added: its source URL plus the last catalog we fetched.
@@ -185,14 +227,44 @@ final class PluginStoreRegistry: ObservableObject {
     // MARK: - Persistence
 
     func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.storesKey),
-              let saved = try? JSONDecoder().decode([PluginStoreEntry].self, from: data) else { return }
-        stores = saved
-        // Cached catalogs are shown immediately; only stale ones are re-fetched.
-        Task { await refreshAll(force: false) }
+        guard let data = UserDefaults.standard.data(forKey: Self.storesKey) else { return }
+        let salvaged = Self.salvage(data)
+        if !salvaged.isEmpty {
+            stores = salvaged
+            // Cached catalogs are shown immediately; only stale ones are re-fetched.
+            Task { await refreshAll(force: false) }
+        }
+        // Anything this build couldn't read is parked under a rescue key
+        // BEFORE any save overwrites the only copy — losing the user's
+        // stores silently is the one unacceptable outcome here.
+        if salvaged.count < Self.entryCount(in: data) {
+            UserDefaults.standard.set(data, forKey: Self.storesKey + ".rescue")
+            log.error("only \(salvaged.count) of \(Self.entryCount(in: data)) stored stores decoded; original kept under \(Self.storesKey).rescue")
+        }
     }
 
-    private func save() {
+    /// Every entry that still decodes, best effort. nonisolated and pure so
+    /// the tests can feed it damaged blobs directly.
+    nonisolated static func salvage(_ data: Data) -> [PluginStoreEntry] {
+        ((try? JSONDecoder().decode(LossyArray<PluginStoreEntry>.self, from: data))?.elements) ?? []
+    }
+
+    /// How many entries the raw blob holds, decodable or not.
+    nonisolated static func entryCount(in data: Data) -> Int {
+        ((try? JSONSerialization.jsonObject(with: data)) as? [Any])?.count ?? 0
+    }
+
+    /// `allowEmpty` is passed only by removeStore: an empty in-memory list
+    /// overwrites a non-empty stored one only when the user explicitly
+    /// removed the last store. Every other path holding [] got there by not
+    /// loading — writing would destroy the only copy.
+    private func save(allowEmpty: Bool = false) {
+        if stores.isEmpty, !allowEmpty,
+           let existing = UserDefaults.standard.data(forKey: Self.storesKey),
+           Self.entryCount(in: existing) > 0 {
+            log.error("refusing to overwrite \(Self.entryCount(in: existing)) stored stores with an empty list")
+            return
+        }
         guard let data = try? JSONEncoder().encode(stores) else { return }
         UserDefaults.standard.set(data, forKey: Self.storesKey)
     }
@@ -226,7 +298,7 @@ final class PluginStoreRegistry: ObservableObject {
 
     func removeStore(_ id: String) {
         stores.removeAll { $0.id == id }
-        save()
+        save(allowEmpty: true)
     }
 
     /// `force` is the Refresh button; the launch path passes false so a

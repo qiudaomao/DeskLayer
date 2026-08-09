@@ -1159,6 +1159,39 @@ struct PluginInstanceTests {
         #expect(decoded?.maxTurns == 12)
     }
 
+    @Test func storePersistenceSurvivesDamage() {
+        // The failure that ate a user's store list: one entry a build can't
+        // decode used to fail the whole array, load() silently kept [], and
+        // the next save overwrote the only copy. Decode is per-entry now.
+        let good = #"{"url": "https://a.example/catalog.json", "mirrors": ["https://m.example/c.json"]}"#
+        let noURL = #"{"catalog": {"name": "X", "plugins": []}}"#          // url is required
+        let wrongShape = #""just a string""#
+        let blob = Data("[\(noURL), \(good), \(wrongShape)]".utf8)
+
+        let salvaged = PluginStoreRegistry.salvage(blob)
+        #expect(salvaged.map(\.url) == ["https://a.example/catalog.json"])
+        #expect(salvaged.first?.mirrors == ["https://m.example/c.json"])
+        // And load() can tell partial loss (rescue the blob) from a clean
+        // read or a legitimately empty list (don't).
+        #expect(PluginStoreRegistry.entryCount(in: blob) == 3)
+        #expect(PluginStoreRegistry.entryCount(in: Data("[]".utf8)) == 0)
+        #expect(PluginStoreRegistry.salvage(Data("not json".utf8)).isEmpty)
+
+        // A malformed plugin inside a cached catalog drops that plugin, not
+        // the catalog — and not, transitively, every store.
+        let catalog = #"""
+        [{"url": "https://a.example/catalog.json",
+          "catalog": {"name": "S", "plugins": [
+            {"name": "Good", "url": "https://a.example/Good.js"},
+            {"name": "NoURL"},
+            42
+        ]}}]
+        """#
+        let entries = PluginStoreRegistry.salvage(Data(catalog.utf8))
+        #expect(entries.count == 1)
+        #expect(entries.first?.catalog?.plugins.map(\.name) == ["Good"])
+    }
+
     @Test func storeCatalogCachesForADay() {
         var entry = PluginStoreEntry(url: "https://example.com/catalog.json")
         entry.catalog = StoreCatalog(name: "S", plugins: [])
