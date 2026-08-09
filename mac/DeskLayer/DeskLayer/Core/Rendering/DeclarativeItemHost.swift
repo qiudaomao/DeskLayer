@@ -120,33 +120,50 @@ final class DeclarativeItemHost {
                     }
                     self.model.node = node
                     self.onTreeJSON?(json)
-                    self.publishThumbnailIfDue()
                     // SwiftUI lays the new tree out after this turn of the
                     // run loop, so the measurement below still sees the old
                     // one. Measure again once it has, or the frame trails the
                     // content by a whole render — seconds, on a slow cadence.
-                    DispatchQueue.main.async { self.reportContentSizeIfChanged() }
+                    // Size first, publish after: the virtual desktop scales a
+                    // thumbnail into the item's rect, so one rendered before
+                    // the frame settles shows up stretched.
+                    DispatchQueue.main.async {
+                        self.reportContentSizeIfChanged()
+                        self.publishThumbnailIfDue()
+                    }
                 }
                 // Safety net: an unchanged tree still gets measured, so a
-                // frame that missed its correction can never stay wrong.
-                self.reportContentSizeIfChanged()
+                // frame that missed its correction can never stay wrong — and
+                // if that is where the size lands, the preview is refreshed
+                // at the new frame rather than left stretched.
+                else if self.reportContentSizeIfChanged() {
+                    self.publishThumbnailIfDue()
+                }
             }
         }
     }
 
     /// SwiftUI's ideal size for the current tree. Reported only when it
     /// actually changes, so this can't feed back into a resize loop.
-    private func reportContentSizeIfChanged() {
-        guard let onContentSize else { return }
+    /// Returns true when the size was adopted, so the caller can refresh the
+    /// preview that just became the wrong shape.
+    @discardableResult
+    private func reportContentSizeIfChanged() -> Bool {
+        guard let onContentSize else { return false }
         // Flush any pending SwiftUI layout so this measures the tree that is
         // on screen rather than the one before it.
         hostingView.layoutSubtreeIfNeeded()
         let ideal = hostingView.fittingSize
-        guard ideal.width > 1, ideal.height > 1 else { return }
+        guard ideal.width > 1, ideal.height > 1 else { return false }
         guard abs(ideal.width - lastReportedSize.width) > 1
-                || abs(ideal.height - lastReportedSize.height) > 1 else { return }
+                || abs(ideal.height - lastReportedSize.height) > 1 else { return false }
         lastReportedSize = ideal
         onContentSize(ideal)
+        // The frame just moved, so whatever the preview is showing is now
+        // the wrong shape. Let the next publish through immediately instead
+        // of leaving a stretched thumbnail up for the rest of the interval.
+        lastThumbnailTime = 0
+        return true
     }
 
     private func publishThumbnailIfDue() {
