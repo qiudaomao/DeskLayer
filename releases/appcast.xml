@@ -3,6 +3,17 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.0.1</title>
+            <pubDate>Sun, 09 Aug 2026 13:53:42 +0800</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.1/DeskLayer-1.0.1.dmg" length="3922915" type="application/octet-stream" sparkle:edSignature="DjG0hVtKDo4bTYF/jvzJW5+EcROTlhuaY/sVKcF7RQ3MkSPIlLkvx/18uXWjWsCwUK1l39owfzfKHkgkfqglAA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.1/DeskLayer2-1.delta" sparkle:deltaFrom="1" length="584178" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="pOOPGFoQWPJsAKXmNImKj3UcdIyy5kDMa6zzsI5iYl/tdPYXDUp2n9AhveXCMOgTbWztsyyJx+OZgOP4gdOiBA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.0.0</title>
             <pubDate>Sun, 09 Aug 2026 13:35:04 +0800</pubDate>
             <sparkle:version>1</sparkle:version>

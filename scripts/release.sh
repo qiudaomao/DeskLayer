@@ -93,8 +93,12 @@ cp "$DMG" releases/
 if [ -n "$GENERATE_APPCAST" ]; then
     "$GENERATE_APPCAST" releases \
         --download-url-prefix "https://github.com/qiudaomao/DeskLayer/releases/download/$VERSION/"
+    # One --download-url-prefix is applied to every item, so older entries
+    # would be rewritten into this release's folder. Repoint each at its own.
+    python3 scripts/fix_appcast_urls.py releases/appcast.xml
     cp releases/appcast.xml appcast.xml
-    echo "appcast.xml updated — commit it, and upload $DMG to the $VERSION release"
+    echo "appcast.xml updated — commit it, then upload to the $VERSION release:"
+    ls releases/*"$VERSION"*.dmg releases/*.delta 2>/dev/null | sed 's/^/    /'
 else
     echo "generate_appcast not found; build once so SPM checks Sparkle out, then rerun"
 fi
