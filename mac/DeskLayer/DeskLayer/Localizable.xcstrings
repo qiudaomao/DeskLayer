@@ -65,6 +65,22 @@
         }
       }
     },
+    "A clock with a sweeping second hand and the date underneath": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一个带扫秒针、下方显示日期的时钟"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "秒針が滑らかに動き、下に日付が出る時計"
+          }
+        }
+      }
+    },
     "A store is a JSON catalog listing plugins you can install. It becomes its own category in the library.": {
       "localizations": {
         "ja": {
@@ -77,6 +93,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "插件商店是一个列出可安装插件的 JSON 目录，添加后会成为插件库中的一个分类。"
+          }
+        }
+      }
+    },
+    "API key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API キー"
           }
         }
       }
@@ -273,6 +305,38 @@
         }
       }
     },
+    "Any OpenAI-compatible endpoint. The key is stored in your login Keychain.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任何兼容 OpenAI 的接口。密钥保存在登录钥匙串中。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI 互換のエンドポイントなら何でも。キーはログインキーチェーンに保存されます。"
+          }
+        }
+      }
+    },
+    "Asking %@…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在询问 %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ に問い合わせ中…"
+          }
+        }
+      }
+    },
     "Auth": {
       "localizations": {
         "ja": {
@@ -337,6 +401,22 @@
         }
       }
     },
+    "Base URL": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接口地址"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベース URL"
+          }
+        }
+      }
+    },
     "Bring All to Front": {
       "localizations": {
         "ja": {
@@ -365,6 +445,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "取消"
+          }
+        }
+      }
+    },
+    "Cancelled.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取消。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセルしました。"
           }
         }
       }
@@ -481,6 +577,22 @@
         }
       }
     },
+    "Close": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "閉じる"
+          }
+        }
+      }
+    },
     "Color": {
       "localizations": {
         "ja": {
@@ -509,6 +621,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "拷贝"
+          }
+        }
+      }
+    },
+    "Couldn't read the generated plugin.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取生成的插件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成されたプラグインを読み込めませんでした。"
+          }
+        }
+      }
+    },
+    "Create": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成"
+          }
+        }
+      }
+    },
+    "Create Plugin": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成插件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインを作成"
+          }
+        }
+      }
+    },
+    "Create Plugin…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成插件…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインを作成…"
           }
         }
       }
@@ -557,6 +733,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "删除"
+          }
+        }
+      }
+    },
+    "Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述你想要的效果。模型会拿到 DeskLayer 的插件 API 并编写 JavaScript；只有通过校验才会安装。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作りたいものを書いてください。モデルは DeskLayer のプラグイン API を渡されて JavaScript を書きます。検証を通るまでインストールされません。"
           }
         }
       }
@@ -637,6 +829,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "启用"
+          }
+        }
+      }
+    },
+    "Endpoint": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接口设置"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンドポイント"
+          }
+        }
+      }
+    },
+    "Failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失敗"
           }
         }
       }
@@ -865,6 +1089,22 @@
         }
       }
     },
+    "Installed %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已安装 %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ をインストールしました"
+          }
+        }
+      }
+    },
     "Installed — select for details": {
       "localizations": {
         "ja": {
@@ -893,6 +1133,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "其目录将从插件库中移除，已安装的插件不受影响。"
+          }
+        }
+      }
+    },
+    "Kept the previous version as %@.js.bak": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已将旧版本保留为 %@.js.bak"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以前のバージョンを %@.js.bak として保存しました"
           }
         }
       }
@@ -977,6 +1233,22 @@
         }
       }
     },
+    "Listing installed plugins…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在列出已安装的插件…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール済みプラグインを列挙中…"
+          }
+        }
+      }
+    },
     "Loading…": {
       "localizations": {
         "ja": {
@@ -1021,6 +1293,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "最小化"
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデル"
           }
         }
       }
@@ -1101,6 +1389,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "在 ~/.ssh/config 中未找到主机。"
+          }
+        }
+      }
+    },
+    "No plugin was written.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有写出任何插件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインは書き出されませんでした。"
           }
         }
       }
@@ -1457,6 +1761,38 @@
         }
       }
     },
+    "Reached the turn limit.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已达到轮次上限。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ターン上限に達しました。"
+          }
+        }
+      }
+    },
+    "Reading %@…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取 %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を読み込み中…"
+          }
+        }
+      }
+    },
     "Redo": {
       "localizations": {
         "ja": {
@@ -1501,6 +1837,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "刷新 %@"
+          }
+        }
+      }
+    },
+    "Refresh the store category to look for a newer version.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新该商店分类以查找新版本。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアのカテゴリを更新すると新しいバージョンを確認できます。"
+          }
+        }
+      }
+    },
+    "Reinstall from Store": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从商店重新安装"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアから再インストール"
           }
         }
       }
@@ -1565,6 +1933,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除商店只会删除其列表，已从中安装的插件仍保留在磁盘上。"
+          }
+        }
+      }
+    },
+    "Requests: %@.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "申请权限：%@。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要求する権限：%@。"
           }
         }
       }
@@ -1745,6 +2129,38 @@
         }
       }
     },
+    "Set the base URL and model first.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先设置接口地址和模型。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先にベース URL とモデルを設定してください。"
+          }
+        }
+      }
+    },
+    "Show %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示 %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を表示"
+          }
+        }
+      }
+    },
     "Show All": {
       "localizations": {
         "ja": {
@@ -1841,6 +2257,22 @@
         }
       }
     },
+    "Stop": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        }
+      }
+    },
     "Store": {
       "localizations": {
         "ja": {
@@ -1889,6 +2321,70 @@
         }
       }
     },
+    "That base URL isn't valid.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接口地址无效。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのベース URL は正しくありません。"
+          }
+        }
+      }
+    },
+    "The endpoint returned no reply.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接口没有返回内容。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンドポイントから応答がありませんでした。"
+          }
+        }
+      }
+    },
+    "The generated plugin isn't valid.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成的插件校验未通过。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成されたプラグインは有効ではありません。"
+          }
+        }
+      }
+    },
+    "The model didn't write a plugin.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型没有写出插件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルはプラグインを書きませんでした。"
+          }
+        }
+      }
+    },
     "The plugin file moves to the Trash.": {
       "localizations": {
         "ja": {
@@ -1901,6 +2397,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "插件文件将被移到废纸篓。"
+          }
+        }
+      }
+    },
+    "The store lists %@.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "商店中的版本为 %@。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアには %@ があります。"
+          }
+        }
+      }
+    },
+    "This build is missing the plugin API documentation.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此版本缺少插件 API 文档。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このビルドにはプラグイン API のドキュメントが含まれていません。"
           }
         }
       }
@@ -1985,6 +2513,22 @@
         }
       }
     },
+    "Update to %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新到 %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ に更新"
+          }
+        }
+      }
+    },
     "Updated": {
       "localizations": {
         "ja": {
@@ -1997,6 +2541,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新时间"
+          }
+        }
+      }
+    },
+    "Updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップデート"
           }
         }
       }
@@ -2045,6 +2605,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "使用你的 ssh agent。"
+          }
+        }
+      }
+    },
+    "Validating %@…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在校验 %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を検証中…"
           }
         }
       }
@@ -2125,6 +2701,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "窗口"
+          }
+        }
+      }
+    },
+    "Writing %@…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在写入 %@…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ を書き込み中…"
           }
         }
       }

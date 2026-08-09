@@ -85,11 +85,17 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
     /// Evaluates `source` in an isolated context with inert globals and reads
     /// plugin.export.{version,author,description,updateURL}. Returns empty
     /// metadata if the script doesn't parse or declares none.
-    static func extract(from source: String) -> PluginMetadata {
-        guard let context = JSContext() else { return PluginMetadata() }
-        context.exceptionHandler = { _, _ in }
+    /// A JSContext where a plugin's top-level code can run but reach nothing:
+    /// no network, no shell, no ssh, no timers, no rendering. Used to read a
+    /// plugin's declarations, and to validate source before it is installed —
+    /// booting an untrusted plugin through PluginInstance would give it the
+    /// real host bindings.
+    static func sandboxForValidation(onException: ((String) -> Void)? = nil) -> JSContext? {
+        guard let context = JSContext() else { return nil }
+        context.exceptionHandler = { _, exception in
+            onException?(exception?.toString() ?? "unknown error")
+        }
 
-        // Inert stubs so top-level code runs but does nothing observable.
         let noop: @convention(block) () -> Void = {}
         let noopTimer: @convention(block) () -> Int = { 0 }
         for name in ["setTimeout", "setInterval", "clearTimeout", "clearInterval"] {
@@ -100,6 +106,7 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
         var plugin = { export: null };
         var console = { log: function(){}, error: function(){}, warn: function(){} };
         var $system = { stats: function(){ return {}; } };
+        var $ssh = { hosts: [] };
         var $server = { on: function(){}, listen: function(){} };
         function fetch(){ return { then: function(){ return this; }, catch: function(){ return this; } }; }
         function shell(){ return Promise.resolve({}); }
@@ -111,8 +118,14 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
         function __node(){ return new Proxy(function(){ return __node(); }, { get: function(){ return function(){ return __node(); }; } }); }
         var view = __node, VStack = __node, HStack = __node, ZStack = __node;
         var Text = __node, Image = __node, Spacer = __node, Section = __node, Paragraph = __node;
+        var Button = __node, Rect = __node, Ring = __node, Spinner = __node;
+        var ProgressBar = __node, TextField = __node, Video = __node;
         """)
+        return context
+    }
 
+    static func extract(from source: String) -> PluginMetadata {
+        guard let context = sandboxForValidation() else { return PluginMetadata() }
         context.evaluateScript(source)
 
         guard let export = context.objectForKeyedSubscript("plugin")?.objectForKeyedSubscript("export"),
@@ -163,6 +176,56 @@ nonisolated struct PluginMetadata: Sendable, Equatable {
 
 /// Dotted numeric version compare ("1.2.10" > "1.2.9"). Non-numeric parts fall
 /// back to a string compare; missing/blank versions sort lowest.
+/// Why a piece of source is or isn't a usable plugin.
+nonisolated enum PluginValidation: Equatable {
+    case ok(mode: String)
+    case failed(String)
+
+    var isOK: Bool { if case .ok = self { return true } else { return false } }
+
+    var message: String {
+        switch self {
+        case .ok(let mode): return "Valid \(mode) plugin."
+        case .failed(let reason): return reason
+        }
+    }
+}
+
+extension PluginMetadata {
+    /// Checks source the way the app will read it, without running it for
+    /// real. Written for generated code — the model gets `message` back and
+    /// can fix its own mistake — but it is the right gate for any untrusted
+    /// plugin, and stricter than the substring check installs used to do.
+    static func validate(source: String) -> PluginValidation {
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .failed("The file is empty.")
+        }
+        var thrown: String?
+        guard let context = PluginMetadata.sandboxForValidation(onException: { thrown = $0 }) else {
+            return .failed("Couldn't create a JavaScript context.")
+        }
+        context.evaluateScript(source)
+        if let thrown {
+            return .failed("JavaScript error: \(thrown)")
+        }
+        guard let export = context.objectForKeyedSubscript("plugin")?.objectForKeyedSubscript("export"),
+              !export.isUndefined, !export.isNull, export.isObject else {
+            return .failed("The script never assigns plugin.export.")
+        }
+        // A webview plugin has no render(); everything else must have one.
+        let webview = export.objectForKeyedSubscript("webview")
+        if let webview, webview.isObject { return .ok(mode: "webview") }
+
+        guard let render = export.objectForKeyedSubscript("render"), !render.isUndefined,
+              context.evaluateScript("typeof plugin.export.render")?.toString() == "function" else {
+            return .failed("plugin.export.render is missing or is not a function.")
+        }
+        // render(ctx) draws on a canvas; render() returns a view tree.
+        let arity = render.objectForKeyedSubscript("length")?.toInt32() ?? 0
+        return .ok(mode: arity >= 1 ? "canvas" : "declarative")
+    }
+}
+
 nonisolated func compareVersions(_ a: String, _ b: String) -> ComparisonResult {
     let lhs = a.split(separator: ".").map { String($0) }
     let rhs = b.split(separator: ".").map { String($0) }

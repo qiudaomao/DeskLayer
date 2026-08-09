@@ -16,3 +16,5 @@ build/
 # Release artifacts (DMGs are attached to GitHub releases, not committed)
 build/
 releases/*.dmg
+releases/*.delta
+releases/appcast.xml

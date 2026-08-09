@@ -52,4 +52,40 @@ nonisolated enum KeychainStore {
     static func hasPassword(forItem id: UUID, host hostID: UUID? = nil) -> Bool {
         password(forItem: id, host: hostID) != nil
     }
+
+    // MARK: - Secrets not tied to a layout item
+
+    /// The LLM endpoint's API key, and anything else app-wide. The functions
+    /// above are keyed by a layout item's UUID, which a setting like this one
+    /// has no equivalent of, so it gets its own service and a plain account.
+    static let llmService = "com.qiudaomao.DeskLayer.llm"
+
+    static func setSecret(_ secret: String?, account: String, service: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(query as CFDictionary)
+
+        guard let secret, !secret.isEmpty, let data = secret.data(using: .utf8) else { return }
+        var add = query
+        add[kSecValueData as String] = data
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        SecItemAdd(add as CFDictionary, nil)
+    }
+
+    static func secret(account: String, service: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var result: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
 }

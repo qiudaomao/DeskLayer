@@ -883,6 +883,129 @@ struct PluginInstanceTests {
         forgetStoreOrigin("Mirrored")
     }
 
+    // MARK: - Plugin authoring (LLM)
+
+    @Test func validatorAcceptsShippedPluginsAndRejectsBrokenOnes() {
+        // The gate for generated code. Canvas takes ctx, declarative doesn't.
+        let canvas = "function render(ctx) {}\nplugin.export = { render };"
+        let declarative = "render = () => view([]);\nplugin.export = { render };"
+        let webview = "plugin.export = { webview: { url: \"https://example.com\" } };"
+        #expect(PluginMetadata.validate(source: canvas) == .ok(mode: "canvas"))
+        #expect(PluginMetadata.validate(source: declarative) == .ok(mode: "declarative"))
+        #expect(PluginMetadata.validate(source: webview) == .ok(mode: "webview"))
+
+        // Each of these is a mistake a model actually makes.
+        #expect(PluginMetadata.validate(source: "").isOK == false)          // empty
+        #expect(PluginMetadata.validate(source: "let x = ;").isOK == false) // syntax
+        #expect(PluginMetadata.validate(source: "function render(ctx) {}").isOK == false) // no export
+        #expect(PluginMetadata.validate(source: "plugin.export = { version: \"1\" };").isOK == false)
+        #expect(PluginMetadata.validate(source: "plugin.export = { render: 42 };").isOK == false)
+        #expect(PluginMetadata.validate(source: "throw new Error('x');").isOK == false)
+
+        // The message is fed back to the model, so it has to say something.
+        let why = PluginMetadata.validate(source: "plugin.export = { version: \"1\" };").message
+        #expect(why.contains("render"))
+    }
+
+    @MainActor
+    @Test func toolWritesStayInsideStaging() {
+        let tools = PluginTools(registry: PluginRegistry())
+        defer { tools.cleanUp() }
+
+        // A plain name lands in staging as <name>.js.
+        let ok = try? #require(tools.stagedURL(for: "Weather Card"))
+        #expect(ok?.lastPathComponent == "Weather Card.js")
+        #expect(ok?.deletingLastPathComponent().path == tools.stagingURL.standardizedFileURL.path)
+        // .js already present isn't doubled.
+        #expect(tools.stagedURL(for: "Clock.js")?.lastPathComponent == "Clock.js")
+
+        // Nothing may escape the staging directory.
+        for escape in ["../evil", "../../etc/passwd", "/etc/passwd", "..", ".", "", "   ",
+                       "a/../../b", "/tmp/x.js"] {
+            let url = tools.stagedURL(for: escape)
+            if let url {
+                #expect(url.deletingLastPathComponent().standardizedFileURL.path
+                        == tools.stagingURL.standardizedFileURL.path,
+                        "\(escape) escaped staging")
+            }
+        }
+        // The obvious traversals resolve to a bare name or are refused.
+        #expect(tools.stagedURL(for: "../../etc/passwd")?.lastPathComponent == "passwd.js")
+        #expect(tools.stagedURL(for: "..") == nil)
+        #expect(tools.stagedURL(for: "") == nil)
+    }
+
+    @MainActor
+    @Test func toolsReportValidationBackToTheModel() {
+        let tools = PluginTools(registry: PluginRegistry())
+        defer { tools.cleanUp() }
+
+        let broken = ToolCall(id: "1", function: .init(
+            name: "write_plugin",
+            arguments: "{\"name\": \"Probe\", \"source\": \"plugin.export = { version: 1 };\"}"))
+        let firstReply = tools.run(broken)
+        #expect(firstReply.contains("not valid"))
+        #expect(firstReply.contains("render"))
+
+        let fixed = ToolCall(id: "2", function: .init(
+            name: "write_plugin",
+            arguments: "{\"name\": \"Probe\", \"source\": \"render = () => view([]); plugin.export = { render };\"}"))
+        #expect(tools.run(fixed).contains("Valid"))
+        #expect(tools.run(ToolCall(id: "3", function: .init(
+            name: "validate_plugin", arguments: "{\"name\": \"Probe\"}"))).contains("Valid"))
+
+        // Unknown tools and missing arguments are answers, not crashes.
+        #expect(tools.run(ToolCall(id: "4", function: .init(name: "nope", arguments: "{}")))
+            .hasPrefix("error:"))
+        #expect(tools.run(ToolCall(id: "5", function: .init(name: "read_file", arguments: "{}")))
+            .hasPrefix("error:"))
+        // Reading a plugin that doesn't exist points at list_plugins.
+        #expect(tools.run(ToolCall(id: "6", function: .init(
+            name: "read_file", arguments: "{\"name\": \"NoSuchPlugin\"}"))).contains("list_plugins"))
+    }
+
+    @Test func toolCallDecodingToleratesProviderQuirks() {
+        // Arguments as a string — what the spec says.
+        let spec = """
+        {"id": "a", "type": "function",
+         "function": {"name": "write_plugin", "arguments": "{\\"name\\": \\"X\\"}"}}
+        """
+        let asString = try? JSONDecoder().decode(ToolCall.self, from: Data(spec.utf8))
+        #expect(asString?.function.name == "write_plugin")
+        #expect(JSONValue.string("name", in: asString?.function.arguments ?? "") == "X")
+
+        // Arguments as an object — what some providers actually send.
+        let object = """
+        {"id": "b", "function": {"name": "read_file", "arguments": {"name": "plugin.d.ts"}}}
+        """
+        let asObject = try? JSONDecoder().decode(ToolCall.self, from: Data(object.utf8))
+        #expect(asObject?.function.name == "read_file")
+        #expect(JSONValue.string("name", in: asObject?.function.arguments ?? "") == "plugin.d.ts")
+
+        // A missing id is synthesised rather than failing the whole turn.
+        let noID = #"{"function": {"name": "list_plugins", "arguments": "{}"}}"#
+        #expect((try? JSONDecoder().decode(ToolCall.self, from: Data(noID.utf8)))?.id.isEmpty == false)
+    }
+
+    @Test func llmSettingsBuildTheEndpointAndSurviveOldFiles() {
+        #expect(LLMSettings(baseURL: "https://api.openai.com/v1").completionsURL?.absoluteString
+                == "https://api.openai.com/v1/chat/completions")
+        // Trailing slash, and a base that already names the endpoint.
+        #expect(LLMSettings(baseURL: "http://localhost:11434/v1/").completionsURL?.absoluteString
+                == "http://localhost:11434/v1/chat/completions")
+        #expect(LLMSettings(baseURL: "https://x.example/v1/chat/completions").completionsURL?.absoluteString
+                == "https://x.example/v1/chat/completions")
+        #expect(LLMSettings(baseURL: "").completionsURL == nil)
+        #expect(LLMSettings(baseURL: "", model: "m").isConfigured == false)
+
+        // Settings written before a field existed still load.
+        let old = #"{"baseURL": "https://x.example/v1"}"#
+        let decoded = try? JSONDecoder().decode(LLMSettings.self, from: Data(old.utf8))
+        #expect(decoded?.baseURL == "https://x.example/v1")
+        #expect(decoded?.model.isEmpty == false)
+        #expect(decoded?.maxTurns == 12)
+    }
+
     @Test func storeCatalogCachesForADay() {
         var entry = PluginStoreEntry(url: "https://example.com/catalog.json")
         entry.catalog = StoreCatalog(name: "S", plugins: [])

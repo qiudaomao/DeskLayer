@@ -22,6 +22,7 @@ struct PluginLibraryView: View {
     /// Collapsed groups are remembered for the session.
     @State private var collapsed: Set<PluginOrigin> = []
     @State private var isAddingStore = false
+    @State private var isCreatingPlugin = false
     @State private var newStoreURL = ""
     @State private var addStoreError: String?
 
@@ -53,6 +54,9 @@ struct PluginLibraryView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("DeskLayer")
+        .sheet(isPresented: $isCreatingPlugin) {
+            CreatePluginSheet { isCreatingPlugin = false }
+        }
         .sheet(isPresented: $isAddingStore) {
             AddStoreSheet(url: $newStoreURL, error: $addStoreError) {
                 let ok = await stores.addStore(urlString: newStoreURL)
@@ -74,6 +78,7 @@ struct PluginLibraryView: View {
                 HStack(spacing: 2) {
                     Menu {
                         Button("Add Plugin…") { importPlugin() }
+                        Button("Create Plugin…") { isCreatingPlugin = true }
                         Divider()
                         // The app ships no plugins, so the first thing a new
                         // user needs is a store — offer ours by name.

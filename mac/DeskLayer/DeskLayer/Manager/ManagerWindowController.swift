@@ -18,7 +18,8 @@ final class ManagerWindowController: NSWindowController {
         registry: PluginRegistry,
         screens: ScreenManager,
         coordinator: RuntimeCoordinator,
-        stores: PluginStoreRegistry
+        stores: PluginStoreRegistry,
+        author: PluginAuthorSession
     ) {
         let root = ManagerRootView()
             .environmentObject(store)
@@ -26,6 +27,7 @@ final class ManagerWindowController: NSWindowController {
             .environmentObject(screens)
             .environmentObject(coordinator)
             .environmentObject(stores)
+            .environmentObject(author)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1080, height: 680),
