@@ -260,14 +260,32 @@ private struct StoreDetailView: View {
                 }
             }
 
+            if let website = entry?.catalog?.website, let url = URL(string: website) {
+                Section("Website") {
+                    Link(destination: url) {
+                        Label(website, systemImage: "safari")
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .help("Open \(website) in your browser")
+                }
+            }
+
             Section("Catalog URL") {
-                Text(entry?.url ?? "—")
+                // A catalog may name its canonical address; otherwise this is
+                // simply where the user added it from.
+                Text(entry?.catalog?.url ?? entry?.url ?? "—")
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                if let fetched = entry?.fetchedAt {
+                    LabeledContent("Updated", value: fetched.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                }
                 Button {
-                    Task { await stores.refreshAll() }
+                    Task { await stores.refresh(storeID) }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
@@ -312,6 +330,8 @@ private struct StorePluginDetailView: View {
     @EnvironmentObject private var stores: PluginStoreRegistry
     @EnvironmentObject private var registry: PluginRegistry
     @EnvironmentObject private var selection: ManagerSelection
+    @EnvironmentObject private var store: LayoutStore
+    @EnvironmentObject private var screens: ScreenManager
     @State private var isInstalling = false
     @State private var installError: String?
 
@@ -370,6 +390,15 @@ private struct StorePluginDetailView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(isInstalling || plugin == nil)
+                    // The usual reason to install is to use it, so offer the
+                    // whole gesture in one step.
+                    Button {
+                        install(plugin, thenPlace: true)
+                    } label: {
+                        Label("Install & Add to Desktop", systemImage: "plus.rectangle.on.rectangle")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(isInstalling || plugin == nil || selection.displayUUID == nil)
                 }
                 if let installError {
                     Label(installError, systemImage: "exclamationmark.triangle.fill")
@@ -382,7 +411,7 @@ private struct StorePluginDetailView: View {
         .navigationTitle("Store Plugin")
     }
 
-    private func install(_ plugin: StorePlugin?) {
+    private func install(_ plugin: StorePlugin?, thenPlace: Bool = false) {
         guard let plugin, let storeName = stores.stores.first(where: { $0.id == ref.storeID })?.displayName
         else { return }
         isInstalling = true
@@ -392,6 +421,14 @@ private struct StorePluginDetailView: View {
             installError = error
             registry.rescan()
             isInstalling = false
+            // Placing selects the new item, which swaps this pane for the
+            // item's editor — so only do it once the install actually landed.
+            if thenPlace, error == nil {
+                PluginLibraryView.addToDesktop(
+                    plugin.name, store: store, registry: registry,
+                    screens: screens, selection: selection
+                )
+            }
         }
     }
 }
@@ -465,13 +502,7 @@ private struct PluginDetailView: View {
                     Label("Uninstall", systemImage: "trash")
                 }
                 .buttonStyle(.borderless)
-                .disabled(!origin.isRemovable)
-                .help(origin.isRemovable ? "Move this plugin to the Trash"
-                      : "Built-in plugins ship with DeskLayer and can't be removed")
-                if !origin.isRemovable {
-                    Text("Built-in plugins can't be uninstalled.")
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
+                .help("Move this plugin to the Trash")
             }
         }
         .formStyle(.grouped)

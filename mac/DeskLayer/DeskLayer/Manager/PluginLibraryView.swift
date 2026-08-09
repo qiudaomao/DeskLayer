@@ -29,17 +29,17 @@ struct PluginLibraryView: View {
         // Native list selection: proper highlight, arrow-key navigation, and
         // it works with VoiceOver/automation (a custom tap gesture doesn't).
         List(selection: pluginSelection) {
-            ForEach(PluginOrigin.localCases, id: \.self) { origin in
-                let plugins = registry.plugins.filter { $0.origin == origin }
-                if !plugins.isEmpty {
-                    DisclosureGroup(isExpanded: expansion(for: origin)) {
-                        ForEach(plugins) { plugin in
-                            PluginRow(plugin: plugin) { addToDesktop(plugin.id) }
-                                .tag(plugin.id)
-                        }
-                    } label: {
-                        groupLabel(origin.title, count: plugins.count)
+            // Everything on disk, whichever store it came from — this is the
+            // list of plugins you can actually place. Store categories below
+            // list what each store offers.
+            if !registry.plugins.isEmpty {
+                DisclosureGroup(isExpanded: expansion(for: .user)) {
+                    ForEach(registry.plugins) { plugin in
+                        PluginRow(plugin: plugin) { addToDesktop(plugin.id) }
+                            .tag(plugin.id)
                     }
+                } label: {
+                    groupLabel(PluginOrigin.user.title, count: registry.plugins.count)
                 }
             }
             ForEach(stores.stores) { entry in
@@ -74,6 +74,17 @@ struct PluginLibraryView: View {
                 HStack(spacing: 2) {
                     Menu {
                         Button("Add Plugin…") { importPlugin() }
+                        Divider()
+                        // The app ships no plugins, so the first thing a new
+                        // user needs is a store — offer ours by name.
+                        ForEach(PresetStore.all) { preset in
+                            let added = stores.stores.contains { $0.url == preset.url }
+                            Button(added ? "\(preset.name) (added)" : "Add \(preset.name)") {
+                                Task { await stores.addStore(urlString: preset.url, mirrors: preset.mirrors) }
+                            }
+                            .disabled(added)
+                        }
+                        Divider()
                         Button("Add Plugin Store…") { isAddingStore = true }
                     } label: {
                         Image(systemName: "plus").frame(width: 22, height: 22)
@@ -124,6 +135,7 @@ struct PluginLibraryView: View {
                     ForEach(plugins) { plugin in
                         StorePluginRow(
                             plugin: plugin,
+                            storeName: entry.displayName,
                             isInstalled: installed.contains { $0.id == plugin.name },
                             onAddToDesktop: { onAddToDesktop(plugin.name) }
                         )
@@ -159,9 +171,13 @@ struct PluginLibraryView: View {
 
     private struct StorePluginRow: View {
         let plugin: StorePlugin
+        let storeName: String
         let isInstalled: Bool
         let onAddToDesktop: () -> Void
+        @EnvironmentObject private var stores: PluginStoreRegistry
+        @EnvironmentObject private var registry: PluginRegistry
         @State private var isHovering = false
+        @State private var isInstalling = false
 
         var body: some View {
             HStack {
@@ -169,19 +185,42 @@ struct PluginLibraryView: View {
                     .lineLimit(1)
                     .foregroundStyle(isInstalled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 Spacer()
-                if isInstalled {
+                if isInstalling {
+                    ProgressView().controlSize(.small)
+                } else if isInstalled {
                     Button(action: onAddToDesktop) {
                         Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(isHovering ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
+                            .foregroundStyle(isHovering ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                     }
                     .buttonStyle(.borderless)
                     .help("Add \(plugin.name) to the desktop")
+                } else {
+                    // Installing straight from the row: the detail pane is one
+                    // click further away and says nothing extra for a plugin
+                    // the user already decided to install.
+                    Button {
+                        install()
+                    } label: {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(isHovering ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Install \(plugin.name)")
                 }
             }
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
             .help(isInstalled ? "Installed — select for details"
-                  : "Select to see details and install")
+                  : "Select for details, or click to install")
+        }
+
+        private func install() {
+            isInstalling = true
+            Task {
+                _ = await stores.install(plugin, from: storeName, into: PluginRegistry.directoryURL)
+                registry.rescan()
+                isInstalling = false
+            }
         }
     }
 
@@ -233,8 +272,11 @@ struct PluginLibraryView: View {
                     .lineLimit(1)
                 Spacer()
                 Button(action: onAdd) {
+                    // Semantic styles only: a selected row is painted in the
+                    // accent colour, so an accent-tinted button on it is
+                    // invisible. primary/secondary get inverted by the list.
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(isHovering ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary))
+                        .foregroundStyle(isHovering ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 }
                 .buttonStyle(.borderless)
                 .help("Add \(plugin.id) to the desktop")
@@ -248,10 +290,24 @@ struct PluginLibraryView: View {
     }
 
     private func addToDesktop(_ pluginID: String) {
+        PluginLibraryView.addToDesktop(
+            pluginID, store: store, registry: registry, screens: screens, selection: selection
+        )
+    }
+
+    /// Places a new item centred on the selected display. Shared with the
+    /// inspector's "Install & Add to Desktop".
+    static func addToDesktop(
+        _ pluginID: String,
+        store: LayoutStore,
+        registry: PluginRegistry,
+        screens: ScreenManager,
+        selection: ManagerSelection
+    ) {
         guard let displayUUID = selection.displayUUID else { return }
         let screenSize = screens.controller(forDisplayUUID: displayUUID)?.screen.frame.size
             ?? NSScreen.main?.frame.size
-        let size = PluginLibraryView.defaultNormalizedSize(
+        let size = defaultNormalizedSize(
             preferred: registry.metadata(for: pluginID).preferredSize, screen: screenSize
         )
         let item = LayoutItem(

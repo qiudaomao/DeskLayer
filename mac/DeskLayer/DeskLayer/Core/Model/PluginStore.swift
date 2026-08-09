@@ -30,14 +30,29 @@ nonisolated struct StorePlugin: Codable, Hashable, Identifiable {
     var preview: String?
     /// Where the plugin's .js lives.
     var url: String
+    /// Alternate download addresses, tried in order when `url` fails —
+    /// GitHub is unreachable from some networks, so a store should be able
+    /// to name a CDN or a mirror host.
+    var mirrors: [String]?
     var version: String?
     var author: String?
 
     var id: String { name }
+
+    /// Every address to try, primary first.
+    var candidateURLs: [String] { [url] + (mirrors ?? []) }
 }
 
 nonisolated struct StoreCatalog: Codable, Hashable {
     var name: String
+    /// The catalog's canonical address, if it wants to state one (a store
+    /// reachable through several URLs can name the one to trust).
+    var url: String?
+    /// Human-facing home page, opened from the store's inspector pane.
+    var website: String?
+    /// Alternate catalog addresses. Fetched catalogs carry these forward, so
+    /// a store only has to be reachable once for its mirrors to be learned.
+    var mirrors: [String]?
     var plugins: [StorePlugin]
 }
 
@@ -46,12 +61,65 @@ nonisolated struct PluginStoreEntry: Codable, Hashable, Identifiable {
     var url: String
     var catalog: StoreCatalog?
     var lastError: String?
+    /// When the catalog was last fetched; drives the cache window below.
+    var fetchedAt: Date?
+    /// Fallback catalog addresses: seeded from the preset (or the URL the
+    /// user added) and refreshed from each fetched catalog.
+    var mirrors: [String] = []
+    /// The address that last worked — tried first next time, so a user behind
+    /// a network that blocks the primary host stops paying for the timeout.
+    var lastGoodURL: String?
 
     var id: String { url }
+
+    /// Every catalog address to try, best-known first and without repeats.
+    var candidateURLs: [String] {
+        var seen = Set<String>()
+        return ([lastGoodURL, url].compactMap { $0 } + mirrors + (catalog?.mirrors ?? []))
+            .filter { seen.insert($0).inserted }
+    }
     /// Falls back to the host name until the catalog is fetched.
     var displayName: String {
         catalog?.name ?? URL(string: url)?.host ?? url
     }
+
+    /// Catalogs are cached for a day: launching the app shouldn't hit every
+    /// store's server, but a store that changes is picked up without the user
+    /// having to think about it. The Refresh button ignores this.
+    static let cacheLifetime: TimeInterval = 24 * 60 * 60
+
+    func isFresh(now: Date = Date()) -> Bool {
+        guard catalog != nil, let fetchedAt else { return false }
+        let age = now.timeIntervalSince(fetchedAt)
+        return age >= 0 && age < Self.cacheLifetime
+    }
+}
+
+/// Stores the app suggests in the Add menu, so the common case is one click
+/// instead of pasting a URL.
+nonisolated struct PresetStore: Identifiable, Hashable {
+    var name: String
+    var url: String
+    /// Mirrors seeded at add time, so the very first fetch already has a
+    /// fallback — a catalog's own `mirrors` are only known once one succeeds.
+    var mirrors: [String] = []
+    var id: String { url }
+
+    private static let raw =
+        "https://raw.githubusercontent.com/qiudaomao/DeskLayerPluginStore/main"
+    /// jsDelivr serves the same repository and is reachable from networks that
+    /// can't reach raw.githubusercontent.com.
+    private static let cdn =
+        "https://cdn.jsdelivr.net/gh/qiudaomao/DeskLayerPluginStore@main"
+
+    static let all: [PresetStore] = [
+        PresetStore(name: "Official Store",
+                    url: "\(raw)/official/catalog.json",
+                    mirrors: ["\(cdn)/official/catalog.json"]),
+        PresetStore(name: "Sample Store",
+                    url: "\(raw)/samples/catalog.json",
+                    mirrors: ["\(cdn)/samples/catalog.json"]),
+    ]
 }
 
 @MainActor
@@ -77,7 +145,8 @@ final class PluginStoreRegistry: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: Self.storesKey),
               let saved = try? JSONDecoder().decode([PluginStoreEntry].self, from: data) else { return }
         stores = saved
-        Task { await refreshAll() }
+        // Cached catalogs are shown immediately; only stale ones are re-fetched.
+        Task { await refreshAll(force: false) }
     }
 
     private func save() {
@@ -100,11 +169,11 @@ final class PluginStoreRegistry: ObservableObject {
     // MARK: - Stores
 
     @discardableResult
-    func addStore(urlString: String) async -> Bool {
+    func addStore(urlString: String, mirrors: [String] = []) async -> Bool {
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), url.scheme != nil else { return false }
         guard !stores.contains(where: { $0.url == trimmed }) else { return true }
-        let entry = await fetched(PluginStoreEntry(url: trimmed))
+        let entry = await fetched(PluginStoreEntry(url: trimmed, mirrors: mirrors))
         // Only keep a store whose catalog actually parsed.
         guard entry.catalog != nil else { return false }
         stores.append(entry)
@@ -117,11 +186,23 @@ final class PluginStoreRegistry: ObservableObject {
         save()
     }
 
-    func refreshAll() async {
+    /// `force` is the Refresh button; the launch path passes false so a
+    /// catalog fetched within the cache window is left alone.
+    func refreshAll(force: Bool = true) async {
         isRefreshing = true
         for index in stores.indices where index < stores.count {
+            guard force || !stores[index].isFresh() else { continue }
             stores[index] = await fetched(stores[index])
         }
+        isRefreshing = false
+        save()
+    }
+
+    /// Refresh one store, ignoring the cache.
+    func refresh(_ id: String) async {
+        guard let index = stores.firstIndex(where: { $0.id == id }) else { return }
+        isRefreshing = true
+        stores[index] = await fetched(stores[index])
         isRefreshing = false
         save()
     }
@@ -130,20 +211,33 @@ final class PluginStoreRegistry: ObservableObject {
     /// inside can't capture an inout parameter).
     private func fetched(_ entry: PluginStoreEntry) async -> PluginStoreEntry {
         var entry = entry
-        guard let url = URL(string: entry.url) else { return entry }
-        do {
-            let (data, response) = try await session.data(from: url)
-            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                entry.lastError = "HTTP \(http.statusCode)"
+        var failures: [String] = []
+        for candidate in entry.candidateURLs {
+            guard let url = URL(string: candidate) else { continue }
+            do {
+                let (data, response) = try await session.data(from: url)
+                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    failures.append("\(candidate): HTTP \(http.statusCode)")
+                    continue
+                }
+                let catalog = try JSONDecoder().decode(StoreCatalog.self, from: data)
+                entry.catalog = catalog
+                // Learn the catalog's own mirrors for next time.
+                if let mirrors = catalog.mirrors { entry.mirrors = mirrors }
+                entry.lastGoodURL = candidate
+                entry.lastError = nil
+                entry.fetchedAt = Date()
                 return entry
+            } catch {
+                failures.append("\(candidate): \(error.localizedDescription)")
             }
-            entry.catalog = try JSONDecoder().decode(StoreCatalog.self, from: data)
-            entry.lastError = nil
-        } catch {
-            entry.lastError = error.localizedDescription
-            let url = entry.url
-            log.error("store \(url, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
+        // Every address failed. Keep the cached catalog — a store being
+        // unreachable shouldn't empty its category.
+        entry.lastError = failures.last.map { _ in
+            "Couldn't reach the store (tried \(failures.count) address\(failures.count == 1 ? "" : "es"))."
+        } ?? "No usable catalog URL."
+        log.error("store \(entry.url, privacy: .public): \(failures.joined(separator: " | "), privacy: .public)")
         return entry
     }
 
@@ -153,28 +247,37 @@ final class PluginStoreRegistry: ObservableObject {
     /// appears in the library under that store's category.
     @discardableResult
     func install(_ plugin: StorePlugin, from storeName: String, into directory: URL) async -> String? {
-        guard let url = URL(string: plugin.url), url.scheme != nil else { return "invalid plugin URL" }
-        do {
-            let (data, response) = try await session.data(from: url)
-            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                return "HTTP \(http.statusCode)"
+        var lastError = "invalid plugin URL"
+        // Mirrors again: the catalog may come from a CDN while the plugin
+        // itself still points at the origin, or vice versa.
+        for candidate in plugin.candidateURLs {
+            guard let url = URL(string: candidate), url.scheme != nil else { continue }
+            do {
+                let (data, response) = try await session.data(from: url)
+                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    lastError = "HTTP \(http.statusCode)"
+                    continue
+                }
+                guard let source = String(data: data, encoding: .utf8), !source.isEmpty else {
+                    lastError = "plugin body was not text"
+                    continue
+                }
+                // Reject anything that isn't actually a plugin before writing it.
+                guard PluginMetadata.extract(from: source).isEmpty == false
+                        || source.contains("plugin.export") else {
+                    lastError = "that file doesn't define plugin.export"
+                    continue
+                }
+                let safeName = plugin.name.replacingOccurrences(of: "/", with: "-")
+                let destination = directory.appendingPathComponent("\(safeName).js")
+                try data.write(to: destination, options: .atomic)
+                Self.recordOrigin(pluginID: safeName, storeName: storeName)
+                log.info("installed \(safeName, privacy: .public) from \(storeName, privacy: .public)")
+                return nil
+            } catch {
+                lastError = error.localizedDescription
             }
-            guard let source = String(data: data, encoding: .utf8), !source.isEmpty else {
-                return "plugin body was not text"
-            }
-            // Reject anything that isn't actually a plugin before writing it.
-            guard PluginMetadata.extract(from: source).isEmpty == false
-                    || source.contains("plugin.export") else {
-                return "that file doesn't define plugin.export"
-            }
-            let safeName = plugin.name.replacingOccurrences(of: "/", with: "-")
-            let destination = directory.appendingPathComponent("\(safeName).js")
-            try data.write(to: destination, options: .atomic)
-            Self.recordOrigin(pluginID: safeName, storeName: storeName)
-            log.info("installed \(safeName, privacy: .public) from \(storeName, privacy: .public)")
-            return nil
-        } catch {
-            return error.localizedDescription
         }
+        return lastError
     }
 }

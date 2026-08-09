@@ -14,26 +14,26 @@ import os
 /// Where a plugin came from — drives grouping in the library and whether it
 /// can be uninstalled.
 nonisolated enum PluginOrigin: Hashable {
-    case builtin
-    case example
+    /// Anything in the plugins folder that no store claims.
     case user
     /// Installed from a plugin store, grouped under its name.
     case store(String)
 
     var title: String {
         switch self {
-        case .builtin: return "Built-in"
-        case .example: return "Examples"
-        case .user: return "User Installed"
+        // Localized here: the title crosses a String parameter on its way to
+        // the sidebar, so a bare literal would render untranslated. A store's
+        // own name is whatever its catalog says and stays verbatim.
+        case .user: return String(localized: "Installed")
         case .store(let name): return name
         }
     }
 
-    /// Built-ins ship with the app and can't be removed.
-    var isRemovable: Bool { self != .builtin }
+    /// Nothing ships with the app any more, so every plugin can be removed.
+    var isRemovable: Bool { true }
 
     /// The local categories, in sidebar order (stores are appended after).
-    static let localCases: [PluginOrigin] = [.builtin, .example, .user]
+    static let localCases: [PluginOrigin] = [.user]
 }
 
 nonisolated struct PluginDescriptor: Identifiable, Hashable {
@@ -62,24 +62,21 @@ final class PluginRegistry: ObservableObject {
 
     static let directoryURL = LayoutStore.directoryURL.appendingPathComponent("Plugins", isDirectory: true)
 
-    /// Bundled examples the user uninstalled; not reinstalled on launch.
-    private static let removedKey = "DeskLayer.removedSamplePlugins"
-    private var removedSamples: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: Self.removedKey) ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: Self.removedKey) }
+    /// A plugin belongs to the store it was installed from, if any.
+    private static func origin(of name: String) -> PluginOrigin {
+        if let store = PluginStoreRegistry.storeName(forPlugin: name) { return .store(store) }
+        return .user
     }
 
     func bootstrap() {
         try? FileManager.default.createDirectory(at: Self.directoryURL, withIntermediateDirectories: true)
-        SamplePlugins.installIfMissing(into: Self.directoryURL, skipping: removedSamples)
         rescan()
         watch()
         Task { await self.autoUpdateAll() }
     }
 
-    /// Deletes a plugin's file (or .deskplugin folder). Built-ins refuse.
-    /// Uninstalling a bundled example also remembers it so launch doesn't
-    /// put it back.
+    /// Deletes a plugin's file (or .deskplugin folder). Plugins all come from
+    /// stores or the user now, so nothing refuses to be removed.
     @discardableResult
     func uninstall(_ id: String) -> Bool {
         guard let descriptor = descriptor(for: id), descriptor.origin.isRemovable else { return false }
@@ -89,9 +86,6 @@ final class PluginRegistry: ObservableObject {
         } catch {
             log.error("uninstall \(id, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             return false
-        }
-        if descriptor.origin == .example {
-            removedSamples.insert(id)
         }
         rescan()
         return true
@@ -183,7 +177,7 @@ final class PluginRegistry: ObservableObject {
             if url.pathExtension == "js" {
                 let id = url.deletingPathExtension().lastPathComponent
                 found.append(PluginDescriptor(
-                    id: id, sourceURL: url, origin: SamplePlugins.origin(of: id)
+                    id: id, sourceURL: url, origin: Self.origin(of: id)
                 ))
             } else if url.pathExtension == "deskplugin" {
                 let main = url.appendingPathComponent("main.js")
@@ -193,7 +187,7 @@ final class PluginRegistry: ObservableObject {
                         id: id,
                         sourceURL: main,
                         assetsURL: url,
-                        origin: SamplePlugins.origin(of: id)
+                        origin: Self.origin(of: id)
                     ))
                 }
             }
