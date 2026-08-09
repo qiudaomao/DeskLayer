@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Direct distribution: signed with Developer ID, not the App Store. -->
+	<key>method</key>
+	<string>developer-id</string>
+	<key>teamID</key>
+	<string>SGZE33W2XX</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Notarization happens in release.sh, so the export doesn't repeat it. -->
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>
