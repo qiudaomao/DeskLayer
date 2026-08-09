@@ -464,11 +464,16 @@ final class RuntimeCoordinator: ObservableObject {
         guard abs(normalized.width - current.width) > 0.001
                 || abs(normalized.height - current.height) > 0.001 else { return }
 
-        // Only the size adapts — the origin stays exactly where the user put
-        // it. (Re-anchoring the top edge drifts, because each adopted size
-        // recomputes the anchor from an already-moved frame.)
+        // Frames are stored bottom-left (CoreGraphics), but an item is placed
+        // by its top-left corner: a plugin whose height follows its content
+        // must grow downward, or the header the user aligned drifts up the
+        // screen every time the content changes.
+        let top = current.minY + current.height
         item.normalizedFrame = CGRect(
-            x: current.minX, y: current.minY, width: normalized.width, height: normalized.height
+            x: current.minX,
+            y: max(top - normalized.height, 0),
+            width: normalized.width,
+            height: normalized.height
         )
         suppressRebuild = true
         store.update(item)

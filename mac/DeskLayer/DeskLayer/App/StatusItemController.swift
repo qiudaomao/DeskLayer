@@ -21,8 +21,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.coordinator = coordinator
         self.showManager = showManager
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        pauseMenuItem = NSMenuItem(title: "Pause Rendering", action: #selector(togglePause), keyEquivalent: "")
-        loginMenuItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        pauseMenuItem = NSMenuItem(title: String(localized: "Pause Rendering"), action: #selector(togglePause), keyEquivalent: "")
+        loginMenuItem = NSMenuItem(title: String(localized: "Launch at Login"), action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         super.init()
 
         statusItem.button?.image = NSImage(
@@ -32,24 +32,26 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         menu.delegate = self
-        let show = NSMenuItem(title: "Show Manager", action: #selector(showManagerAction), keyEquivalent: "m")
+        let show = NSMenuItem(title: String(localized: "Show Manager"), action: #selector(showManagerAction), keyEquivalent: "m")
         show.target = self
         menu.addItem(show)
         pauseMenuItem.target = self
         menu.addItem(pauseMenuItem)
         menu.addItem(.separator())
-        let openFolder = NSMenuItem(title: "Open Plugins Folder", action: #selector(openPluginsFolder), keyEquivalent: "")
+        let openFolder = NSMenuItem(title: String(localized: "Open Plugins Folder"), action: #selector(openPluginsFolder), keyEquivalent: "")
         openFolder.target = self
         menu.addItem(openFolder)
         loginMenuItem.target = self
         menu.addItem(loginMenuItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit DeskLayer", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: String(localized: "Quit DeskLayer"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        pauseMenuItem.title = coordinator.isUserPaused ? "Resume Rendering" : "Pause Rendering"
+        pauseMenuItem.title = coordinator.isUserPaused
+            ? String(localized: "Resume Rendering")
+            : String(localized: "Pause Rendering")
         loginMenuItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
