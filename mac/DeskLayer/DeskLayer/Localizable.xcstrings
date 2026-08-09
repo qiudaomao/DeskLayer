@@ -1601,6 +1601,22 @@
         }
       }
     },
+    "Official Store": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公式ストア"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "官方商店"
+          }
+        }
+      }
+    },
     "Offline display": {
       "localizations": {
         "ja": {
@@ -2333,6 +2349,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "SSH 目标"
+          }
+        }
+      }
+    },
+    "Sample Store": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サンプルストア"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "示例商店"
           }
         }
       }

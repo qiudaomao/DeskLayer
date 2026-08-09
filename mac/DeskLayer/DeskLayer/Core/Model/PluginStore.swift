@@ -140,11 +140,14 @@ nonisolated struct PresetStore: Identifiable, Hashable {
     private static let cdn =
         "https://cdn.jsdelivr.net/gh/qiudaomao/DeskLayerPluginStore@main"
 
+    // Localized here: the name crosses a String parameter on its way into
+    // the menu label, so a bare literal would render untranslated. Only the
+    // menu shows these — once added, a store is titled by its catalog.
     static let all: [PresetStore] = [
-        PresetStore(name: "Official Store",
+        PresetStore(name: String(localized: "Official Store"),
                     url: "\(raw)/official/catalog.json",
                     mirrors: ["\(cdn)/official/catalog.json"]),
-        PresetStore(name: "Sample Store",
+        PresetStore(name: String(localized: "Sample Store"),
                     url: "\(raw)/samples/catalog.json",
                     mirrors: ["\(cdn)/samples/catalog.json"]),
     ]
