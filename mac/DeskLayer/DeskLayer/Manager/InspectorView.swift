@@ -456,6 +456,9 @@ private struct PluginDetailView: View {
     @EnvironmentObject private var store: LayoutStore
     @EnvironmentObject private var selection: ManagerSelection
     @State private var confirmUninstall = false
+    @State private var isRenaming = false
+    @State private var newName = ""
+    @State private var renameError: String?
 
     var body: some View {
         let meta = registry.metadata(for: pluginID)
@@ -517,6 +520,23 @@ private struct PluginDetailView: View {
                     }
                     .buttonStyle(.borderless)
                 }
+                let canRename = registry.canRename(pluginID)
+                Button {
+                    newName = pluginID
+                    renameError = nil
+                    isRenaming = true
+                } label: {
+                    Label("Rename…", systemImage: "pencil")
+                }
+                .buttonStyle(.borderless)
+                .disabled(!canRename)
+                if case .store(let store) = origin {
+                    // Renaming would break the match by name that updates and
+                    // "Reinstall from Store" rely on.
+                    Text("Plugins from \(store) keep their name so updates can find them.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Button(role: .destructive) {
                     confirmUninstall = true
                 } label: {
@@ -542,6 +562,32 @@ private struct PluginDetailView: View {
             Text(usageCount > 0
                  ? "\(usageCount) item\(usageCount == 1 ? "" : "s") on your desktop use it and will stop rendering."
                  : "The plugin file moves to the Trash.")
+        }
+        .alert("Rename Plugin", isPresented: $isRenaming) {
+            TextField("Name", text: $newName)
+            Button("Rename") { rename() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(renameError
+                 ?? String(localized: "The file is renamed too. Items on your desktop follow it."))
+        }
+    }
+
+    /// Renames the file, then repoints placed items so they keep rendering.
+    private func rename() {
+        let outcome = registry.rename(pluginID, to: newName)
+        switch outcome {
+        case .renamed(let name):
+            store.repoint(pluginID: pluginID, to: name)
+            selection.pluginID = name
+            renameError = nil
+        case .unchanged:
+            renameError = nil
+        default:
+            // Back into the same alert, with the reason above the field. The
+            // re-presentation waits a tick: this one is still dismissing.
+            renameError = outcome.message
+            DispatchQueue.main.async { isRenaming = true }
         }
     }
 

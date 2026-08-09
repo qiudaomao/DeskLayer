@@ -73,6 +73,14 @@ final class LayoutStore: ObservableObject {
         onChange.send()
     }
 
+    /// Follows a renamed plugin: every placed item keeps rendering under the
+    /// plugin's new id instead of pointing at a file that no longer exists.
+    func repoint(pluginID old: String, to new: String) {
+        guard layout.repoint(pluginID: old, to: new) else { return }
+        scheduleSave()
+        onChange.send()
+    }
+
     func remove(id: UUID) {
         layout.items.removeAll { $0.id == id }
         scheduleSave()

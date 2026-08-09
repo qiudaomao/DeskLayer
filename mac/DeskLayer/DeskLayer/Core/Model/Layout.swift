@@ -177,4 +177,16 @@ nonisolated struct LayoutItem: Codable, Identifiable, Hashable {
 nonisolated struct Layout: Codable {
     var version: Int = 1
     var items: [LayoutItem] = []
+
+    /// Points every item at a renamed plugin. Returns whether anything moved,
+    /// so the store can skip a save when nothing did.
+    @discardableResult
+    mutating func repoint(pluginID old: String, to new: String) -> Bool {
+        var touched = false
+        for index in items.indices where items[index].pluginID == old {
+            items[index].pluginID = new
+            touched = true
+        }
+        return touched
+    }
 }

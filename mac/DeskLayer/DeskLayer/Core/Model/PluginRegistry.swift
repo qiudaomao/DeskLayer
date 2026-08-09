@@ -91,6 +91,118 @@ final class PluginRegistry: ObservableObject {
         return true
     }
 
+    /// What a rename did, or why it didn't. A value rather than a throw, the
+    /// same shape `UpdateResult` uses.
+    nonisolated enum RenameOutcome: Equatable {
+        case renamed(String)
+        /// The new name is the old one — nothing to do, and not an error.
+        case unchanged
+        case notFound
+        /// Store plugins keep their catalog name: an update looks the plugin
+        /// up by name, and a renamed copy would be installed alongside it.
+        case fromStore(String)
+        case invalidName
+        case nameTaken
+        case failed(String)
+
+        var isOK: Bool {
+            switch self {
+            case .renamed, .unchanged: return true
+            default: return false
+            }
+        }
+
+        var message: String? {
+            switch self {
+            case .renamed, .unchanged: return nil
+            case .notFound: return String(localized: "That plugin is no longer installed.")
+            case .fromStore(let store):
+                return String(localized: "Plugins from \(store) keep their name so updates can find them.")
+            case .invalidName:
+                return String(localized: "Use a name without “/” or “:”.")
+            case .nameTaken: return String(localized: "Another plugin already has that name.")
+            case .failed(let detail): return detail
+            }
+        }
+    }
+
+    /// A plugin id is a file name: keep it one path component, and let the
+    /// user type "Name" or "Name.js" indifferently. nil when the result would
+    /// not be a usable file name.
+    nonisolated static func normalizedName(_ proposed: String) -> String? {
+        var name = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.lowercased().hasSuffix(".js") {
+            name = String(name.dropLast(3)).trimmingCharacters(in: .whitespaces)
+        }
+        guard !name.isEmpty, !name.hasPrefix("."),
+              !name.contains("/"), !name.contains(":")
+        else { return nil }
+        return name
+    }
+
+    /// Can this plugin be renamed? False for anything a store installed.
+    func canRename(_ id: String) -> Bool {
+        guard let descriptor = descriptor(for: id) else { return false }
+        if case .store = descriptor.origin { return false }
+        return true
+    }
+
+    /// The checks and the file move, separated from the instance so the
+    /// tests can run it against a temporary folder. `existingIDs` is every
+    /// installed plugin id, used for the collision check.
+    nonisolated static func performRename(
+        of descriptor: PluginDescriptor, to proposed: String, existingIDs: [String]
+    ) -> RenameOutcome {
+        if case .store(let store) = descriptor.origin { return .fromStore(store) }
+        guard let name = normalizedName(proposed) else { return .invalidName }
+        guard name != descriptor.id else { return .unchanged }
+        // A collision with a different plugin; the file system is
+        // case-insensitive by default, so compare that way.
+        if existingIDs.contains(where: {
+            $0 != descriptor.id && $0.caseInsensitiveCompare(name) == .orderedSame
+        }) {
+            return .nameTaken
+        }
+
+        let source = descriptor.assetsURL ?? descriptor.sourceURL
+        let suffix = descriptor.assetsURL == nil ? "js" : "deskplugin"
+        let destination = source.deletingLastPathComponent()
+            .appendingPathComponent("\(name).\(suffix)")
+        do {
+            try FileManager.default.moveItem(at: source, to: destination)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+        return .renamed(name)
+    }
+
+    /// Renames a plugin's file, and with it the plugin's id. Placed items
+    /// point at the id, so the caller repoints the layout — see
+    /// `LayoutStore.repoint(pluginID:to:)`.
+    @discardableResult
+    func rename(_ id: String, to proposed: String) -> RenameOutcome {
+        guard let descriptor = descriptor(for: id) else { return .notFound }
+        let outcome = Self.performRename(of: descriptor, to: proposed,
+                                         existingIDs: plugins.map(\.id))
+        guard case .renamed(let name) = outcome else {
+            if case .failed(let detail) = outcome {
+                log.error("rename \(id, privacy: .public) failed: \(detail, privacy: .public)")
+            }
+            return outcome
+        }
+
+        // Preferences keyed by id travel with the plugin, or the rename would
+        // silently turn auto-update off.
+        if updater.isAutoUpdate(id) {
+            updater.setAutoUpdate(false, for: id)
+            updater.setAutoUpdate(true, for: name)
+        }
+        updateStatus[name] = updateStatus.removeValue(forKey: id)
+        rescan()
+        log.info("renamed plugin \(id, privacy: .public) to \(name, privacy: .public)")
+        return outcome
+    }
+
     // MARK: - Metadata & updates
 
     /// version / author / description / updateURL, cached until the next scan.

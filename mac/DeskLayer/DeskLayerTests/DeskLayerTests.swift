@@ -982,6 +982,87 @@ struct PluginInstanceTests {
         #expect(session.installName(written: "Weather Bright", subject: .copy(of: "Weather")) == "Weather Bright")
     }
 
+    @Test func renameMovesTheFileAndRefusesStorePlugins() throws {
+        // A folder of this test's own — the real plugins folder is never
+        // touched, so a plain test run can't rename anything the user has.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-rename-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = "render = () => text(\"hi\"); plugin.export = { render };"
+        for name in ["Mine", "Taken"] {
+            try source.write(to: dir.appendingPathComponent("\(name).js"), atomically: true, encoding: .utf8)
+        }
+        let mine = PluginDescriptor(id: "Mine", sourceURL: dir.appendingPathComponent("Mine.js"))
+        let ids = ["Mine", "Taken", "Store Plugin"]
+
+        // A store plugin refuses before anything moves.
+        let fromStore = PluginDescriptor(id: "Store Plugin",
+                                         sourceURL: dir.appendingPathComponent("Store Plugin.js"),
+                                         origin: .store("Official"))
+        #expect(PluginRegistry.performRename(of: fromStore, to: "X", existingIDs: ids)
+                == .fromStore("Official"))
+
+        // So do names that can't work, or that another plugin holds.
+        #expect(PluginRegistry.performRename(of: mine, to: "  ", existingIDs: ids) == .invalidName)
+        #expect(PluginRegistry.performRename(of: mine, to: "../escape", existingIDs: ids) == .invalidName)
+        #expect(PluginRegistry.performRename(of: mine, to: "taken", existingIDs: ids) == .nameTaken)
+        #expect(PluginRegistry.performRename(of: mine, to: "Mine", existingIDs: ids) == .unchanged)
+        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("Mine.js").path))
+
+        // The rename itself: the file moves, ".js" in the typed name is fine.
+        #expect(PluginRegistry.performRename(of: mine, to: "Better.js", existingIDs: ids)
+                == .renamed("Better"))
+        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("Better.js").path))
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent("Mine.js").path))
+
+        // A .deskplugin folder moves as a folder.
+        let bundleDir = dir.appendingPathComponent("Bundled.deskplugin", isDirectory: true)
+        try FileManager.default.createDirectory(at: bundleDir, withIntermediateDirectories: true)
+        try source.write(to: bundleDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
+        let bundled = PluginDescriptor(id: "Bundled",
+                                       sourceURL: bundleDir.appendingPathComponent("main.js"),
+                                       assetsURL: bundleDir)
+        #expect(PluginRegistry.performRename(of: bundled, to: "Bundle Two", existingIDs: ["Bundled"])
+                == .renamed("Bundle Two"))
+        #expect(FileManager.default.fileExists(
+            atPath: dir.appendingPathComponent("Bundle Two.deskplugin/main.js").path))
+    }
+
+    @Test func renameNormalizesTheNameAndRefusesUnusableOnes() {
+        // "Name" and "Name.js" mean the same thing to a user.
+        #expect(PluginRegistry.normalizedName("  Weather  ") == "Weather")
+        #expect(PluginRegistry.normalizedName("Weather.js") == "Weather")
+        #expect(PluginRegistry.normalizedName("Weather.JS") == "Weather")
+        // Spaces and dots inside the name are fine — it is a file name, not
+        // an identifier.
+        #expect(PluginRegistry.normalizedName("My Clock v2.1") == "My Clock v2.1")
+
+        // Anything that wouldn't be one plain file in the plugins folder.
+        #expect(PluginRegistry.normalizedName("") == nil)
+        #expect(PluginRegistry.normalizedName("   ") == nil)
+        #expect(PluginRegistry.normalizedName(".js") == nil)
+        #expect(PluginRegistry.normalizedName("../etc/passwd") == nil)
+        #expect(PluginRegistry.normalizedName("a/b") == nil)
+        #expect(PluginRegistry.normalizedName("a:b") == nil)
+        #expect(PluginRegistry.normalizedName(".hidden") == nil)
+    }
+
+    @Test func renamedPluginKeepsItsPlacedItems() {
+        // Items point at a plugin by id, so a rename that didn't follow would
+        // leave every placed copy rendering nothing.
+        var layout = Layout(items: [
+            LayoutItem(pluginID: "Weather", displayUUID: "A", normalizedFrame: .zero),
+            LayoutItem(pluginID: "Weather", displayUUID: "B", normalizedFrame: .zero),
+            LayoutItem(pluginID: "Clock", displayUUID: "A", normalizedFrame: .zero),
+        ])
+        #expect(layout.repoint(pluginID: "Weather", to: "Weather Bright") == true)
+        #expect(layout.items.map(\.pluginID) == ["Weather Bright", "Weather Bright", "Clock"])
+
+        // Nothing placed: the store can skip the save.
+        #expect(layout.repoint(pluginID: "Nobody", to: "X") == false)
+    }
+
     @MainActor
     @Test func storePluginsAreCopiedNeverReplaced() {
         let session = PluginAuthorSession(registry: PluginRegistry())

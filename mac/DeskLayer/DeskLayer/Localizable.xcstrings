@@ -353,6 +353,22 @@
         }
       }
     },
+    "Another plugin already has that name.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "その名前は別のプラグインが使っています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已有另一个插件使用该名称。"
+          }
+        }
+      }
+    },
     "Any OpenAI-compatible endpoint. The key is stored in your login Keychain.": {
       "localizations": {
         "ja": {
@@ -1473,6 +1489,22 @@
         }
       }
     },
+    "Name": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
     "No Selection": {
       "localizations": {
         "ja": {
@@ -1793,6 +1825,22 @@
         }
       }
     },
+    "Plugins from %@ keep their name so updates can find them.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ のプラグインは更新時に見つけられるよう、名前をそのままにします。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自 %@ 的插件需保持原名，更新时才能找到它。"
+          }
+        }
+      }
+    },
     "Plugins target a server by name: ssh(cmd, \"%@\").": {
       "localizations": {
         "ja": {
@@ -2061,6 +2109,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除商店只会删除其列表，已从中安装的插件仍保留在磁盘上。"
+          }
+        }
+      }
+    },
+    "Rename": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称を変更"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名"
+          }
+        }
+      }
+    },
+    "Rename Plugin": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインの名称を変更"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名插件"
+          }
+        }
+      }
+    },
+    "Rename…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称を変更…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名…"
           }
         }
       }
@@ -2545,6 +2641,22 @@
         }
       }
     },
+    "That plugin is no longer installed.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのプラグインはすでに削除されています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该插件已不在已安装列表中。"
+          }
+        }
+      }
+    },
     "The current version is kept as %@.js.bak.": {
       "localizations": {
         "zh-Hans": {
@@ -2589,6 +2701,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "接口没有返回内容。"
+          }
+        }
+      }
+    },
+    "The file is renamed too. Items on your desktop follow it.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ファイル名も変わります。デスクトップ上の項目もそのまま追従します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件也会一并重命名，桌面上的项目会自动跟随。"
           }
         }
       }
@@ -2813,6 +2941,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新"
+          }
+        }
+      }
+    },
+    "Use a name without “/” or “:”.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「/」と「:」を含まない名前にしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称中不能包含“/”或“:”。"
           }
         }
       }
