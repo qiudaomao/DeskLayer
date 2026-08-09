@@ -14,7 +14,10 @@ import SwiftUI
 final class ManagerSelection: ObservableObject {
     /// A placed item on the desktop canvas…
     @Published var itemID: UUID? {
-        didSet { if itemID != nil { pluginID = nil } }
+        // Clears every library selection, not just pluginID: the inspector
+        // checks the store branches first, so a leftover store selection
+        // would keep showing while the user clicks items on the canvas.
+        didSet { if itemID != nil { pluginID = nil; storeID = nil; storePlugin = nil } }
     }
     /// …or a plugin picked in the library. The inspector shows whichever is
     /// selected; they're mutually exclusive.
