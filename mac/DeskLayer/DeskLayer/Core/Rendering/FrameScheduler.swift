@@ -94,7 +94,12 @@ final class FrameScheduler: NSObject {
         }
         let link = window.displayLink(target: self, selector: #selector(tick(_:)))
         let maxFps = Float(fastItems.map(\.renderer.fps).max() ?? 60)
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: maxFps, preferred: maxFps)
+        // CAFrameRateRange throws on minimum > maximum, which an item slower
+        // than the 15Hz floor would produce (a 4fps clock, say) — and the
+        // exception unwinds out of app launch.
+        link.preferredFrameRateRange = CAFrameRateRange(
+            minimum: min(15, maxFps), maximum: maxFps, preferred: maxFps
+        )
         link.add(to: .main, forMode: .common)
         displayLink = link
         updateLinkState()
