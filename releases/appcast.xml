@@ -1,0 +1,24 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>DeskLayer</title>
+        <item>
+            <title>1.0.0</title>
+            <pubDate>Sun, 09 Aug 2026 13:35:04 +0800</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>DeskLayer 1.0.0</h3>
+<p>First release. JavaScript plugins rendered onto the desktop wallpaper, into
+floating windows, or as macOS widgets, managed from a three-pane manager.</p>
+<ul>
+  <li>Plugins install from a store — an Official and a Sample store are offered in the ＋ menu, and any JSON catalog URL works.</li>
+  <li>Canvas, declarative SwiftUI, and webview render modes.</li>
+  <li>Host APIs for plugins: system stats, shell, AppleScript, SSH, and a local HTTP hook server.</li>
+  <li>English, 简体中文, and 日本語.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.0.0/DeskLayer-1.0.0.dmg" length="3326438" type="application/octet-stream" sparkle:edSignature="cBg/wzp4K/fU+Q8/6qnHGhfDwIM2Pzf2/6hMvzmcY8stw7dIf4KvJ77dYxTQRXBW9yo1CgckEUVpPqeoPFZiCQ=="/>
+        </item>
+    </channel>
+</rss>
