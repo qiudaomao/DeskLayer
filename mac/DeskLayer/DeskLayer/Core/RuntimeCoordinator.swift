@@ -3,9 +3,10 @@
 //  DeskLayer
 //
 //  Turns the LayoutStore's model into running plugin instances placed on
-//  desktop windows. M1 strategy: full teardown + rebuild on any change
-//  (fine-grained diffing arrives with the manager UI in M2 — live property
-//  edits already go through PluginInstance.applyOverride without a rebuild).
+//  desktop windows. Model changes are reconciled per item: only an item
+//  whose SpawnIdentity changed is restarted, so editing one plugin leaves
+//  its neighbours — and their JS state — alone. Full rebuild() is kept for
+//  the cases that genuinely need it: display topology and plugin reloads.
 //
 
 import AppKit
@@ -40,6 +41,28 @@ final class RuntimeCoordinator: ObservableObject {
         let runtime: ItemRuntime
         let displayUUID: String
         var panel: FloatingPanelController?
+        /// What this item was spawned from. Anything outside it — frame,
+        /// z-order, background, most property edits — is applied to the live
+        /// item instead of respawning it.
+        let identity: SpawnIdentity
+    }
+
+    /// The parts of a layout item that decide *how* it runs. A change here
+    /// means the item has to be torn down and started again; a change
+    /// anywhere else must not disturb it, and must never disturb its
+    /// neighbours.
+    private struct SpawnIdentity: Equatable {
+        let pluginID: String
+        let displayUUID: String
+        let target: RenderTarget
+        let clickThrough: Bool
+
+        init(_ item: LayoutItem) {
+            pluginID = item.pluginID
+            displayUUID = item.displayUUID
+            target = item.target
+            clickThrough = item.clickThrough
+        }
     }
 
     private var running: [UUID: RunningItem] = [:]
@@ -66,7 +89,7 @@ final class RuntimeCoordinator: ObservableObject {
         store.onChange
             .sink { [weak self] in
                 guard let self, !self.suppressRebuild else { return }
-                self.rebuild()
+                self.reconcile()
             }
             .store(in: &cancellables)
         screens.onScreensChanged
@@ -114,6 +137,76 @@ final class RuntimeCoordinator: ObservableObject {
             if case .declarative(let host) = item.runtime {
                 host.isPaused = effective == .paused
             }
+        }
+    }
+
+    /// Brings the runtime in line with the model, disturbing as little as
+    /// possible: an edit to one item must not restart its neighbours, which
+    /// would drop their JS state (counters, fetched data, open sockets) and
+    /// flash every widget on screen. Only items whose SpawnIdentity changed
+    /// are restarted; everything else is adjusted in place.
+    func reconcile() {
+        let placeable = store.layout.items.filter { item in
+            item.isEnabled && screens.controller(forDisplayUUID: item.displayUUID) != nil
+        }
+        let wanted = Dictionary(placeable.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+
+        for (id, item) in running where wanted[id].map({ SpawnIdentity($0) }) != item.identity {
+            teardown(id)
+        }
+        for item in placeable {
+            if running[item.id] == nil {
+                guard let controller = screens.controller(forDisplayUUID: item.displayUUID) else { continue }
+                spawn(item, on: controller)
+            } else {
+                applyLiveEdits(item)
+            }
+        }
+        log.info("reconciled runtime: \(self.running.count) items running")
+        thumbnails = thumbnails.filter { running.keys.contains($0.key) }
+        widgetPublisher.prune(currentItemIDs: Array(running.keys))
+    }
+
+    /// Restarts one item — for edits it can't absorb, like a new fps (the
+    /// scheduler holds the interval) or a webview's url. Its neighbours keep
+    /// running, and keep their state.
+    private func respawn(_ itemID: UUID) {
+        teardown(itemID)
+        guard let item = store.layout.items.first(where: { $0.id == itemID }), item.isEnabled,
+              let controller = screens.controller(forDisplayUUID: item.displayUUID) else { return }
+        spawn(item, on: controller)
+    }
+
+    /// Stops one item and forgets it, leaving every other item running.
+    private func teardown(_ itemID: UUID) {
+        guard let item = running.removeValue(forKey: itemID) else { return }
+        hookServer.removeHandlers(itemID: itemID)
+        item.instance.invalidate()
+        switch item.runtime {
+        case .canvas(_, let layer):
+            layer.removeFromSuperlayer()
+            screens.controller(forDisplayUUID: item.displayUUID)?.scheduler.remove(id: itemID)
+        case .declarative(let host): host.stop()
+        case .webview(let host): host.stop()
+        }
+        item.panel?.tearDown()
+    }
+
+    /// Model changes a running item can absorb without restarting.
+    private func applyLiveEdits(_ item: LayoutItem) {
+        setFrame(itemID: item.id, normalizedFrame: item.normalizedFrame, commit: false)
+        let background = item.backgroundColor.flatMap { CSSColor.parse($0) }
+        switch running[item.id]?.runtime {
+        case .canvas(_, let layer):
+            layer.zPosition = CGFloat(item.zOrder)
+            layer.backgroundColor = background
+        case .declarative(let host):
+            host.hostingView.layer?.zPosition = CGFloat(item.zOrder)
+            host.hostingView.layer?.backgroundColor = background
+        case .webview(let host):
+            host.webView.layer?.zPosition = CGFloat(item.zOrder)
+        case nil:
+            break
         }
     }
 
@@ -258,7 +351,8 @@ final class RuntimeCoordinator: ObservableObject {
                 instance: instance,
                 runtime: .canvas(renderer: renderer, layer: layer),
                 displayUUID: layoutItem.displayUUID,
-                panel: panel
+                panel: panel,
+                identity: SpawnIdentity(layoutItem)
             )
 
         case .declarative:
@@ -286,7 +380,8 @@ final class RuntimeCoordinator: ObservableObject {
                 instance: instance,
                 runtime: .declarative(host: host),
                 displayUUID: layoutItem.displayUUID,
-                panel: panel
+                panel: panel,
+                identity: SpawnIdentity(layoutItem)
             )
 
         case .webview:
@@ -307,7 +402,8 @@ final class RuntimeCoordinator: ObservableObject {
                 instance: instance,
                 runtime: .webview(host: host),
                 displayUUID: layoutItem.displayUUID,
-                panel: panel
+                panel: panel,
+                identity: SpawnIdentity(layoutItem)
             )
         }
         panel?.show()
@@ -331,10 +427,10 @@ final class RuntimeCoordinator: ObservableObject {
             suppressRebuild = false
         }
         if name == "fps" || name == "interval" {
-            rebuild()
+            respawn(itemID)
         } else if case .webview = running[itemID]?.runtime {
             // url / offset / zoom are baked into the webview config at spawn.
-            rebuild()
+            respawn(itemID)
         } else if case .declarative(let host) = running[itemID]?.runtime {
             // Static declarative plugins re-render only on edits; ticking
             // ones get instant feedback instead of waiting for the timer.
