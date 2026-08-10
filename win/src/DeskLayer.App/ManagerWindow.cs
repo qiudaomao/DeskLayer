@@ -350,13 +350,36 @@ public sealed class ManagerWindow : Window
         if (plugin != null)
         {
             IReadOnlyList<PluginProperty>? declared = null;
+            IReadOnlySet<string>? permissions = null;
             try
             {
                 using var probe = PluginInstance.Boot(item.PluginId,
                     File.ReadAllText(plugin.SourcePath), item.PropertyOverrides);
                 declared = probe?.Properties;
+                permissions = probe?.Permissions;
             }
             catch (IOException) { }
+
+            // Permissions the plugin declares (host powers it can use).
+            // These are the plugin's own request, not a per-item toggle —
+            // shown so the user knows what the widget can reach.
+            if (permissions is { Count: > 0 })
+            {
+                inspector.Children.Add(new TextBlock
+                {
+                    Text = "Permissions requested",
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 16, 0, 2),
+                });
+                inspector.Children.Add(new TextBlock
+                {
+                    Text = "⚠ " + string.Join(", ", permissions.OrderBy(p => p)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A)),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                });
+            }
             if (declared is { Count: > 0 })
             {
                 inspector.Children.Add(new TextBlock

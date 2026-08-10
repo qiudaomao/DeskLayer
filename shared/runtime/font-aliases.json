@@ -1,0 +1,20 @@
+{
+  "_comment": "Maps mac PostScript/family font names (used in canvas font strings and declarative fontFamily) to Windows families. Consumed by the Windows port; the mac app uses the names as-is. Keys are matched case-sensitively after the size/weight tokens are stripped.",
+  "Helvetica": "Segoe UI",
+  "HelveticaNeue": "Segoe UI",
+  "Helvetica Neue": "Segoe UI",
+  "SF Pro": "Segoe UI Variable",
+  "SF Pro Text": "Segoe UI Variable",
+  "SF Pro Display": "Segoe UI Variable",
+  "Avenir": "Segoe UI",
+  "Avenir Next": "Segoe UI",
+  "Menlo": "Cascadia Mono",
+  "SF Mono": "Cascadia Mono",
+  "Monaco": "Cascadia Mono",
+  "Courier": "Consolas",
+  "Courier New": "Consolas",
+  "Times": "Georgia",
+  "Times New Roman": "Georgia",
+  "Georgia": "Georgia",
+  "Arial": "Arial"
+}

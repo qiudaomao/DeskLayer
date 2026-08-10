@@ -76,7 +76,7 @@ public static class NodeInterpreter
                 // unmapped names render a neutral dot, matching size via font.
                 return new TextBlock
                 {
-                    Text = SymbolMap.Glyph(name, log),
+                    Text = DeskLayer.Core.SharedAssets.SymbolGlyph(name, log),
                     FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
@@ -345,31 +345,5 @@ public static class NodeInterpreter
             Padding = new Thickness(4),
             Child = new TextBlock { Text = "⚠ " + message, FontSize = 10, Foreground = Brushes.Yellow },
         };
-    }
-}
-
-/// SF Symbol name → Segoe Fluent Icons glyph. The curated shared map lands
-/// in M4; unmapped names render a neutral dot (logged once per name).
-public static class SymbolMap
-{
-    private static readonly Dictionary<string, string> Known = new()
-    {
-        ["gauge.medium"] = "",     // Diagnostic
-        ["cpu"] = "",              // Processor-ish (Component)
-        ["memorychip"] = "",
-        ["thermometer"] = "",
-        ["clock"] = "",
-        ["bolt.fill"] = "",
-        ["wifi"] = "",
-        ["photo"] = "",
-    };
-
-    private static readonly HashSet<string> warned = new();
-
-    public static string Glyph(string name, Action<string> log)
-    {
-        if (Known.TryGetValue(name, out var glyph)) return glyph;
-        if (warned.Add(name)) log($"no symbol mapping for \"{name}\", using placeholder");
-        return "●";
     }
 }

@@ -240,7 +240,7 @@ public sealed class D2DCanvas : IDisposable
             size = v;
             tokens.Remove(sizeToken);
         }
-        if (tokens.Count > 0) family = FontAliases.Resolve(string.Join(' ', tokens));
+        if (tokens.Count > 0) family = DeskLayer.Core.SharedAssets.FontFamily(string.Join(' ', tokens));
 
         var key = $"{(bold ? "bold " : "")}{size}px {family}";
         if (!formats.TryGetValue(key, out var format))
@@ -265,19 +265,6 @@ public sealed class MeasureResult
 {
     public double width { get; }
     public MeasureResult(double width) => this.width = width;
-}
-
-/// Mac PostScript font names → Windows families (shared/runtime alias table
-/// grows in M4; these cover the shipped plugins).
-public static class FontAliases
-{
-    public static string Resolve(string family) => family switch
-    {
-        "Helvetica" or "HelveticaNeue" or "Helvetica Neue" or "SF Pro" or "Avenir" or "Avenir Next" => "Segoe UI",
-        "Menlo" or "SF Mono" or "Monaco" => "Cascadia Mono",
-        "Times" or "Times New Roman" => "Georgia",
-        _ => family,
-    };
 }
 
 public static class CssColor

@@ -9,6 +9,8 @@
     <!-- The canonical prelude from shared/ ships inside the assembly so the
          runtime never depends on repo layout. -->
     <EmbeddedResource Include="..\..\..\shared\runtime\prelude.js" Link="prelude.js" LogicalName="DeskLayer.Core.prelude.js" />
+    <EmbeddedResource Include="..\..\..\shared\runtime\symbol-map.json" Link="symbol-map.json" LogicalName="DeskLayer.Core.symbol-map.json" />
+    <EmbeddedResource Include="..\..\..\shared\runtime\font-aliases.json" Link="font-aliases.json" LogicalName="DeskLayer.Core.font-aliases.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Jint" Version="3.1.2" />
