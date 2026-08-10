@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"args":[],"op":"restore"},{"args":[],"op":"restore"},{"name":"fillStyle","op":"set","value":"#8e8e93"},{"args":[0,0,20,20],"op":"fillRect"},{"index":1,"op":"frame"},{"args":[],"op":"restore"},{"args":[],"op":"restore"},{"name":"fillStyle","op":"set","value":"#8e8e93"},{"args":[0,0,20,20],"op":"fillRect"}]

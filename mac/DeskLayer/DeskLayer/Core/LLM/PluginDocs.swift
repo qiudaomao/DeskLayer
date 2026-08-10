@@ -3,7 +3,7 @@
 //  DeskLayer
 //
 //  The plugin API, as shipped inside the app, for teaching a model to write
-//  one. Kept identical to doc/ by scripts/check-docs-sync.sh.
+//  one. Kept identical to shared/spec/ by scripts/check-docs-sync.sh.
 //
 //  The declarations are bundled as plugin-dts.txt, not plugin.d.ts: Xcode's
 //  synchronized groups skip .ts files entirely — they never reach

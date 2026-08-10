@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"name":"fillStyle","op":"set","value":"#ff9500"},{"args":[],"op":"beginPath"},{"args":[100,50,40,0,6.283185307179586,false],"op":"arc"},{"args":[],"op":"fill"},{"index":1,"op":"frame"},{"name":"fillStyle","op":"set","value":"#ff9500"},{"args":[],"op":"beginPath"},{"args":[100,50,40,0,6.283185307179586,false],"op":"arc"},{"args":[],"op":"fill"}]

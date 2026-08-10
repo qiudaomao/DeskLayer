@@ -31,8 +31,11 @@ say() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 say "Checking the plugin API docs are in sync"
 # The model that writes plugins is taught from the bundled copy; if it drifts
-# from doc/ the app ships instructions for an API it no longer has.
+# from shared/spec/ the app ships instructions for an API it no longer has.
 scripts/check-docs-sync.sh
+
+say "Checking the conformance goldens match the runtime"
+scripts/check-goldens.sh
 
 say "Archiving"
 rm -rf "$OUT"

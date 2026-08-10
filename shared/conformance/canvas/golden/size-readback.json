@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"args":[135,65,50,50],"op":"fillRect"},{"args":[0,0,320,180],"op":"strokeRect"},{"index":1,"op":"frame"},{"args":[135,65,50,50],"op":"fillRect"},{"args":[0,0,320,180],"op":"strokeRect"}]

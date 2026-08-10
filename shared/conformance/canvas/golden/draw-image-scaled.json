@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"args":["background",10,10,180,50],"op":"drawImage"},{"args":["badge",150.5,60.25,24,24],"op":"drawImage"},{"index":1,"op":"frame"},{"args":["background",10,10,180,50],"op":"drawImage"},{"args":["badge",150.5,60.25,24,24],"op":"drawImage"}]

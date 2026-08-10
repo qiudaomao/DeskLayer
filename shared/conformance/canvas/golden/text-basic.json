@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"name":"font","op":"set","value":"16px Menlo"},{"name":"fillStyle","op":"set","value":"#ffffff"},{"args":["Hello, World!",10,30],"op":"fillText"},{"index":1,"op":"frame"},{"name":"font","op":"set","value":"16px Menlo"},{"name":"fillStyle","op":"set","value":"#ffffff"},{"args":["Hello, World!",10,30],"op":"fillText"}]

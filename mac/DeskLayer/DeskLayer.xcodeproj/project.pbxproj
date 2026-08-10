@@ -10,6 +10,7 @@
 		AA512E570000000000000A04 /* DeskLayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA512E570000000000000A02 /* DeskLayerKit */; };
 		AA512E570000000000000A05 /* DeskLayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA512E570000000000000A03 /* DeskLayerKit */; };
 		AA512E570000000000000A06 /* DeskLayerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA512E570000000000000B01 /* DeskLayerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E92E0ECF302963CD0099B400 /* DeskLayerUpdater in Frameworks */ = {isa = PBXBuildFile; productRef = AA512E570000000000000E02 /* DeskLayerUpdater */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -101,6 +102,7 @@
 		E92E093C3026A85D0099B400 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				E92E0ECF302963CD0099B400 /* DeskLayerUpdater in Frameworks */,
 				AA512E570000000000000A04 /* DeskLayerKit in Frameworks */,
 			);
 		};
@@ -728,10 +730,6 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AA512E570000000000000E02 /* DeskLayerUpdater */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = DeskLayerUpdater;
-		};
 		AA512E570000000000000A02 /* DeskLayerKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DeskLayerKit;
@@ -739,6 +737,10 @@
 		AA512E570000000000000A03 /* DeskLayerKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DeskLayerKit;
+		};
+		AA512E570000000000000E02 /* DeskLayerUpdater */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DeskLayerUpdater;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

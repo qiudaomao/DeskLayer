@@ -1,0 +1,12 @@
+[
+  {
+    "name": "label",
+    "valueType": "string",
+    "value": "overridden"
+  },
+  {
+    "name": "bars",
+    "valueType": "number",
+    "value": "5"
+  }
+]

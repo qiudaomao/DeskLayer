@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# The plugin API docs exist in three places and must agree:
+# The plugin API contract exists in several places and must agree:
 #
-#   doc/                                  canonical, edited by hand
+#   shared/spec/                          canonical docs, edited by hand
+#   shared/runtime/prelude.js             canonical declarative-builder JS
 #   mac/DeskLayer/DeskLayer/Resources/    shipped in the app, fed to the LLM
 #   ../DeskLayerPluginStore/docs/         published for plugin authors
 #
@@ -28,21 +29,23 @@ compare() { # label, a, b
     fi
 }
 
-echo "Checking plugin API docs are in sync:"
-compare "guide  → app bundle"  doc/plugin-guide.md "$RES/plugin-guide.md"
-compare "d.ts   → app bundle"  doc/plugin.d.ts     "$RES/plugin-dts.txt"
+echo "Checking plugin API contract is in sync:"
+compare "guide   → app bundle" shared/spec/plugin-guide.md "$RES/plugin-guide.md"
+compare "d.ts    → app bundle" shared/spec/plugin.d.ts     "$RES/plugin-dts.txt"
+compare "prelude → app bundle" shared/runtime/prelude.js   "$RES/prelude.js"
 if [ -d "$STORE" ]; then
-    compare "guide  → store repo" doc/plugin-guide.md "$STORE/plugin-guide.md"
-    compare "d.ts   → store repo" doc/plugin.d.ts     "$STORE/plugin.d.ts"
+    compare "guide   → store repo" shared/spec/plugin-guide.md "$STORE/plugin-guide.md"
+    compare "d.ts    → store repo" shared/spec/plugin.d.ts     "$STORE/plugin.d.ts"
 else
     echo "  skip  store repo not checked out at $STORE"
 fi
 
 if [ $status -ne 0 ]; then
     echo
-    echo "Copy doc/ over the others:"
-    echo "  cp doc/plugin-guide.md $RES/plugin-guide.md"
-    echo "  cp doc/plugin.d.ts     $RES/plugin-dts.txt"
-    echo "  cp doc/plugin-guide.md doc/plugin.d.ts $STORE/"
+    echo "Copy shared/ over the others:"
+    echo "  cp shared/spec/plugin-guide.md $RES/plugin-guide.md"
+    echo "  cp shared/spec/plugin.d.ts     $RES/plugin-dts.txt"
+    echo "  cp shared/runtime/prelude.js   $RES/prelude.js"
+    echo "  cp shared/spec/plugin-guide.md shared/spec/plugin.d.ts $STORE/"
     exit 1
 fi

@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"name":"font","op":"set","value":"13px Helvetica"},{"args":["label"],"op":"getProp"},{"args":["hello",10,20],"op":"fillText"},{"index":1,"op":"frame"},{"name":"font","op":"set","value":"13px Helvetica"},{"args":["label"],"op":"getProp"},{"args":["hello",10,20],"op":"fillText"}]

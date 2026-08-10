@@ -1,0 +1,1 @@
+[{"index":0,"op":"frame"},{"name":"fillStyle","op":"set","value":"#ff9500"},{"args":[0,0,10,10],"op":"fillRect"},{"index":1,"op":"frame"},{"args":[10,0,10,10],"op":"fillRect"}]

@@ -1,0 +1,12 @@
+[
+  {
+    "name": "title",
+    "valueType": "string",
+    "value": "Overridden title"
+  },
+  {
+    "name": "size",
+    "valueType": "number",
+    "value": "22"
+  }
+]
