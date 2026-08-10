@@ -10,7 +10,12 @@
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Bundled so the tray icon can load it at runtime, too. -->
+    <EmbeddedResource Include="app.ico" LogicalName="DeskLayer.App.app.ico" />
+  </ItemGroup>
   <ItemGroup>
     <!-- The WinForms SDK's global usings collide with WPF types; files
          import what they need explicitly instead. -->

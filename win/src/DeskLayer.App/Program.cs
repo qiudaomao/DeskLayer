@@ -67,13 +67,21 @@ internal static class Program
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Directory.CreateDirectory(LayoutStore.DataDirectory);
 
+        // Restore the desktop wallpaper on exit so the screen never stays
+        // blank after we detach from WorkerW. The explicit restore at the end
+        // of Main (after the render thread stops and our window is destroyed)
+        // is the real one; ProcessExit is a last-resort safety net for
+        // non-graceful terminations. Restore() is idempotent (first wins).
+        WallpaperRestore.Capture();
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => WallpaperRestore.Restore();
+
         using var store = new LayoutStore();
         using var registry = new PluginRegistry();
         if (store.Layout.Items.Count == 0 && registry.Plugins.Count > 0)
             store.Update(_ => DefaultLayout(registry));
 
         var screen = Screen.PrimaryScreen!.Bounds;
-        using var engine = new WallpaperEngine(store, registry, screen, Log);
+        var engine = new WallpaperEngine(store, registry, screen, Log);
         registry.DidChange += engine.RequestRebuild;
         store.OnChange += engine.RequestRebuild;
 
@@ -137,7 +145,7 @@ internal static class Program
 
         using var tray = new NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = TrayIcon() ?? System.Drawing.SystemIcons.Application,
             Text = "DeskLayer",
             Visible = true,
         };
@@ -178,10 +186,36 @@ internal static class Program
             catch (Exception ex) { Log($"update loop failed to start: {ex.Message}"); }
         }
 
+        // Test hook: graceful auto-exit after N seconds (verifies the
+        // wallpaper-restore path without a UI click).
+        if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_EXIT_AFTER"), out var exitAfter) && exitAfter > 0)
+        {
+            var exitTimer = new System.Windows.Forms.Timer { Interval = exitAfter * 1000 };
+            exitTimer.Tick += (_, _) => { exitTimer.Stop(); Application.Exit(); };
+            exitTimer.Start();
+        }
+
         Log($"started — screen {screen.Width}x{screen.Height}, {registry.Plugins.Count} plugins, {store.Layout.Items.Count} items");
         Application.Run();
+        // Exit in order: stop the render thread (stops presenting to the
+        // wallpaper HWND), destroy our window, THEN repaint the real wallpaper.
         watchdog.Stop();
+        engine.Dispose();
         host?.Dispose();
+        WallpaperRestore.Restore();
+    }
+
+    /// The DeskLayer app icon, for the tray. Falls back to the system icon
+    /// if the resource is missing.
+    private static System.Drawing.Icon? TrayIcon()
+    {
+        try
+        {
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("DeskLayer.App.app.ico");
+            return stream != null ? new System.Drawing.Icon(stream, 32, 32) : null;
+        }
+        catch { return null; }
     }
 
     /// First run: place every installed plugin in a two-column grid on the
