@@ -601,7 +601,13 @@ renders one block per server.
 
 Permission: `"server"`. DeskLayer runs **one** loopback-only listener on
 `127.0.0.1:8787` and delivers each request to every plugin that registered a
-handler. Perfect for hooking local tools (Claude Code, Codex, scripts):
+handler. Perfect for hooking local tools (Claude Code, Codex, scripts). The
+listener only exists while a plugin with the `server` permission is running,
+and the port is configurable if 8787 conflicts with something else: set the
+`DESKLAYER_HOOK_PORT` environment variable, or on macOS
+`defaults write com.qiudaomao.DeskLayer DeskLayer.hookPort <port>`, or on
+Windows `"hookPort": <port>` in `%APPDATA%\DeskLayer\settings.json`
+(restart the app after changing it):
 
 ```js
 $server.on("POST", (event, body) => {

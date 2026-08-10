@@ -257,7 +257,9 @@ declare global {
   }
 
   /**
-   * Receives requests from the app's loopback HTTP server (127.0.0.1:8787).
+   * Receives requests from the app's loopback HTTP server (127.0.0.1:8787
+   * by default; the app's DESKLAYER_HOOK_PORT / hookPort setting can move it,
+   * and it only listens while a "server"-permitted plugin is running).
    * Requires permission "server". The port belongs to the app, which fans
    * every request out to all registered plugins — so several plugins can
    * listen to the same hook.

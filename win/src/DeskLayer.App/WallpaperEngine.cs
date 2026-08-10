@@ -46,8 +46,8 @@ public sealed class WallpaperEngine : IDisposable
         this.registry = registry;
         this.screenBounds = screenBounds;
         this.log = log;
+        // Binds lazily on the resolved port ($server handlers only); mac parity.
         hookServer = new HookServer(log);
-        hookServer.Start(8787); // loopback; mac parity
     }
 
     public void RequestRebuild() => rebuildRequested = true;
@@ -689,6 +689,9 @@ public sealed class WallpaperEngine : IDisposable
             panel.OnMovedDip = (leftDip, topDip) =>
                 PersistMove(floating, leftDip * scale, topDip * scale, heightPx);
             floating.Panel = panel;
+            // Modeless WPF on a WinForms loop: without keyboard interop a
+            // TextField in the panel never receives typed characters.
+            System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(panel);
             panel.Show();
         }
         floating.Panel.Content = rootContent;
@@ -764,6 +767,7 @@ public sealed class WallpaperEngine : IDisposable
         var host = new WebViewHostWindow(webItem.Config, webItem.Layout, pixelRect, scale,
             message => log($"[{webItem.Layout.PluginId}] {message}"));
         webItem.Host = host;
+        System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(host.Window);
         host.Window.Show();
 
         if (webItem.Layout.Target == RenderTarget.Wallpaper)

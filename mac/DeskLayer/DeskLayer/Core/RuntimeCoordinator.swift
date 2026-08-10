@@ -69,9 +69,10 @@ final class RuntimeCoordinator: ObservableObject {
     private var suppressRebuild = false
     private var cancellables: Set<AnyCancellable> = []
     private let widgetPublisher = WidgetPublisher()
+    /// The hook receiver ($server plugins). Binds lazily — only while a
+    /// running plugin has a handler registered — on HookServer.resolvedPort()
+    /// (DESKLAYER_HOOK_PORT env var > DeskLayer.hookPort default > 8787).
     private let hookServer = HookServer()
-    /// Default loopback port for the hook receiver ($server plugins).
-    static let hookPort: UInt16 = 8787
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "coordinator")
 
     init(store: LayoutStore, screens: ScreenManager, plugins: PluginRegistry) {
@@ -84,7 +85,6 @@ final class RuntimeCoordinator: ObservableObject {
         power.start()
         screens.start()
         plugins.bootstrap()
-        hookServer.start(port: Self.hookPort)
 
         store.onChange
             .sink { [weak self] in

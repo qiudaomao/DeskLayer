@@ -7,7 +7,11 @@
 //  running plugin that registered a matching handler via $server.on(...).
 //  Never bound to an external interface.
 //
-//  Owned by RuntimeCoordinator; plugins never open their own port.
+//  Owned by RuntimeCoordinator; plugins never open their own port. The port
+//  is configurable (DESKLAYER_HOOK_PORT env var, or the DeskLayer.hookPort
+//  default: `defaults write com.qiudaomao.DeskLayer DeskLayer.hookPort 9787`)
+//  and the listener only binds while at least one plugin has a handler
+//  registered — no $server plugins, no open port to conflict with anyone.
 //
 
 import Foundation
@@ -22,24 +26,39 @@ nonisolated final class HookServer: @unchecked Sendable {
         let deliver: @Sendable ([String: Any], String) -> Void
     }
 
+    /// The loopback port to bind when a handler exists:
+    /// DESKLAYER_HOOK_PORT env var > DeskLayer.hookPort default > 8787.
+    static func resolvedPort() -> UInt16 {
+        if let text = ProcessInfo.processInfo.environment["DESKLAYER_HOOK_PORT"],
+           let value = UInt16(text), value > 0 {
+            return value
+        }
+        let stored = UserDefaults.standard.integer(forKey: "DeskLayer.hookPort")
+        if stored > 0, stored <= Int(UInt16.max) { return UInt16(stored) }
+        return 8787
+    }
+
+    private let configuredPort: UInt16
     private let lock = NSLock()
     private var handlers: [Handler] = []
     private var listener: NWListener?
     private(set) var port: UInt16?
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "hookserver")
 
-    // MARK: - Lifecycle
+    init(port: UInt16 = HookServer.resolvedPort()) {
+        configuredPort = port
+    }
 
-    /// (Re)bind to a loopback port. Safe to call repeatedly; a no-op if the
-    /// port is unchanged and already listening.
-    func start(port: UInt16) {
-        if self.port == port, listener != nil { return }
-        listener?.cancel()
-        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
+    // MARK: - Lifecycle (driven by handler registration; callers never start)
+
+    /// Bind to the configured loopback port. Caller holds `lock`.
+    private func startLocked() {
+        guard listener == nil else { return }
+        guard let nwPort = NWEndpoint.Port(rawValue: configuredPort) else { return }
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
         guard let newListener = try? NWListener(using: parameters) else {
-            log.error("failed to bind 127.0.0.1:\(port)")
+            log.error("failed to bind 127.0.0.1:\(self.configuredPort)")
             return
         }
         newListener.newConnectionHandler = { [weak self] connection in
@@ -52,27 +71,41 @@ nonisolated final class HookServer: @unchecked Sendable {
         }
         newListener.start(queue: DispatchQueue.global(qos: .utility))
         listener = newListener
-        self.port = port
-        log.info("hook server listening on 127.0.0.1:\(port)")
+        port = configuredPort
+        log.info("hook server listening on 127.0.0.1:\(self.configuredPort)")
     }
 
-    func stop() {
+    /// Caller holds `lock`.
+    private func stopLocked() {
+        guard listener != nil else { return }
         listener?.cancel()
         listener = nil
         port = nil
+        log.info("hook server stopped (no handlers)")
+    }
+
+    func stop() {
+        lock.lock()
+        stopLocked()
+        lock.unlock()
     }
 
     // MARK: - Registration (called from plugin instances)
 
+    /// The first handler brings the listener up; the last one down. A rebuild
+    /// (removeAll then re-register) therefore releases the port only while no
+    /// $server plugin is running.
     func addHandler(_ handler: Handler) {
         lock.lock()
         handlers.append(handler)
+        startLocked()
         lock.unlock()
     }
 
     func removeHandlers(itemID: UUID) {
         lock.lock()
         handlers.removeAll { $0.itemID == itemID }
+        if handlers.isEmpty { stopLocked() }
         lock.unlock()
     }
 
@@ -81,6 +114,7 @@ nonisolated final class HookServer: @unchecked Sendable {
     func removeAllHandlers() {
         lock.lock()
         handlers.removeAll()
+        stopLocked()
         lock.unlock()
     }
 
