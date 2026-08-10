@@ -5,8 +5,10 @@
 // the plugins directory (%APPDATA%\DeskLayer), both hand-editable — the
 // Manager UI arrives in M3.
 
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Forms;
 using DeskLayer.Core.Model;
 
 namespace DeskLayer.App;
@@ -74,6 +76,12 @@ internal static class Program
         using var engine = new WallpaperEngine(store, registry, screen, Log);
         registry.DidChange += engine.RequestRebuild;
         store.OnChange += engine.RequestRebuild;
+
+        // Dedicated UI-thread marshal target for WPF rasterization (the host
+        // form is recreated on Explorer restarts, so it can't be the anchor).
+        var uiAnchor = new Control();
+        _ = uiAnchor.Handle;
+        engine.PostToUi = action => uiAnchor.BeginInvoke(action);
         engine.Start();
 
         // Wallpaper host form + attach/recovery watchdog (M0 pattern: on

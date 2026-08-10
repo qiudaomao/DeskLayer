@@ -12,6 +12,7 @@
 // are single-threaded by contract, matching the mac per-plugin queue).
 
 using System.Diagnostics;
+using System.IO;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using DeskLayer.Core.Js;
@@ -48,6 +49,10 @@ public sealed class WallpaperEngine : IDisposable
 
     public void RequestRebuild() => rebuildRequested = true;
 
+    /// Posts work to the STA UI thread (WPF rasterization for declarative
+    /// wallpaper items). Set by Program before Start().
+    public Action<Action>? PostToUi { get; set; }
+
     /// UI thread: the wallpaper HWND changed (first attach or Explorer-restart
     /// recreation). The render thread rebinds its swap chain on next tick.
     public void SetHwnd(IntPtr hwnd)
@@ -67,15 +72,27 @@ public sealed class WallpaperEngine : IDisposable
         public required LayoutItem Layout;
         public required PluginInstance Instance;
         public required ID2D1Bitmap1 Surface;
-        public required D2DCanvas Canvas;
+        public D2DCanvas? Canvas; // canvas mode only
         public required System.Drawing.RectangleF DestRect;
+        public required int PixelWidth;
+        public required int PixelHeight;
         public Color4? Background;
         public double NextDue;
         public bool RenderedOnce;
 
+        // Declarative mode: the last tree JSON (skip identical renders), the
+        // freshly rasterized pixels awaiting upload, and lifecycle guards
+        // for the UI-thread round trip.
+        public string? LastTree;
+        public byte[]? PendingPixels;
+        public bool RasterInFlight;
+        public volatile bool Disposed;
+        public readonly object Gate = new();
+
         public void Dispose()
         {
-            Canvas.Dispose();
+            Disposed = true;
+            Canvas?.Dispose();
             Surface.Dispose();
             Instance.Dispose();
         }
@@ -160,14 +177,76 @@ public sealed class WallpaperEngine : IDisposable
                     var due = !item.RenderedOnce
                         || (double.IsFinite(item.Instance.RenderInterval) && now >= item.NextDue);
                     if (!due) continue;
-                    dc.Target = item.Surface;
-                    dc.BeginDraw();
-                    item.Canvas.BeginFrame();
-                    if (!item.Instance.CallRender(item.Canvas))
-                        log($"{item.Layout.PluginId} errored: {item.Instance.ErrorMessage}");
-                    dc.EndDraw();
+
+                    if (item.Canvas is { } canvas)
+                    {
+                        dc.Target = item.Surface;
+                        dc.BeginDraw();
+                        canvas.BeginFrame();
+                        if (!item.Instance.CallRender(canvas))
+                            log($"{item.Layout.PluginId} errored: {item.Instance.ErrorMessage}");
+                        dc.EndDraw();
+                    }
+                    else if (!item.RasterInFlight)
+                    {
+                        // Declarative: Jint runs here; identical trees skip
+                        // the WPF round trip entirely (mac diffing parity).
+                        var json = item.Instance.CallRenderTree();
+                        if (json == null)
+                        {
+                            log($"{item.Layout.PluginId} errored: {item.Instance.ErrorMessage}");
+                        }
+                        else if (json != item.LastTree)
+                        {
+                            item.LastTree = json;
+                            item.RasterInFlight = true;
+                            var (w, h) = (item.PixelWidth, item.PixelHeight);
+                            PostToUi?.Invoke(() =>
+                            {
+                                var pixels = DeclarativeRasterizer.Rasterize(json, w, h,
+                                    message => log($"[{item.Layout.PluginId}] {message}"));
+                                lock (item.Gate)
+                                {
+                                    if (!item.Disposed) item.PendingPixels = pixels;
+                                    item.RasterInFlight = false;
+                                }
+                            });
+                        }
+                    }
                     item.RenderedOnce = true;
                     item.NextDue = now + item.Instance.RenderInterval;
+                }
+
+                // Upload freshly rasterized declarative pixels.
+                foreach (var item in items)
+                {
+                    byte[]? pixels;
+                    lock (item.Gate)
+                    {
+                        pixels = item.PendingPixels;
+                        item.PendingPixels = null;
+                    }
+                    if (pixels == null) continue;
+                    var handle = System.Runtime.InteropServices.GCHandle.Alloc(pixels, System.Runtime.InteropServices.GCHandleType.Pinned);
+                    try
+                    {
+                        dc.Target = item.Surface;
+                        dc.BeginDraw();
+                        dc.Clear(new Color4(0, 0, 0, 0));
+                        using var uploaded = dc.CreateBitmap(
+                            new System.Drawing.Size(item.PixelWidth, item.PixelHeight),
+                            handle.AddrOfPinnedObject(), item.PixelWidth * 4,
+                            new BitmapProperties1(
+                                new Vortice.DCommon.PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
+                                96, 96, BitmapOptions.None));
+                        dc.DrawBitmap(uploaded, new System.Drawing.RectangleF(0, 0, item.PixelWidth, item.PixelHeight),
+                            1f, BitmapInterpolationMode.NearestNeighbor, null);
+                        dc.EndDraw();
+                    }
+                    finally
+                    {
+                        handle.Free();
+                    }
                 }
 
                 dc.Target = backBuffer;
@@ -221,9 +300,9 @@ public sealed class WallpaperEngine : IDisposable
                 layoutItem.PropertyOverrides,
                 message => log($"[{layoutItem.PluginId}] {message}"),
                 engine => engine.SetValue("$system", systemStats));
-            if (instance == null || instance.Mode != RenderMode.Canvas)
+            if (instance == null || instance.Mode == RenderMode.Webview)
             {
-                log($"{layoutItem.PluginId}: skipped ({(instance == null ? "boot failed" : "non-canvas: M2")})");
+                log($"{layoutItem.PluginId}: skipped ({(instance == null ? "boot failed" : "webview: M3")})");
                 instance?.Dispose();
                 continue;
             }
@@ -243,10 +322,12 @@ public sealed class WallpaperEngine : IDisposable
             dc.Clear(new Color4(0, 0, 0, 0));
             dc.EndDraw();
 
-            var canvas = new D2DCanvas(dc, factory, dwrite, w, h)
-            {
-                PropertyProvider = name => instance.PropertyNamed(name)?.BridgeValue,
-            };
+            var canvas = instance.Mode == RenderMode.Canvas
+                ? new D2DCanvas(dc, factory, dwrite, w, h)
+                {
+                    PropertyProvider = name => instance.PropertyNamed(name)?.BridgeValue,
+                }
+                : null;
 
             yield return new Item
             {
@@ -255,6 +336,8 @@ public sealed class WallpaperEngine : IDisposable
                 Surface = surface,
                 Canvas = canvas,
                 DestRect = new System.Drawing.RectangleF(x, y, w, h),
+                PixelWidth = w,
+                PixelHeight = h,
                 Background = layoutItem.BackgroundColor is { } css && CssColor.TryParse(css, out var bg) ? bg : null,
             };
         }
