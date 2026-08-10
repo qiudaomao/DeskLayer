@@ -11,8 +11,14 @@
     <EmbeddedResource Include="..\..\..\shared\runtime\prelude.js" Link="prelude.js" LogicalName="DeskLayer.Core.prelude.js" />
     <EmbeddedResource Include="..\..\..\shared\runtime\symbol-map.json" Link="symbol-map.json" LogicalName="DeskLayer.Core.symbol-map.json" />
     <EmbeddedResource Include="..\..\..\shared\runtime\font-aliases.json" Link="font-aliases.json" LogicalName="DeskLayer.Core.font-aliases.json" />
+    <!-- The plugin API docs, bundled for the Create Plugin (LLM) feature —
+         the same files the mac app ships as plugin-dts.txt/plugin-guide.md. -->
+    <EmbeddedResource Include="..\..\..\shared\spec\plugin.d.ts" Link="plugin.d.ts" LogicalName="DeskLayer.Core.plugin.d.ts" />
+    <EmbeddedResource Include="..\..\..\shared\spec\plugin-guide.md" Link="plugin-guide.md" LogicalName="DeskLayer.Core.plugin-guide.md" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Jint" Version="3.1.2" />
+    <!-- DPAPI for the LLM API key — the Windows twin of the mac Keychain. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 </Project>

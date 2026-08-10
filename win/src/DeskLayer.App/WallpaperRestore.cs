@@ -28,6 +28,10 @@ public static class WallpaperRestore
     private const uint SPIF_SENDWININICHANGE = 0x02;
 
     private static string? capturedPath;
+
+    /// The wallpaper image captured at startup — the Manager uses it as the
+    /// desktop-preview background so the overview looks like the real desktop.
+    public static string? CapturedPath => capturedPath;
     private static bool restored;
     private static readonly object gate = new();
 
