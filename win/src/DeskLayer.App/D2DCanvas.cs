@@ -30,8 +30,8 @@ public sealed class D2DCanvas : IDisposable
 
     private Matrix3x2 current = Matrix3x2.Identity;
     private readonly Stack<(Matrix3x2 m, Color4 fill, Color4 stroke, double lw, string font)> stack = new();
-    private Color4 fillColor = new(0, 0, 0, 1);
-    private Color4 strokeColor = new(0, 0, 0, 1);
+    private Color4 fillColor = new(0f, 0f, 0f, 1f);
+    private Color4 strokeColor = new(0f, 0f, 0f, 1f);
     private string fontSpec = "13px Segoe UI";
 
     private readonly List<(List<Vector2> pts, bool closed)> figures = new();
@@ -99,7 +99,7 @@ public sealed class D2DCanvas : IDisposable
     public void clearRect(double x, double y, double w, double h)
     {
         dc.PushAxisAlignedClip(new System.Drawing.RectangleF((float)x, (float)y, (float)w, (float)h), AntialiasMode.Aliased);
-        dc.Clear(new Color4(0, 0, 0, 0));
+        dc.Clear(new Color4(0f, 0f, 0f, 0f));
         dc.PopAxisAlignedClip();
     }
 
@@ -281,7 +281,7 @@ public static class CssColor
 {
     public static bool TryParse(string s, out Color4 color)
     {
-        color = new Color4(0, 0, 0, 1);
+        color = new Color4(0f, 0f, 0f, 1f);
         s = s.Trim().ToLowerInvariant();
         try
         {
@@ -309,15 +309,15 @@ public static class CssColor
             }
             color = s switch
             {
-                "white" => new Color4(1, 1, 1, 1),
-                "black" => new Color4(0, 0, 0, 1),
-                "red" => new Color4(1, 0, 0, 1),
+                "white" => new Color4(1f, 1f, 1f, 1f),
+                "black" => new Color4(0f, 0f, 0f, 1f),
+                "red" => new Color4(1f, 0f, 0f, 1f),
                 "green" => new Color4(0, 0.5f, 0, 1),
-                "blue" => new Color4(0, 0, 1, 1),
-                "yellow" => new Color4(1, 1, 0, 1),
+                "blue" => new Color4(0f, 0f, 1f, 1f),
+                "yellow" => new Color4(1f, 1f, 0f, 1f),
                 "orange" => new Color4(1, 0.647f, 0, 1),
                 "gray" or "grey" => new Color4(0.5f, 0.5f, 0.5f, 1),
-                "transparent" => new Color4(0, 0, 0, 0),
+                "transparent" => new Color4(0f, 0f, 0f, 0f),
                 _ => throw new FormatException(),
             };
             return true;

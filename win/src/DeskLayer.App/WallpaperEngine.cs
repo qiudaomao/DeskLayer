@@ -53,6 +53,12 @@ public sealed class WallpaperEngine : IDisposable
     /// wallpaper items). Set by Program before Start().
     public Action<Action>? PostToUi { get; set; }
 
+    /// Marshals UI events (button clicks, text edits) onto the render
+    /// thread, where every Jint instance lives — the mac per-plugin-queue
+    /// contract. Drained once per frame.
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> renderQueue = new();
+    public void PostToRender(Action action) => renderQueue.Enqueue(action);
+
     /// UI thread: the wallpaper HWND changed (first attach or Explorer-restart
     /// recreation). The render thread rebinds its swap chain on next tick.
     public void SetHwnd(IntPtr hwnd)
@@ -97,6 +103,23 @@ public sealed class WallpaperEngine : IDisposable
             Instance.Dispose();
         }
     }
+
+    /// A floating-window item: the Jint instance lives on the render thread,
+    /// its live interactive WPF tree lives in a FloatingPanel on the UI
+    /// thread; the two only ever exchange tree JSON and posted actions.
+    private sealed class FloatingItem
+    {
+        public required LayoutItem Layout;
+        public required PluginInstance Instance;
+        public string? LastTree;
+        public double NextDue;
+        public bool RenderedOnce;
+        public bool UpdateInFlight;
+        public volatile bool Disposed;
+        public FloatingPanel? Panel; // UI thread only
+    }
+
+    private readonly List<FloatingItem> floatingItems = new();
 
     private void RenderLoop()
     {
@@ -166,9 +189,14 @@ public sealed class WallpaperEngine : IDisposable
                     rebuildRequested = false;
                     foreach (var item in items) item.Dispose();
                     items.Clear();
+                    DisposeFloatingItems();
                     items.AddRange(BuildItems(dc, d2dFactory, dwrite));
-                    log($"spawned {items.Count} items");
+                    BuildFloatingItems();
+                    log($"spawned {items.Count} wallpaper + {floatingItems.Count} floating items");
                 }
+
+                // UI events destined for Jint (actions, drag writebacks).
+                while (renderQueue.TryDequeue(out var queued)) queued();
 
                 var now = clock.Elapsed.TotalSeconds;
                 foreach (var item in items)
@@ -217,6 +245,38 @@ public sealed class WallpaperEngine : IDisposable
                     item.NextDue = now + item.Instance.RenderInterval;
                 }
 
+                // Floating items: run Jint here, push changed trees to the
+                // UI thread where the live interactive panel rebuilds.
+                foreach (var floating in floatingItems)
+                {
+                    if (floating.Instance.IsErrored || floating.UpdateInFlight) continue;
+                    var floatingDue = !floating.RenderedOnce
+                        || (double.IsFinite(floating.Instance.RenderInterval) && now >= floating.NextDue);
+                    if (!floatingDue) continue;
+                    var json = floating.Instance.CallRenderTree();
+                    floating.RenderedOnce = true;
+                    floating.NextDue = now + Math.Max(floating.Instance.RenderInterval, 1.0 / 30.0);
+                    if (json == null)
+                    {
+                        log($"{floating.Layout.PluginId} errored: {floating.Instance.ErrorMessage}");
+                        continue;
+                    }
+                    if (json == floating.LastTree) continue;
+                    floating.LastTree = json;
+                    floating.UpdateInFlight = true;
+                    PostToUi?.Invoke(() =>
+                    {
+                        try
+                        {
+                            if (!floating.Disposed) UpdateFloatingPanel(floating, json);
+                        }
+                        finally
+                        {
+                            floating.UpdateInFlight = false;
+                        }
+                    });
+                }
+
                 // Upload freshly rasterized declarative pixels.
                 foreach (var item in items)
                 {
@@ -232,7 +292,7 @@ public sealed class WallpaperEngine : IDisposable
                     {
                         dc.Target = item.Surface;
                         dc.BeginDraw();
-                        dc.Clear(new Color4(0, 0, 0, 0));
+                        dc.Clear(new Color4(0f, 0f, 0f, 0f));
                         using var uploaded = dc.CreateBitmap(
                             new System.Drawing.Size(item.PixelWidth, item.PixelHeight),
                             handle.AddrOfPinnedObject(), item.PixelWidth * 4,
@@ -252,7 +312,7 @@ public sealed class WallpaperEngine : IDisposable
                 dc.Target = backBuffer;
                 dc.BeginDraw();
                 dc.Transform = System.Numerics.Matrix3x2.Identity;
-                dc.Clear(new Color4(0, 0, 0, 1));
+                dc.Clear(new Color4(0f, 0f, 0f, 1f));
                 if (wallpaper != null) DrawWallpaper(dc, wallpaper);
                 foreach (var item in items.OrderBy(i => i.Layout.ZOrder))
                 {
@@ -268,6 +328,7 @@ public sealed class WallpaperEngine : IDisposable
             }
 
             foreach (var item in items) item.Dispose();
+            DisposeFloatingItems();
             wallpaper?.Dispose();
             ReleaseSwapChain();
         }
@@ -286,7 +347,7 @@ public sealed class WallpaperEngine : IDisposable
         foreach (var layoutItem in store.Layout.Items)
         {
             if (!layoutItem.IsEnabled) continue;
-            if (layoutItem.Target != RenderTarget.Wallpaper) continue; // floating: M1 follow-up
+            if (layoutItem.Target != RenderTarget.Wallpaper) continue; // floating built separately
             var plugin = registry.Plugin(layoutItem.PluginId);
             if (plugin == null)
             {
@@ -319,7 +380,7 @@ public sealed class WallpaperEngine : IDisposable
                 96, 96, BitmapOptions.Target));
             dc.Target = surface;
             dc.BeginDraw();
-            dc.Clear(new Color4(0, 0, 0, 0));
+            dc.Clear(new Color4(0f, 0f, 0f, 0f));
             dc.EndDraw();
 
             var canvas = instance.Mode == RenderMode.Canvas
@@ -341,6 +402,126 @@ public sealed class WallpaperEngine : IDisposable
                 Background = layoutItem.BackgroundColor is { } css && CssColor.TryParse(css, out var bg) ? bg : null,
             };
         }
+    }
+
+    // ---- floating items (render thread builds, UI thread hosts) ----
+
+    private void BuildFloatingItems()
+    {
+        foreach (var layoutItem in store.Layout.Items)
+        {
+            if (!layoutItem.IsEnabled || layoutItem.Target != RenderTarget.FloatingWindow) continue;
+            var plugin = registry.Plugin(layoutItem.PluginId);
+            if (plugin == null)
+            {
+                log($"{layoutItem.PluginId}: not installed, floating item offline");
+                continue;
+            }
+            var instance = PluginInstance.Boot(
+                layoutItem.PluginId,
+                File.ReadAllText(plugin.SourcePath),
+                layoutItem.PropertyOverrides,
+                message => log($"[{layoutItem.PluginId}] {message}"),
+                engine => engine.SetValue("$system", systemStats));
+            if (instance == null || instance.Mode != RenderMode.Declarative)
+            {
+                log($"{layoutItem.PluginId}: floating skipped ({(instance == null ? "boot failed" : "only declarative floats yet")})");
+                instance?.Dispose();
+                continue;
+            }
+            floatingItems.Add(new FloatingItem { Layout = layoutItem, Instance = instance });
+        }
+    }
+
+    private void DisposeFloatingItems()
+    {
+        foreach (var floating in floatingItems)
+        {
+            floating.Disposed = true;
+            var panel = floating;
+            PostToUi?.Invoke(() => { panel.Panel?.Close(); panel.Panel = null; });
+            floating.Instance.Dispose();
+        }
+        floatingItems.Clear();
+    }
+
+    /// UI thread: (re)build the live interactive tree inside the panel.
+    private void UpdateFloatingPanel(FloatingItem floating, string treeJson)
+    {
+        var node = ViewNode.Decode(treeJson);
+        if (node == null) return;
+
+        NodeInterpreter.ActionHandler onAction = (id, payload) =>
+        {
+            log($"[{floating.Layout.PluginId}] action {id} fired: {payload}");
+            PostToRender(() =>
+            {
+                if (floating.Disposed || floating.Instance.IsErrored) return;
+                floating.Instance.InvokeAction(id, payload);
+                if (floating.Instance.IsErrored)
+                    log($"[{floating.Layout.PluginId}] action {id} errored: {floating.Instance.ErrorMessage}");
+                floating.RenderedOnce = false; // re-render promptly with new state
+            });
+        };
+
+        var content = NodeInterpreter.Build(node, onAction, message => log($"[{floating.Layout.PluginId}] {message}"));
+        System.Windows.Documents.TextElement.SetFontSize(content, 13);
+        System.Windows.Documents.TextElement.SetForeground(content, System.Windows.Media.Brushes.White);
+
+        System.Windows.FrameworkElement rootContent = content;
+        if (floating.Layout.BackgroundColor is { } css && CssColor.TryParse(css, out var bg))
+        {
+            rootContent = new System.Windows.Controls.Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(
+                    (byte)(bg.A * 255), (byte)(bg.R * 255), (byte)(bg.G * 255), (byte)(bg.B * 255))),
+                Child = content,
+            };
+        }
+
+        if (floating.Panel == null)
+        {
+            // WPF windows position in DIPs; the layout frame is physical px.
+            var scale = screenBounds.Width / System.Windows.SystemParameters.PrimaryScreenWidth;
+            var frame = floating.Layout.NormalizedFrame;
+            var widthPx = frame.W * screenBounds.Width;
+            var heightPx = frame.H * screenBounds.Height;
+            var leftPx = frame.X * screenBounds.Width;
+            var topPx = (1 - frame.Y - frame.H) * screenBounds.Height;
+
+            var panel = new FloatingPanel(floating.Layout.ClickThrough)
+            {
+                Left = leftPx / scale,
+                Top = topPx / scale,
+                Width = widthPx / scale,
+                Height = heightPx / scale,
+            };
+            panel.OnMovedDip = (leftDip, topDip) =>
+                PersistMove(floating, leftDip * scale, topDip * scale, heightPx);
+            floating.Panel = panel;
+            panel.Show();
+        }
+        floating.Panel.Content = rootContent;
+    }
+
+    /// UI thread, after a drag: write the new normalized frame back without
+    /// waking the rebuild path (quiet update — mac suppressRebuild parity).
+    private void PersistMove(FloatingItem floating, double leftPx, double topPx, double heightPx)
+    {
+        var frame = floating.Layout.NormalizedFrame;
+        var moved = frame with
+        {
+            X = leftPx / screenBounds.Width,
+            Y = 1 - (topPx + heightPx) / screenBounds.Height,
+        };
+        floating.Layout = floating.Layout with { NormalizedFrame = moved };
+        var itemId = floating.Layout.Id;
+        store.Update(layout => layout with
+        {
+            Items = layout.Items
+                .Select(item => item.Id == itemId ? item with { NormalizedFrame = moved } : item)
+                .ToList(),
+        }, quiet: true);
     }
 
     // ---- wallpaper base layer ----

@@ -45,7 +45,9 @@ public sealed class LayoutStore : IDisposable
         return new Layout();
     }
 
-    public void Update(Func<Layout, Layout> mutate)
+    /// `quiet` suppresses OnChange — for writebacks that must not restart
+    /// the runtime (drag persistence; mac suppressRebuild parity).
+    public void Update(Func<Layout, Layout> mutate, bool quiet = false)
     {
         lock (gate)
         {
@@ -53,7 +55,7 @@ public sealed class LayoutStore : IDisposable
             savePending = true;
             saveTimer.Change(500, Timeout.Infinite); // debounce
         }
-        OnChange?.Invoke();
+        if (!quiet) OnChange?.Invoke();
     }
 
     private void FlushIfPending()
