@@ -49,6 +49,13 @@ public sealed class WallpaperEngine : IDisposable
 
     public void RequestRebuild() => rebuildRequested = true;
 
+    /// Current render policy (set by the UI-thread PowerController). Paused
+    /// skips rendering; throttled caps the per-item cadence. A torn read of
+    /// this small struct is harmless — worst case the policy applies one
+    /// frame late.
+    private RenderPolicy policy = RenderPolicy.Run;
+    public void SetPolicy(RenderPolicy value) => policy = value;
+
     /// Posts work to the STA UI thread (WPF rasterization for declarative
     /// wallpaper items). Set by Program before Start().
     public Action<Action>? PostToUi { get; set; }
@@ -211,6 +218,22 @@ public sealed class WallpaperEngine : IDisposable
                 // UI events destined for Jint (actions, drag writebacks).
                 while (renderQueue.TryDequeue(out var queued)) queued();
 
+                // Power policy: paused stops all rendering (screen locked /
+                // system suspended); async callbacks still drain so state
+                // stays consistent when we resume.
+                var currentPolicy = policy;
+                if (currentPolicy.Kind == PolicyKind.Paused)
+                {
+                    foreach (var item in items) item.Instance.Pump();
+                    foreach (var floating in floatingItems) floating.Instance.Pump();
+                    Thread.Sleep(200);
+                    continue;
+                }
+                // Throttled (battery saver): clamp every item's cadence.
+                var minInterval = currentPolicy.Kind == PolicyKind.Throttled && currentPolicy.MaxFps > 0
+                    ? 1.0 / currentPolicy.MaxFps
+                    : 0;
+
                 // Timers and completed fetch/WebSocket callbacks (Jint runs
                 // only here, on its owning thread).
                 foreach (var item in items) item.Instance.Pump();
@@ -260,7 +283,7 @@ public sealed class WallpaperEngine : IDisposable
                         }
                     }
                     item.RenderedOnce = true;
-                    item.NextDue = now + item.Instance.RenderInterval;
+                    item.NextDue = now + Math.Max(item.Instance.RenderInterval, minInterval);
                 }
 
                 // Floating items: run Jint here, push changed trees to the
@@ -273,7 +296,7 @@ public sealed class WallpaperEngine : IDisposable
                     if (!floatingDue) continue;
                     var json = floating.Instance.CallRenderTree();
                     floating.RenderedOnce = true;
-                    floating.NextDue = now + Math.Max(floating.Instance.RenderInterval, 1.0 / 30.0);
+                    floating.NextDue = now + Math.Max(Math.Max(floating.Instance.RenderInterval, 1.0 / 30.0), minInterval);
                     if (json == null)
                     {
                         log($"{floating.Layout.PluginId} errored: {floating.Instance.ErrorMessage}");
@@ -379,7 +402,7 @@ public sealed class WallpaperEngine : IDisposable
                 File.ReadAllText(plugin.SourcePath),
                 layoutItem.PropertyOverrides,
                 message => log($"[{layoutItem.PluginId}] {message}"),
-                engine => engine.SetValue("$system", systemStats));
+                hostStats: systemStats);
             if (instance == null || instance.Mode == RenderMode.Webview)
             {
                 if (instance == null) log($"{layoutItem.PluginId}: boot failed");
@@ -441,7 +464,7 @@ public sealed class WallpaperEngine : IDisposable
                 File.ReadAllText(plugin.SourcePath),
                 layoutItem.PropertyOverrides,
                 message => log($"[{layoutItem.PluginId}] {message}"),
-                engine => engine.SetValue("$system", systemStats));
+                hostStats: systemStats);
             if (instance == null || instance.Mode != RenderMode.Declarative)
             {
                 if (instance is { Mode: RenderMode.Canvas })

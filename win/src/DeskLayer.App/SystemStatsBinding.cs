@@ -6,11 +6,15 @@
 // 0 in the M1 skeleton (GetIfTable2 lands with the M4 bindings pass).
 
 using System.Runtime.InteropServices;
+using DeskLayer.Core.Js;
 
 namespace DeskLayer.App;
 
-public sealed class SystemStatsBinding
+public sealed class SystemStatsBinding : HostBindings.SystemStats
 {
+    /// The interface the Core host bindings call for $system.stats().
+    public IDictionary<string, object> Snapshot() => stats();
+
     [DllImport("kernel32.dll")] private static extern bool GetSystemTimes(out long idle, out long kernel, out long user);
     [DllImport("kernel32.dll")] private static extern bool GlobalMemoryStatusEx(ref MemoryStatusEx buffer);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]

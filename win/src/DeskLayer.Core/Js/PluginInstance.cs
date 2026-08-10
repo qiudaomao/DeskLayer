@@ -55,7 +55,29 @@ public sealed class PluginInstance : IDisposable
 
     private readonly Engine engine;
     private JsBindings? bindings;
+    private HostBindings? host;
     private readonly JsValue renderFunction;
+
+    /// Supplies resolved SSH destinations for the ssh() binding (set by the
+    /// coordinator after boot).
+    public void ConfigureSsh(IReadOnlyList<HostBindings.ResolvedSsh> hosts)
+    {
+        if (host != null) host.SshHosts = hosts;
+    }
+
+    /// Wires this instance's $server.on registrations to the app-level hook
+    /// server, or null to drop them (permission not granted).
+    public void ConfigureHookRegistrar(Action<string, Action<string, string>>? registrar)
+    {
+        if (host != null) host.HookRegistrar = registrar;
+    }
+
+    /// Zero-valued $system source for probe boots (mode detection etc.).
+    private sealed class EmptyStats : HostBindings.SystemStats
+    {
+        public static readonly EmptyStats Instance = new();
+        public IDictionary<string, object> Snapshot() => new Dictionary<string, object>();
+    }
     private List<PluginProperty> properties = new();
     public IReadOnlyList<PluginProperty> Properties => properties;
 
@@ -81,7 +103,8 @@ public sealed class PluginInstance : IDisposable
     public static PluginInstance? Boot(string pluginId, string source,
                                        IReadOnlyDictionary<string, PropertyValue>? overrides = null,
                                        Action<string>? log = null,
-                                       Action<Engine>? configureEngine = null)
+                                       Action<Engine>? configureEngine = null,
+                                       HostBindings.SystemStats? hostStats = null)
     {
         var engine = new Engine();
         try
@@ -97,7 +120,13 @@ public sealed class PluginInstance : IDisposable
                 () => created?.MarkErrored("async callback threw (see log)"));
             bindings.Install();
             engine.Execute(PreludeSource);
-            configureEngine?.Invoke(engine); // host bindings ($system, …)
+            // Host powers ($system/shell/ssh/$server/$platform). A cheap probe
+            // boot (no stats source) uses a zero-stats stub so the API is
+            // still present and parses.
+            var host = new HostBindings(engine, hostStats ?? EmptyStats.Instance, logSink,
+                bindings.Enqueue, () => created?.MarkErrored("host callback threw (see log)"));
+            host.Install();
+            configureEngine?.Invoke(engine);
             engine.Execute(source);
 
             var export = engine.Evaluate("plugin.export");
@@ -121,6 +150,7 @@ public sealed class PluginInstance : IDisposable
             var instance = new PluginInstance(pluginId, engine, render);
             created = instance;
             instance.bindings = bindings;
+            instance.host = host;
 
             // Mode: explicit plugin.export.mode wins; else render's arity —
             // render(ctx) is canvas, render() is declarative (mac parity).
@@ -142,6 +172,7 @@ public sealed class PluginInstance : IDisposable
                 "JSON.stringify(Array.isArray(plugin.export.permissions) ? plugin.export.permissions : [])").AsString();
             instance.Permissions = JsonSerializer.Deserialize<string[]>(permsJson)!
                 .Select(p => p.ToLowerInvariant()).ToHashSet();
+            host.Permissions = instance.Permissions;
 
             return instance;
         }

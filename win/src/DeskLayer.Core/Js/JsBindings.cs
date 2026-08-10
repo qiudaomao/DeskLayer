@@ -60,6 +60,11 @@ public sealed class JsBindings : IDisposable
         engine.Execute(JsPrelude);
     }
 
+    /// Enqueue a callback to run on the owning thread at the next Pump —
+    /// shared by HostBindings (shell/ssh/$server completions) so all JS
+    /// callbacks funnel through one queue.
+    public void Enqueue(Action completion) => completions.Enqueue(completion);
+
     /// Runs due timers and completed network callbacks. Call from the
     /// thread that owns the engine, once per frame tick.
     public void Pump()

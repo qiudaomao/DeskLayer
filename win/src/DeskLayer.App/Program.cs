@@ -82,6 +82,15 @@ internal static class Program
         var uiAnchor = new Control();
         _ = uiAnchor.Handle;
         engine.PostToUi = action => uiAnchor.BeginInvoke(action);
+
+        // Power/session policy (lock/suspend/battery-saver → pause/throttle).
+        var power = new PowerController(Log);
+        engine.SetPolicy(power.Policy);
+        power.DidWake += () => { engine.SetPolicy(power.Policy); engine.RequestRebuild(); };
+        var policyPoll = new System.Windows.Forms.Timer { Interval = 2000 };
+        policyPoll.Tick += (_, _) => engine.SetPolicy(power.Refresh()); // catches battery-saver toggles
+        policyPoll.Start();
+
         engine.Start();
 
         // Wallpaper host form + attach/recovery watchdog (M0 pattern: on
