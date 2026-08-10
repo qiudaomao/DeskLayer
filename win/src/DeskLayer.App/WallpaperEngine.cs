@@ -83,9 +83,26 @@ public sealed class WallpaperEngine : IDisposable
         renderThread.Start();
     }
 
+    /// The boot-affecting fields of a layout item. When these are unchanged,
+    /// an edit can be applied live (position, z-order, background, most
+    /// property overrides) without restarting the plugin — the mac
+    /// SpawnIdentity/applyLiveEdits contract. Cadence overrides (fps/interval)
+    /// are baked into the instance at boot, so they belong here.
+    private readonly record struct SpawnIdentity(
+        string PluginId, string DisplayUuid, RenderTarget Target, bool ClickThrough,
+        string? Fps, string? Interval)
+    {
+        public SpawnIdentity(LayoutItem item) : this(
+            item.PluginId, item.DisplayUuid, item.Target, item.ClickThrough,
+            item.PropertyOverrides.TryGetValue("fps", out var f) ? f.StringValue : null,
+            item.PropertyOverrides.TryGetValue("interval", out var i) ? i.StringValue : null)
+        { }
+    }
+
     private sealed class Item : IDisposable
     {
         public required LayoutItem Layout;
+        public required SpawnIdentity Identity;
         public required PluginInstance Instance;
         public required ID2D1Bitmap1 Surface;
         public D2DCanvas? Canvas; // canvas mode only
@@ -143,6 +160,21 @@ public sealed class WallpaperEngine : IDisposable
     }
 
     private readonly List<WebItem> webItems = new();
+    private string lastFloatWebFingerprint = "";
+
+    /// Changes when a floating/webview host must rebuild: any item's presence,
+    /// plugin, target, or click-through (catches a new wallpaper-webview,
+    /// whose mode isn't known without booting), plus a floating item's frame
+    /// or background. A pure frame/background edit of a *wallpaper* item does
+    /// NOT change this, so it reconciles in place without disturbing panels.
+    /// Quiet drag writebacks don't fire OnChange, so dragging a panel doesn't
+    /// rebuild it either.
+    private string FloatWebFingerprint() => string.Join(";", store.Layout.Items
+        .Where(i => i.IsEnabled)
+        .OrderBy(i => i.Id)
+        .Select(i => i.Target == RenderTarget.FloatingWindow
+            ? $"{i.Id}|{i.PluginId}|F|{i.ClickThrough}|{i.NormalizedFrame.X:F4},{i.NormalizedFrame.Y:F4},{i.NormalizedFrame.W:F4},{i.NormalizedFrame.H:F4}|{i.BackgroundColor}"
+            : $"{i.Id}|{i.PluginId}|W|{i.ClickThrough}"));
 
     private void RenderLoop()
     {
@@ -210,16 +242,23 @@ public sealed class WallpaperEngine : IDisposable
                 if (rebuildRequested)
                 {
                     rebuildRequested = false;
-                    hookServer.RemoveAllHandlers(); // before teardown, so a
-                    // stale item's dispose can't drop a fresh registration
-                    foreach (var item in items) item.Dispose();
-                    items.Clear();
-                    DisposeFloatingItems();
-                    DisposeWebItems();
-                    items.AddRange(BuildItems(dc, d2dFactory, dwrite));
-                    BuildFloatingItems();
-                    BuildWebItems();
-                    log($"spawned {items.Count} wallpaper + {floatingItems.Count} floating + {webItems.Count} webview items");
+                    // Wallpaper items reconcile in place — position/z-order/
+                    // background/property edits keep the plugin running.
+                    ReconcileItems(items, dc, d2dFactory, dwrite);
+
+                    // Floating/webview items are hosted on the UI thread with
+                    // heavier lifecycle; rebuild them only when their set
+                    // actually changed (a pure wallpaper edit leaves them be).
+                    var floatWebPrint = FloatWebFingerprint();
+                    if (floatWebPrint != lastFloatWebFingerprint)
+                    {
+                        lastFloatWebFingerprint = floatWebPrint;
+                        DisposeFloatingItems();
+                        DisposeWebItems();
+                        BuildFloatingItems();
+                        BuildWebItems();
+                    }
+                    log($"reconciled: {items.Count} wallpaper + {floatingItems.Count} floating + {webItems.Count} webview items");
                 }
 
                 // UI events destined for Jint (actions, drag writebacks).
@@ -391,17 +430,77 @@ public sealed class WallpaperEngine : IDisposable
         }
     }
 
-    private IEnumerable<Item> BuildItems(ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite)
+    /// Reconcile the wallpaper items against the current layout without
+    /// tearing down plugins whose identity is unchanged (mac reconcile):
+    /// respawn only on an identity change, live-edit the rest, spawn the new.
+    private void ReconcileItems(List<Item> items, ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite)
     {
-        foreach (var layoutItem in store.Layout.Items)
+        // Skip ids already hosted as webview wallpaper items, so a webview
+        // plugin isn't re-booted every reconcile just to detect its mode.
+        var webIds = webItems.Select(w => w.Layout.Id).ToHashSet();
+        var wanted = store.Layout.Items
+            .Where(i => i.IsEnabled && i.Target == RenderTarget.Wallpaper
+                        && registry.Plugin(i.PluginId) != null && !webIds.Contains(i.Id))
+            .ToDictionary(i => i.Id, i => i);
+
+        // Drop items no longer wanted or whose identity changed.
+        for (var index = items.Count - 1; index >= 0; index--)
         {
-            if (!layoutItem.IsEnabled) continue;
-            if (layoutItem.Target != RenderTarget.Wallpaper) continue; // floating built separately
+            var item = items[index];
+            if (!wanted.TryGetValue(item.Layout.Id, out var want) || new SpawnIdentity(want) != item.Identity)
+            {
+                hookServer.RemoveHandlers(item.Layout.Id);
+                item.Dispose();
+                items.RemoveAt(index);
+            }
+        }
+
+        var running = items.Select(i => i.Layout.Id).ToHashSet();
+        foreach (var layoutItem in wanted.Values)
+        {
+            if (running.Contains(layoutItem.Id))
+            {
+                ApplyLiveEdits(items.First(i => i.Layout.Id == layoutItem.Id), layoutItem);
+            }
+            else if (SpawnItem(layoutItem, dc, factory, dwrite) is { } spawned)
+            {
+                items.Add(spawned);
+            }
+        }
+    }
+
+    /// Absorb an edit the running item can keep: position/size, z-order,
+    /// background, and non-cadence property overrides (pushed into JS live).
+    private void ApplyLiveEdits(Item item, LayoutItem layout)
+    {
+        var frame = layout.NormalizedFrame;
+        var w = Math.Max(8, (int)(frame.W * screenBounds.Width));
+        var h = Math.Max(8, (int)(frame.H * screenBounds.Height));
+        var x = (float)(frame.X * screenBounds.Width);
+        var y = (float)((1 - frame.Y - frame.H) * screenBounds.Height);
+        // Position/size update the dest rect; the existing surface scales
+        // (mac contentsGravity=.resize parity — no buffer rebuild, no state loss).
+        item.DestRect = new System.Drawing.RectangleF(x, y, w, h);
+        item.Background = layout.BackgroundColor is { } css && CssColor.TryParse(css, out var bg) ? bg : null;
+
+        // Push changed overrides (except cadence, which is in the identity).
+        foreach (var (name, value) in layout.PropertyOverrides)
+        {
+            if (name is "fps" or "interval") continue;
+            if (!item.Layout.PropertyOverrides.TryGetValue(name, out var old) || !old.Equals(value))
+                item.Instance.ApplyOverride(name, value);
+        }
+        item.Layout = layout;
+    }
+
+    private Item? SpawnItem(LayoutItem layoutItem, ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite)
+    {
+        {
             var plugin = registry.Plugin(layoutItem.PluginId);
             if (plugin == null)
             {
                 log($"{layoutItem.PluginId}: not installed, item offline");
-                continue;
+                return null;
             }
 
             var instance = PluginInstance.Boot(
@@ -414,7 +513,7 @@ public sealed class WallpaperEngine : IDisposable
             {
                 if (instance == null) log($"{layoutItem.PluginId}: boot failed");
                 instance?.Dispose(); // webview items are built by BuildWebItems
-                continue;
+                return null;
             }
             WireHooks(layoutItem, instance);
 
@@ -444,9 +543,10 @@ public sealed class WallpaperEngine : IDisposable
                 }
                 : null;
 
-            yield return new Item
+            return new Item
             {
                 Layout = layoutItem,
+                Identity = new SpawnIdentity(layoutItem),
                 Instance = instance,
                 Surface = surface,
                 Canvas = canvas,
@@ -510,6 +610,7 @@ public sealed class WallpaperEngine : IDisposable
         foreach (var floating in floatingItems)
         {
             floating.Disposed = true;
+            hookServer.RemoveHandlers(floating.Layout.Id);
             var panel = floating;
             PostToUi?.Invoke(() => { panel.Panel?.Close(); panel.Panel = null; });
             floating.Instance.Dispose();
