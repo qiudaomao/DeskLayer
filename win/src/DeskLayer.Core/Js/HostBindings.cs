@@ -38,8 +38,30 @@ public sealed class HostBindings
     private readonly Action onCallbackError;
 
     public IReadOnlySet<string> Permissions { get; set; } = new HashSet<string>();
+
+    private IReadOnlyList<ResolvedSsh> sshHosts = Array.Empty<ResolvedSsh>();
     /// Resolved SSH destinations for this item (name → connection details).
-    public IReadOnlyList<ResolvedSsh> SshHosts { get; set; } = Array.Empty<ResolvedSsh>();
+    /// Setting also refreshes the JS-visible $ssh.hosts name list — plugins
+    /// read it to decide whether a destination is configured, so the C# list
+    /// alone isn't enough (mac HostBindings does the same refresh). Only set
+    /// on the engine's own thread.
+    public IReadOnlyList<ResolvedSsh> SshHosts
+    {
+        get => sshHosts;
+        set
+        {
+            sshHosts = value;
+            try
+            {
+                engine.SetValue("__dl_ssh_hosts", value.Select(h => h.Name).ToArray());
+                engine.Execute("if (typeof $ssh === 'object') { $ssh.hosts = Array.from(__dl_ssh_hosts); }");
+            }
+            catch (Exception ex) when (ex is JavaScriptException or JintException)
+            {
+                log($"refreshing $ssh.hosts failed: {ex.Message}");
+            }
+        }
+    }
 
     // $server.on runs at top-level load, before the coordinator wires the
     // registrar (and before permissions resolve). Buffer registrations until
