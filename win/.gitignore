@@ -1,0 +1,3 @@
+# .NET build output (built on the Windows box or locally for syntax checks)
+[Bb]in/
+[Oo]bj/
