@@ -27,6 +27,16 @@ namespace DeskLayer.Core.Js;
 
 public enum RenderMode { Canvas, Declarative, Webview }
 
+/// A webview plugin's configuration, resolved from plugin.export.webview and
+/// (for the live-editable bits) the plugin's properties — mac parity.
+public sealed record WebViewConfig(
+    string Url,
+    string? UserAgent,
+    IReadOnlyDictionary<string, string> Headers,
+    double OffsetX,
+    double OffsetY,
+    double Zoom);
+
 public sealed class PluginInstance : IDisposable
 {
     public string PluginId { get; }
@@ -40,6 +50,8 @@ public sealed class PluginInstance : IDisposable
     public string? ErrorMessage { get; private set; }
     public double DeclaredWidth { get; private set; }
     public double DeclaredHeight { get; private set; }
+    /// Present only for webview-mode plugins.
+    public WebViewConfig? WebviewConfig { get; private set; }
 
     private readonly Engine engine;
     private readonly JsValue renderFunction;
@@ -114,6 +126,7 @@ public sealed class PluginInstance : IDisposable
             instance.ParseProperties(overrides ?? new Dictionary<string, PropertyValue>());
             instance.ParseCadence();
             instance.ParseDeclaredSize();
+            if (instance.Mode == RenderMode.Webview) instance.ParseWebviewConfig();
 
             var permsJson = engine.Evaluate(
                 "JSON.stringify(Array.isArray(plugin.export.permissions) ? plugin.export.permissions : [])").AsString();
@@ -190,6 +203,36 @@ public sealed class PluginInstance : IDisposable
     {
         DeclaredWidth = engine.Evaluate("typeof plugin.export.width === 'number' ? plugin.export.width : 0").AsNumber();
         DeclaredHeight = engine.Evaluate("typeof plugin.export.height === 'number' ? plugin.export.height : 0").AsNumber();
+    }
+
+    /// Static plugin.export.webview merged with live properties: url,
+    /// offsetX, offsetY, and zoom stay inspector-editable (mac parity).
+    /// Cookies are a mac-only extra for now (WebView2 cookie API lands with
+    /// the M4 bindings pass).
+    private void ParseWebviewConfig()
+    {
+        var json = engine.Evaluate(
+            "JSON.stringify(typeof plugin.export.webview === 'object' && plugin.export.webview !== null ? plugin.export.webview : {})").AsString();
+        using var doc = JsonDocument.Parse(json);
+        var cfg = doc.RootElement;
+
+        string? CfgString(string key) =>
+            cfg.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        double? CfgNumber(string key) =>
+            cfg.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
+
+        var headers = new Dictionary<string, string>();
+        if (cfg.TryGetProperty("headers", out var rawHeaders) && rawHeaders.ValueKind == JsonValueKind.Object)
+            foreach (var h in rawHeaders.EnumerateObject())
+                headers[h.Name] = h.Value.ValueKind == JsonValueKind.String ? h.Value.GetString()! : h.Value.ToString();
+
+        WebviewConfig = new WebViewConfig(
+            Url: PropertyNamed("url")?.StringValue ?? CfgString("url") ?? "",
+            UserAgent: CfgString("userAgent"),
+            Headers: headers,
+            OffsetX: PropertyNamed("offsetX")?.DoubleValue ?? CfgNumber("offsetX") ?? 0,
+            OffsetY: PropertyNamed("offsetY")?.DoubleValue ?? CfgNumber("offsetY") ?? 0,
+            Zoom: PropertyNamed("zoom")?.DoubleValue ?? CfgNumber("zoom") ?? 1);
     }
 
     public PropertyValue? PropertyNamed(string name) =>

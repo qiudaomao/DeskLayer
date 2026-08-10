@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DeskLayer.Core\DeskLayer.Core.csproj" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
     <PackageReference Include="Vortice.Direct2D1" Version="2.4.2" />
     <PackageReference Include="Vortice.Direct3D11" Version="2.4.2" />
   </ItemGroup>

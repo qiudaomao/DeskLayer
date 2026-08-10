@@ -121,6 +121,17 @@ public sealed class WallpaperEngine : IDisposable
 
     private readonly List<FloatingItem> floatingItems = new();
 
+    /// A webview item: config resolved at boot (the Jint engine is disposed
+    /// right after), hosted entirely on the UI thread.
+    private sealed class WebItem
+    {
+        public required LayoutItem Layout;
+        public required WebViewConfig Config;
+        public WebViewHostWindow? Host; // UI thread only
+    }
+
+    private readonly List<WebItem> webItems = new();
+
     private void RenderLoop()
     {
         ID3D11Device? d3d = null;
@@ -190,9 +201,11 @@ public sealed class WallpaperEngine : IDisposable
                     foreach (var item in items) item.Dispose();
                     items.Clear();
                     DisposeFloatingItems();
+                    DisposeWebItems();
                     items.AddRange(BuildItems(dc, d2dFactory, dwrite));
                     BuildFloatingItems();
-                    log($"spawned {items.Count} wallpaper + {floatingItems.Count} floating items");
+                    BuildWebItems();
+                    log($"spawned {items.Count} wallpaper + {floatingItems.Count} floating + {webItems.Count} webview items");
                 }
 
                 // UI events destined for Jint (actions, drag writebacks).
@@ -329,6 +342,7 @@ public sealed class WallpaperEngine : IDisposable
 
             foreach (var item in items) item.Dispose();
             DisposeFloatingItems();
+            DisposeWebItems();
             wallpaper?.Dispose();
             ReleaseSwapChain();
         }
@@ -363,8 +377,8 @@ public sealed class WallpaperEngine : IDisposable
                 engine => engine.SetValue("$system", systemStats));
             if (instance == null || instance.Mode == RenderMode.Webview)
             {
-                log($"{layoutItem.PluginId}: skipped ({(instance == null ? "boot failed" : "webview: M3")})");
-                instance?.Dispose();
+                if (instance == null) log($"{layoutItem.PluginId}: boot failed");
+                instance?.Dispose(); // webview items are built by BuildWebItems
                 continue;
             }
 
@@ -425,8 +439,9 @@ public sealed class WallpaperEngine : IDisposable
                 engine => engine.SetValue("$system", systemStats));
             if (instance == null || instance.Mode != RenderMode.Declarative)
             {
-                log($"{layoutItem.PluginId}: floating skipped ({(instance == null ? "boot failed" : "only declarative floats yet")})");
-                instance?.Dispose();
+                if (instance is { Mode: RenderMode.Canvas })
+                    log($"{layoutItem.PluginId}: floating canvas not supported yet (M3 follow-up)");
+                instance?.Dispose(); // webview floats are built by BuildWebItems
                 continue;
             }
             floatingItems.Add(new FloatingItem { Layout = layoutItem, Instance = instance });
@@ -522,6 +537,72 @@ public sealed class WallpaperEngine : IDisposable
                 .Select(item => item.Id == itemId ? item with { NormalizedFrame = moved } : item)
                 .ToList(),
         }, quiet: true);
+    }
+
+    // ---- webview items ----
+
+    private void BuildWebItems()
+    {
+        foreach (var layoutItem in store.Layout.Items)
+        {
+            if (!layoutItem.IsEnabled) continue;
+            var plugin = registry.Plugin(layoutItem.PluginId);
+            if (plugin == null) continue;
+
+            // Cheap mode probe: boot, harvest the config, discard the engine.
+            using var instance = PluginInstance.Boot(
+                layoutItem.PluginId,
+                File.ReadAllText(plugin.SourcePath),
+                layoutItem.PropertyOverrides,
+                message => log($"[{layoutItem.PluginId}] {message}"));
+            if (instance?.Mode != RenderMode.Webview || instance.WebviewConfig == null) continue;
+
+            var webItem = new WebItem { Layout = layoutItem, Config = instance.WebviewConfig };
+            webItems.Add(webItem);
+            PostToUi?.Invoke(() => CreateWebHost(webItem));
+        }
+    }
+
+    private void DisposeWebItems()
+    {
+        foreach (var webItem in webItems)
+        {
+            var captured = webItem;
+            PostToUi?.Invoke(() => { captured.Host?.Dispose(); captured.Host = null; });
+        }
+        webItems.Clear();
+    }
+
+    /// UI thread: create the window, then reparent wallpaper-target ones
+    /// under WorkerW (they sit above the D2D wallpaper window as a later
+    /// sibling).
+    private void CreateWebHost(WebItem webItem)
+    {
+        var frame = webItem.Layout.NormalizedFrame;
+        var pixelRect = new System.Drawing.RectangleF(
+            (float)(frame.X * screenBounds.Width),
+            (float)((1 - frame.Y - frame.H) * screenBounds.Height),
+            (float)(frame.W * screenBounds.Width),
+            (float)(frame.H * screenBounds.Height));
+        var scale = screenBounds.Width / System.Windows.SystemParameters.PrimaryScreenWidth;
+
+        var host = new WebViewHostWindow(webItem.Config, webItem.Layout, pixelRect, scale,
+            message => log($"[{webItem.Layout.PluginId}] {message}"));
+        webItem.Host = host;
+        host.Window.Show();
+
+        if (webItem.Layout.Target == RenderTarget.Wallpaper)
+        {
+            var (target, strategy) = Native.FindWallpaperHost();
+            if (target == IntPtr.Zero)
+            {
+                log($"[{webItem.Layout.PluginId}] no wallpaper host for webview yet");
+                return;
+            }
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(host.Window).Handle;
+            Native.SetParent(hwnd, target);
+            log($"[{webItem.Layout.PluginId}] webview attached via {strategy}");
+        }
     }
 
     // ---- wallpaper base layer ----
