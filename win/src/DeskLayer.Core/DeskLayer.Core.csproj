@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeskLayer.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The canonical prelude from shared/ ships inside the assembly so the
+         runtime never depends on repo layout. -->
+    <EmbeddedResource Include="..\..\..\shared\runtime\prelude.js" Link="prelude.js" LogicalName="DeskLayer.Core.prelude.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Jint" Version="3.1.2" />
+  </ItemGroup>
+</Project>
