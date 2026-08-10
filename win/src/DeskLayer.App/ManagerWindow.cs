@@ -8,10 +8,12 @@
 // Built in code (no XAML) like the rest of the app. Normal activatable
 // window — the only one the app shows in the taskbar.
 
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using DeskLayer.Core.Js;
 using DeskLayer.Core.Model;
 
 namespace DeskLayer.App;
@@ -87,12 +89,17 @@ public sealed class ManagerWindow : Window
         add.Click += (_, _) => AddSelectedPlugin();
         DockPanel.SetDock(add, Dock.Bottom);
 
+        var create = new Button { Content = "New plugin…", Margin = new Thickness(4, 4, 4, 0), Padding = new Thickness(8, 4, 8, 4) };
+        create.Click += (_, _) => CreatePluginTemplate();
+        DockPanel.SetDock(create, Dock.Bottom);
+
         library.Background = Brushes.Transparent;
         library.BorderThickness = new Thickness(0);
         library.Foreground = Brushes.White;
 
         panel.Children.Add(header);
         panel.Children.Add(add);
+        panel.Children.Add(create);
         panel.Children.Add(library);
         return panel;
     }
@@ -102,6 +109,44 @@ public sealed class ManagerWindow : Window
         library.Items.Clear();
         foreach (var plugin in registry.Plugins)
             library.Items.Add(plugin.Id);
+    }
+
+    /// Writes a starter plugin into the plugins directory; the registry's
+    /// watcher picks it up. (The mac's LLM-assisted authoring stays mac-only
+    /// for now; authors edit the file with any editor and hot reload does
+    /// the rest.)
+    private void CreatePluginTemplate()
+    {
+        var name = "NewPlugin";
+        var index = 1;
+        while (File.Exists(Path.Combine(PluginRegistry.PluginsDirectory, $"{name}.js")))
+            name = $"NewPlugin{++index}";
+        File.WriteAllText(Path.Combine(PluginRegistry.PluginsDirectory, $"{name}.js"), """
+            let properties = [
+                { "name": "fps", "valueType": "number", "value": "1" },
+                { "name": "label", "valueType": "string", "value": "Hello" }
+            ];
+
+            const prop = n => properties.find(p => p.name === n).value;
+
+            render = () => view([
+                VStack([
+                    Text(String(prop("label"))).fontSize(18).bold().textColor("white"),
+                    Text("edit me in the plugins folder").fontSize(11).textColor("#ffffff99")
+                ]).spacing(6).padding(14).background("#101418e6").cornerRadius(12)
+            ]);
+
+            plugin.export = {
+                version: "1.0.0",
+                author: "You",
+                description: "A starter card.",
+                width: 220, height: 90,
+                properties,
+                render
+            };
+
+            """);
+        registry.Rescan();
     }
 
     private void AddSelectedPlugin()
@@ -298,6 +343,53 @@ public sealed class ManagerWindow : Window
         sizeRow.Children.Add(width);
         sizeRow.Children.Add(height);
         inspector.Children.Add(sizeRow);
+
+        // Declared plugin properties — edits become per-item overrides,
+        // coerced by the declared valueType exactly like the runtime does.
+        var plugin = registry.Plugin(item.PluginId);
+        if (plugin != null)
+        {
+            IReadOnlyList<PluginProperty>? declared = null;
+            try
+            {
+                using var probe = PluginInstance.Boot(item.PluginId,
+                    File.ReadAllText(plugin.SourcePath), item.PropertyOverrides);
+                declared = probe?.Properties;
+            }
+            catch (IOException) { }
+            if (declared is { Count: > 0 })
+            {
+                inspector.Children.Add(new TextBlock
+                {
+                    Text = "Properties",
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 16, 0, 0),
+                });
+                foreach (var property in declared)
+                {
+                    inspector.Children.Add(Label($"{property.Name} ({property.ValueType})"));
+                    var box = new TextBox { Text = property.Value.StringValue };
+                    var propertyName = property.Name;
+                    var valueType = property.ValueType;
+                    box.LostFocus += (_, _) =>
+                    {
+                        var coerced = PropertyValue.Coerce(box.Text, valueType);
+                        if (coerced == null) return;
+                        Commit(i =>
+                        {
+                            var overrides = new Dictionary<string, PropertyValue>(
+                                i.PropertyOverrides.ToDictionary(kv => kv.Key, kv => kv.Value))
+                            {
+                                [propertyName] = coerced.Value,
+                            };
+                            return i with { PropertyOverrides = overrides };
+                        });
+                    };
+                    inspector.Children.Add(box);
+                }
+            }
+        }
 
         var delete = new Button
         {

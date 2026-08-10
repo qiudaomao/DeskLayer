@@ -38,7 +38,7 @@ public sealed class SystemStatsBinding
                 ["cores"] = (double)Environment.ProcessorCount,
                 ["memory"] = Memory(),
                 ["disk"] = Disk(),
-                ["network"] = new Dictionary<string, object> { ["rxBytes"] = 0.0, ["txBytes"] = 0.0 },
+                ["network"] = Network(),
                 ["uptime"] = Environment.TickCount64 / 1000.0,
                 ["thermalState"] = 0.0,
             };
@@ -72,6 +72,30 @@ public sealed class SystemStatsBinding
             ["used"] = (double)(status.TotalPhys - status.AvailPhys),
             ["free"] = (double)status.AvailPhys,
         };
+    }
+
+    /// Cumulative bytes over up, non-loopback interfaces since boot;
+    /// plugins diff samples to get rates (mac parity).
+    private static Dictionary<string, object> Network()
+    {
+        double rx = 0, tx = 0;
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                if (nic.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Loopback
+                    or System.Net.NetworkInformation.NetworkInterfaceType.Tunnel) continue;
+                var stats = nic.GetIPStatistics();
+                rx += stats.BytesReceived;
+                tx += stats.BytesSent;
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException)
+        {
+            // Leave zeros; better than throwing into plugin JS.
+        }
+        return new Dictionary<string, object> { ["rxBytes"] = rx, ["txBytes"] = tx };
     }
 
     private static Dictionary<string, object> Disk()

@@ -54,6 +54,7 @@ public sealed class PluginInstance : IDisposable
     public WebViewConfig? WebviewConfig { get; private set; }
 
     private readonly Engine engine;
+    private JsBindings? bindings;
     private readonly JsValue renderFunction;
     private List<PluginProperty> properties = new();
     public IReadOnlyList<PluginProperty> Properties => properties;
@@ -88,6 +89,13 @@ public sealed class PluginInstance : IDisposable
             var logSink = log ?? (_ => { });
             engine.SetValue("__dl_log", logSink);
             engine.Execute("var plugin = { export: null }; var console = { log: __dl_log, error: __dl_log, warn: __dl_log };");
+            // A throwing async callback marks the instance errored (the mac
+            // afterCallback/checkException parity); the reference is wired
+            // after construction.
+            PluginInstance? created = null;
+            var bindings = new JsBindings(engine, logSink,
+                () => created?.MarkErrored("async callback threw (see log)"));
+            bindings.Install();
             engine.Execute(PreludeSource);
             configureEngine?.Invoke(engine); // host bindings ($system, …)
             engine.Execute(source);
@@ -111,6 +119,8 @@ public sealed class PluginInstance : IDisposable
             }
 
             var instance = new PluginInstance(pluginId, engine, render);
+            created = instance;
+            instance.bindings = bindings;
 
             // Mode: explicit plugin.export.mode wins; else render's arity —
             // render(ctx) is canvas, render() is declarative (mac parity).
@@ -301,5 +311,16 @@ public sealed class PluginInstance : IDisposable
         ErrorMessage = message;
     }
 
-    public void Dispose() => engine.Dispose();
+    /// Runs due timers and completed fetch/WebSocket callbacks. Call from
+    /// the owning thread once per frame tick.
+    public void Pump()
+    {
+        if (!IsErrored) bindings?.Pump();
+    }
+
+    public void Dispose()
+    {
+        bindings?.Dispose();
+        engine.Dispose();
+    }
 }

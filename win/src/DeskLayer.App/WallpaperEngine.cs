@@ -211,6 +211,11 @@ public sealed class WallpaperEngine : IDisposable
                 // UI events destined for Jint (actions, drag writebacks).
                 while (renderQueue.TryDequeue(out var queued)) queued();
 
+                // Timers and completed fetch/WebSocket callbacks (Jint runs
+                // only here, on its owning thread).
+                foreach (var item in items) item.Instance.Pump();
+                foreach (var floating in floatingItems) floating.Instance.Pump();
+
                 var now = clock.Elapsed.TotalSeconds;
                 foreach (var item in items)
                 {
