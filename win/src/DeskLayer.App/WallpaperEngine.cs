@@ -490,7 +490,22 @@ public sealed class WallpaperEngine : IDisposable
             if (!item.Layout.PropertyOverrides.TryGetValue(name, out var old) || !old.Equals(value))
                 item.Instance.ApplyOverride(name, value);
         }
+        // SSH destinations aren't part of the spawn identity — re-resolve so
+        // an inspector edit reaches the running instance without a respawn.
+        WireSsh(layout, item.Instance);
         item.Layout = layout;
+    }
+
+    /// Resolve an item's SSH destinations for an ssh-permitted instance. An
+    /// alias entry stays an alias — the bundled OpenSSH resolves hostname,
+    /// user, port, and identity from ~/.ssh/config, same as `ssh <alias>`.
+    private static void WireSsh(LayoutItem layout, PluginInstance instance)
+    {
+        if (!instance.Permissions.Contains("ssh")) return;
+        instance.ConfigureSsh(layout.SshHosts.Select(h => h.UsesAlias
+            ? new HostBindings.ResolvedSsh(h.Name, h.Host, 22, "", null)
+            : new HostBindings.ResolvedSsh(h.Name, h.Host, h.Port, h.User,
+                h.KeyPath.Length == 0 ? null : h.KeyPath)).ToList());
     }
 
     private Item? SpawnItem(LayoutItem layoutItem, ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite)
@@ -516,6 +531,7 @@ public sealed class WallpaperEngine : IDisposable
                 return null;
             }
             WireHooks(layoutItem, instance);
+            WireSsh(layoutItem, instance);
 
             // Bottom-left-origin normalized frame → top-left pixel rect.
             var frame = layoutItem.NormalizedFrame;
@@ -601,6 +617,7 @@ public sealed class WallpaperEngine : IDisposable
                 continue;
             }
             WireHooks(layoutItem, instance);
+            WireSsh(layoutItem, instance);
             floatingItems.Add(new FloatingItem { Layout = layoutItem, Instance = instance });
         }
     }

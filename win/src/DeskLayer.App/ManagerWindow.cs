@@ -134,7 +134,10 @@ public sealed class ManagerWindow : Window
             Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                 new Action(() =>
                 {
-                    if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_PLUGIN") is { Length: > 0 } pluginSel)
+                    if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_ITEM") is { Length: > 0 } itemSel
+                        && store.Layout.Items.FirstOrDefault(i => i.PluginId == itemSel) is { } itemMatch)
+                        SelectItem(itemMatch.Id);
+                    else if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_PLUGIN") is { Length: > 0 } pluginSel)
                         SelectPlugin(pluginSel);
                     else if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_STORE") is { Length: > 0 } storeSel
                              && storeRegistry.Stores.FirstOrDefault(s => s.DisplayName == storeSel) is { } entry)
@@ -727,11 +730,37 @@ public sealed class ManagerWindow : Window
         foreach (var item in store.Layout.Items)
         {
             var frame = item.NormalizedFrame;
+            var isSelected = item.Id == selectedItemId;
+            var content = new Grid();
+            content.Children.Add(new TextBlock
+            {
+                Text = item.PluginId,
+                Foreground = Brushes.White,
+                FontSize = 10,
+                Margin = new Thickness(5, 3, 5, 3),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+            });
+            // Resize grip — visible on the selected item only.
+            var grip = new Border
+            {
+                Width = 12,
+                Height = 12,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                CornerRadius = new CornerRadius(5, 0, 4, 0),
+                Cursor = Cursors.SizeNWSE,
+                Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed,
+            };
+            content.Children.Add(grip);
             var rect = new Border
             {
+                Tag = item.Id,
                 Width = Math.Max(28, frame.W * screenBounds.Width * scale),
                 Height = Math.Max(20, frame.H * screenBounds.Height * scale),
-                Background = new SolidColorBrush(item.Id == selectedItemId
+                Background = new SolidColorBrush(isSelected
                     ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
                     : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44)),
                 BorderBrush = item.Target == RenderTarget.FloatingWindow
@@ -741,19 +770,29 @@ public sealed class ManagerWindow : Window
                 CornerRadius = new CornerRadius(5),
                 Cursor = Cursors.SizeAll,
                 Opacity = item.IsEnabled ? 1 : 0.4,
-                Child = new TextBlock
-                {
-                    Text = item.PluginId,
-                    Foreground = Brushes.White,
-                    FontSize = 10,
-                    Margin = new Thickness(5, 3, 5, 3),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                },
+                Child = content,
             };
             Canvas.SetLeft(rect, frame.X * screenBounds.Width * scale);
             Canvas.SetTop(rect, (1 - frame.Y - frame.H) * screenBounds.Height * scale);
             WireDrag(rect, item.Id);
+            WireResize(rect, grip, item.Id);
             overview.Children.Add(rect);
+        }
+    }
+
+    /// Recolors the preview rects for a selection change without rebuilding
+    /// them — rebuilding mid-mousedown would destroy the border being
+    /// dragged and kill the drag.
+    private void HighlightOverviewSelection()
+    {
+        foreach (var child in overview.Children.OfType<Border>())
+        {
+            var isSelected = child.Tag is Guid id && id == selectedItemId;
+            child.Background = new SolidColorBrush(isSelected
+                ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
+                : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44));
+            if (child.Child is Grid content && content.Children.Count > 1)
+                content.Children[1].Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
@@ -766,15 +805,27 @@ public sealed class ManagerWindow : Window
         return Math.Min(available.Width / screenBounds.Width, available.Height / screenBounds.Height);
     }
 
+    /// Select in place — sidebar and inspector refresh, but the overview
+    /// rects are only recolored, so a drag that begins on the same click
+    /// keeps its Border alive.
+    private void SelectItemInPlace(Guid itemId)
+    {
+        selectedItemId = itemId;
+        selectedPluginId = null;
+        selectedStoreUrl = null;
+        selectedStorePlugin = null;
+        RefreshSidebar();
+        RefreshInspector();
+        HighlightOverviewSelection();
+    }
+
     private void WireDrag(Border rect, Guid itemId)
     {
         Point grab = default;
         var dragging = false;
         rect.MouseLeftButtonDown += (_, e) =>
         {
-            SelectItem(itemId);
-            // Selection rebuilt the overview; find our replacement border to
-            // drag, or keep dragging this one (still visually attached).
+            SelectItemInPlace(itemId);
             grab = e.GetPosition(rect);
             dragging = true;
             rect.CaptureMouse();
@@ -799,6 +850,54 @@ public sealed class ManagerWindow : Window
             {
                 Items = layout.Items.Select(item => item.Id == itemId
                     ? item with { NormalizedFrame = item.NormalizedFrame with { X = x, Y = 1 - top - item.NormalizedFrame.H } }
+                    : item).ToList(),
+            });
+        };
+    }
+
+    /// Bottom-right grip: resizing keeps the top-left corner put (the mac
+    /// frame model — y is the top edge, height grows downward).
+    private void WireResize(Border rect, Border grip, Guid itemId)
+    {
+        Point start = default;
+        Size startSize = default;
+        var resizing = false;
+        grip.MouseLeftButtonDown += (_, e) =>
+        {
+            SelectItemInPlace(itemId);
+            start = e.GetPosition(overview);
+            startSize = new Size(rect.Width, rect.Height);
+            resizing = true;
+            grip.CaptureMouse();
+            e.Handled = true; // don't start the move-drag underneath
+        };
+        grip.MouseMove += (_, e) =>
+        {
+            if (!resizing) return;
+            var p = e.GetPosition(overview);
+            var maxW = overview.Width - Canvas.GetLeft(rect);
+            var maxH = overview.Height - Canvas.GetTop(rect);
+            rect.Width = Math.Clamp(startSize.Width + (p.X - start.X), 24, Math.Max(24, maxW));
+            rect.Height = Math.Clamp(startSize.Height + (p.Y - start.Y), 18, Math.Max(18, maxH));
+            e.Handled = true;
+        };
+        grip.MouseLeftButtonUp += (_, e) =>
+        {
+            if (!resizing) return;
+            resizing = false;
+            grip.ReleaseMouseCapture();
+            e.Handled = true;
+            var scale = OverviewScale();
+            var w = rect.Width / scale / screenBounds.Width;
+            var h = rect.Height / scale / screenBounds.Height;
+            var top = Canvas.GetTop(rect) / scale / screenBounds.Height;
+            store.Update(layout => layout with
+            {
+                Items = layout.Items.Select(item => item.Id == itemId
+                    ? item with
+                    {
+                        NormalizedFrame = item.NormalizedFrame with { W = w, H = h, Y = 1 - top - h },
+                    }
                     : item).ToList(),
             });
         };
@@ -935,20 +1034,7 @@ public sealed class ManagerWindow : Window
         background.LostFocus += (_, _) => Commit(i => i with { BackgroundColor = background.Text.Length == 0 ? null : background.Text });
         inspector.Children.Add(background);
 
-        inspector.Children.Add(Caption("Size (fraction of screen)"));
-        var sizeRow = new StackPanel { Orientation = Orientation.Horizontal };
-        var width = new TextBox { Text = item.NormalizedFrame.W.ToString("0.###"), Width = 76 };
-        var height = new TextBox { Text = item.NormalizedFrame.H.ToString("0.###"), Width = 76, Margin = new Thickness(8, 0, 0, 0) };
-        void CommitSize()
-        {
-            if (double.TryParse(width.Text, out var w) && double.TryParse(height.Text, out var h) && w > 0.01 && h > 0.01)
-                Commit(i => i with { NormalizedFrame = i.NormalizedFrame with { W = w, H = h } });
-        }
-        width.LostFocus += (_, _) => CommitSize();
-        height.LostFocus += (_, _) => CommitSize();
-        sizeRow.Children.Add(width);
-        sizeRow.Children.Add(height);
-        inspector.Children.Add(sizeRow);
+        AddFrameEditor(item, Commit);
 
         var plugin = registry.Plugin(item.PluginId);
         AddPropertyAndPermissionEditors(item, plugin, Commit);
@@ -961,6 +1047,70 @@ public sealed class ManagerWindow : Window
             store.Update(layout => layout with { Items = layout.Items.Where(i => i.Id != item.Id).ToList() });
         };
         inspector.Children.Add(delete);
+    }
+
+    /// The mac FrameEditor: percent is what's stored, points are what an
+    /// author actually thinks in — X/Y edit the top-left corner against the
+    /// item's display, height grows downward.
+    private void AddFrameEditor(LayoutItem item, Action<Func<LayoutItem, LayoutItem>> commit)
+    {
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Frame (points)", Margin = new Thickness(2, 18, 0, 2) });
+        double sw = screenBounds.Width, sh = screenBounds.Height;
+        var frame = item.NormalizedFrame;
+
+        var x = new TextBox { Text = Math.Round(frame.X * sw).ToString("0") };
+        var y = new TextBox { Text = Math.Round((1 - frame.Y - frame.H) * sh).ToString("0") };
+        var w = new TextBox { Text = Math.Round(frame.W * sw).ToString("0") };
+        var h = new TextBox { Text = Math.Round(frame.H * sh).ToString("0") };
+
+        void CommitFrame()
+        {
+            if (!double.TryParse(x.Text, out var px) || !double.TryParse(y.Text, out var py) ||
+                !double.TryParse(w.Text, out var pw) || !double.TryParse(h.Text, out var ph)) return;
+            px = Math.Clamp(px, 0, sw);
+            py = Math.Clamp(py, 0, sh);
+            pw = Math.Max(pw, 8);
+            ph = Math.Max(ph, 8);
+            // Back to bottom-left for storage; y is the top edge and stays put.
+            var bottom = Math.Max(sh - py - ph, 0);
+            commit(i => i with
+            {
+                NormalizedFrame = new NormalizedFrame(
+                    Math.Min(px / sw, 1), Math.Min(bottom / sh, 1),
+                    Math.Min(pw / sw, 1), Math.Min(ph / sh, 1)),
+            });
+        }
+
+        var grid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var row = 0;
+        void AddField(string label, TextBox box, int column)
+        {
+            var cell = new StackPanel();
+            cell.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                Margin = new Thickness(2, row == 0 ? 0 : 8, 0, 2),
+            });
+            box.LostFocus += (_, _) => CommitFrame();
+            box.KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitFrame(); };
+            cell.Children.Add(box);
+            Grid.SetColumn(cell, column);
+            Grid.SetRow(cell, row);
+            grid.Children.Add(cell);
+        }
+        grid.RowDefinitions.Add(new RowDefinition());
+        grid.RowDefinitions.Add(new RowDefinition());
+        AddField("X", x, 0);
+        AddField("Y (from top)", y, 2);
+        row = 1;
+        AddField("Width", w, 0);
+        AddField("Height", h, 2);
+        inspector.Children.Add(grid);
     }
 
     private void AddPropertyAndPermissionEditors(LayoutItem item, InstalledPlugin? plugin, Action<Func<LayoutItem, LayoutItem>> commit)
@@ -987,6 +1137,223 @@ public sealed class ManagerWindow : Window
                 TextWrapping = TextWrapping.Wrap,
             });
         }
+
+        if (permissions?.Contains("ssh") == true)
+            AddSshEditor(item, commit);
+
+        AddDeclaredPropertyEditors(item, declared, commit);
+    }
+
+    /// The mac SSHEditor: one or more remote hosts per item. Alias mode is
+    /// the common case — Windows' bundled OpenSSH reads the same
+    /// ~/.ssh/config, so an alias resolves host, user, port, and key.
+    private void AddSshEditor(LayoutItem item, Action<Func<LayoutItem, LayoutItem>> commit)
+    {
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "SSH Destinations", Margin = new Thickness(2, 18, 0, 6) });
+        var aliases = SshConfigFile.Aliases();
+        var hosts = item.SshHosts.Count > 0 ? item.SshHosts.ToList() : new List<SshConfig> { new() };
+        void Push(List<SshConfig> updated) => commit(i => i with { SshHosts = updated });
+        List<SshConfig> With(int index, SshConfig replacement)
+        {
+            var copy = hosts.ToList();
+            copy[index] = replacement;
+            return copy;
+        }
+
+        for (var index = 0; index < hosts.Count; index++)
+        {
+            var idx = index;
+            var host = hosts[idx];
+
+            // Name row, with remove when there is more than one host.
+            var header = new Grid { Margin = new Thickness(0, idx == 0 ? 0 : 10, 0, 0) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var name = new TextBox { Text = host.Name, FontWeight = FontWeights.SemiBold };
+            name.LostFocus += (_, _) =>
+            {
+                var trimmed = name.Text.Trim();
+                if (trimmed.Length > 0 && trimmed != host.Name) Push(With(idx, host with { Name = trimmed }));
+            };
+            header.Children.Add(name);
+            if (hosts.Count > 1)
+            {
+                var remove = IconButton("", "Remove this server", () =>
+                {
+                    var copy = hosts.ToList();
+                    copy.RemoveAt(idx);
+                    Push(copy);
+                });
+                remove.Margin = new Thickness(6, 0, 0, 0);
+                remove.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(remove, 1);
+                header.Children.Add(remove);
+            }
+            inspector.Children.Add(header);
+
+            var usesAlias = new CheckBox
+            {
+                Content = "Use ~/.ssh/config alias",
+                IsChecked = host.UsesAlias,
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            usesAlias.Checked += (_, _) => Push(With(idx, host with { UsesAlias = true }));
+            usesAlias.Unchecked += (_, _) => Push(With(idx, host with { UsesAlias = false }));
+            inspector.Children.Add(usesAlias);
+
+            if (host.UsesAlias)
+            {
+                inspector.Children.Add(Caption("Alias"));
+                if (aliases.Count == 0)
+                {
+                    var aliasBox = new TextBox { Text = host.Host };
+                    aliasBox.LostFocus += (_, _) =>
+                    {
+                        if (aliasBox.Text.Trim() != host.Host)
+                            Push(With(idx, host with { Host = aliasBox.Text.Trim() }));
+                    };
+                    inspector.Children.Add(aliasBox);
+                    inspector.Children.Add(new TextBlock
+                    {
+                        Text = "No hosts found in ~/.ssh/config.",
+                        FontSize = 10,
+                        Foreground = (Brush)FindResource("TextSecondary"),
+                        Margin = new Thickness(0, 4, 0, 0),
+                    });
+                }
+                else
+                {
+                    var choices = new List<string>(aliases);
+                    if (host.Host.Length > 0 && !choices.Contains(host.Host)) choices.Insert(0, host.Host);
+                    var picker = new ComboBox
+                    {
+                        ItemsSource = choices,
+                        SelectedItem = host.Host.Length > 0 ? host.Host : null,
+                    };
+                    picker.SelectionChanged += (_, _) =>
+                    {
+                        if (picker.SelectedItem is not string alias || alias == host.Host) return;
+                        var updated = host with { Host = alias };
+                        // Adopt the alias as the name unless the user set one.
+                        if (host.Name.Length == 0 || host.Name.StartsWith("server", StringComparison.Ordinal) || host.Name == "default")
+                            updated = updated with { Name = alias };
+                        Push(With(idx, updated));
+                    };
+                    inspector.Children.Add(picker);
+                    inspector.Children.Add(new TextBlock
+                    {
+                        Text = "ssh resolves the host name, user, port, and key.",
+                        FontSize = 10,
+                        Foreground = (Brush)FindResource("TextSecondary"),
+                        Margin = new Thickness(0, 4, 0, 0),
+                    });
+                }
+            }
+            else
+            {
+                inspector.Children.Add(Caption("Host"));
+                var hostBox = new TextBox { Text = host.Host };
+                hostBox.LostFocus += (_, _) =>
+                {
+                    if (hostBox.Text.Trim() != host.Host) Push(With(idx, host with { Host = hostBox.Text.Trim() }));
+                };
+                inspector.Children.Add(hostBox);
+
+                inspector.Children.Add(Caption("Port"));
+                var portBox = new TextBox { Text = host.Port.ToString() };
+                portBox.LostFocus += (_, _) =>
+                {
+                    if (int.TryParse(portBox.Text, out var port) && port != host.Port && port is > 0 and < 65536)
+                        Push(With(idx, host with { Port = port }));
+                };
+                inspector.Children.Add(portBox);
+
+                inspector.Children.Add(Caption("User"));
+                var userBox = new TextBox { Text = host.User };
+                userBox.LostFocus += (_, _) =>
+                {
+                    if (userBox.Text.Trim() != host.User) Push(With(idx, host with { User = userBox.Text.Trim() }));
+                };
+                inspector.Children.Add(userBox);
+
+                inspector.Children.Add(Caption("Auth"));
+                var auth = new ComboBox
+                {
+                    ItemsSource = new[] { "SSH agent", "Identity key" },
+                    SelectedIndex = host.Auth == SshAuth.Key ? 1 : 0,
+                };
+                auth.SelectionChanged += (_, _) =>
+                {
+                    var picked = auth.SelectedIndex == 1 ? SshAuth.Key : SshAuth.None;
+                    if (picked != host.Auth) Push(With(idx, host with { Auth = picked }));
+                };
+                inspector.Children.Add(auth);
+
+                if (host.Auth == SshAuth.Key)
+                {
+                    var keyRow = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+                    keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    keyRow.Children.Add(new TextBlock
+                    {
+                        Text = host.KeyPath.Length == 0 ? "No key chosen" : Path.GetFileName(host.KeyPath),
+                        FontSize = 11,
+                        Foreground = (Brush)FindResource("TextSecondary"),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        ToolTip = host.KeyPath.Length == 0 ? null : host.KeyPath,
+                    });
+                    var choose = new Button { Content = "Choose…", Padding = new Thickness(8, 4, 8, 4) };
+                    choose.Click += (_, _) =>
+                    {
+                        var dialog = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Choose an SSH identity (private key) file",
+                            InitialDirectory = Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh"),
+                        };
+                        if (dialog.ShowDialog(this) == true)
+                            Push(With(idx, host with { KeyPath = dialog.FileName }));
+                    };
+                    Grid.SetColumn(choose, 1);
+                    keyRow.Children.Add(choose);
+                    inspector.Children.Add(keyRow);
+                }
+                else
+                {
+                    inspector.Children.Add(new TextBlock
+                    {
+                        Text = "Uses your ssh agent. (Password auth isn't supported on Windows.)",
+                        FontSize = 10,
+                        Foreground = (Brush)FindResource("TextSecondary"),
+                        Margin = new Thickness(0, 4, 0, 0),
+                    });
+                }
+            }
+        }
+
+        var addServer = new Button { Content = "+ Add Server", Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        addServer.Click += (_, _) =>
+        {
+            var n = hosts.Count + 1;
+            while (hosts.Any(h => h.Name == $"server{n}")) n++;
+            var copy = hosts.ToList();
+            copy.Add(new SshConfig { Name = $"server{n}" });
+            Push(copy);
+        };
+        inspector.Children.Add(addServer);
+        if (hosts.Count > 1)
+            inspector.Children.Add(new TextBlock
+            {
+                Text = $"Plugins target a server by name: ssh(cmd, \"{hosts[1].Name}\").",
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                Margin = new Thickness(0, 4, 0, 0),
+            });
+    }
+
+    private void AddDeclaredPropertyEditors(LayoutItem item, IReadOnlyList<PluginProperty>? declared, Action<Func<LayoutItem, LayoutItem>> commit)
+    {
 
         if (declared is { Count: > 0 })
         {
