@@ -9,6 +9,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using DeskLayer.Core;
 using DeskLayer.Core.Model;
 
 namespace DeskLayer.App;
@@ -80,6 +81,10 @@ internal static class Program
         if (store.Layout.Items.Count == 0 && registry.Plugins.Count > 0)
             store.Update(_ => DefaultLayout(registry));
 
+        var storeRegistry = new PluginStoreRegistry(Log);
+        var pluginUpdater = new PluginUpdater(Log);
+        _ = CheckPluginAutoUpdates(registry, pluginUpdater); // fire-and-forget on launch
+
         var screen = Screen.PrimaryScreen!.Bounds;
         var engine = new WallpaperEngine(store, registry, screen, Log);
         registry.DidChange += engine.RequestRebuild;
@@ -143,9 +148,10 @@ internal static class Program
         watchdog.Tick += (_, _) => EnsureHost();
         watchdog.Start();
 
+        using var trayGlyph = TrayGlyphSafe();
         using var tray = new NotifyIcon
         {
-            Icon = TrayIcon() ?? System.Drawing.SystemIcons.Application,
+            Icon = trayGlyph ?? System.Drawing.SystemIcons.Application,
             Text = "DeskLayer",
             Visible = true,
         };
@@ -157,8 +163,17 @@ internal static class Program
                 manager.Activate();
                 return;
             }
-            manager = new ManagerWindow(store, registry, screen);
-            manager.Show();
+            try
+            {
+                manager = new ManagerWindow(store, registry, storeRegistry, pluginUpdater, screen,
+                    reopenToggled: () => { manager = null; OpenManager(); });
+                manager.Show();
+            }
+            catch (Exception ex)
+            {
+                manager = null;
+                Log($"manager failed to open: {ex}");
+            }
         }
 
         using var updater = new UpdateController();
@@ -177,7 +192,14 @@ internal static class Program
         menu.Items.Add("Exit", null, (_, _) => Application.Exit());
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) => OpenManager();
-        if (Environment.GetEnvironmentVariable("DESKLAYER_OPEN_MANAGER") == "1") OpenManager();
+        // Deferred so it opens once the message loop is pumping — a WPF window
+        // shown before Application.Run never renders its first frame.
+        if (Environment.GetEnvironmentVariable("DESKLAYER_OPEN_MANAGER") == "1")
+        {
+            var openTimer = new System.Windows.Forms.Timer { Interval = 400 };
+            openTimer.Tick += (_, _) => { openTimer.Stop(); OpenManager(); };
+            openTimer.Start();
+        }
 
         // Quiet launch check (unless disabled for scripted runs).
         if (Environment.GetEnvironmentVariable("DESKLAYER_NO_UPDATE_CHECK") != "1")
@@ -205,16 +227,27 @@ internal static class Program
         WallpaperRestore.Restore();
     }
 
-    /// The DeskLayer app icon, for the tray. Falls back to the system icon
-    /// if the resource is missing.
-    private static System.Drawing.Icon? TrayIcon()
+    /// On launch, update every plugin the user marked auto-update.
+    private static async Task CheckPluginAutoUpdates(PluginRegistry registry, PluginUpdater updater)
     {
-        try
+        var updated = false;
+        foreach (var plugin in registry.Plugins.ToList())
         {
-            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
-                .GetManifestResourceStream("DeskLayer.App.app.ico");
-            return stream != null ? new System.Drawing.Icon(stream, 32, 32) : null;
+            if (!updater.IsAutoUpdate(plugin.Id)) continue;
+            try
+            {
+                var result = await updater.Check(plugin.Id, File.ReadAllText(plugin.SourcePath), plugin.SourcePath);
+                if (result.Outcome == UpdateOutcome.Updated) { updated = true; Log($"[{plugin.Id}] {result.Message}"); }
+            }
+            catch (Exception ex) { Log($"[{plugin.Id}] auto-update failed: {ex.Message}"); }
         }
+        if (updated) registry.Rescan();
+    }
+
+    /// The monochrome stacked-layers tray glyph (mac menubar style).
+    private static System.Drawing.Icon? TrayGlyphSafe()
+    {
+        try { return TrayGlyph.Create(); }
         catch { return null; }
     }
 
