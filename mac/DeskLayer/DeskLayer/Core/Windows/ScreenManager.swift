@@ -85,13 +85,40 @@ final class ScreenManager: ObservableObject {
             object: nil
         )
         reconcile()
+        geometry = Self.currentGeometry()
     }
 
     func controller(forDisplayUUID uuid: String) -> DesktopWindowController? {
         controllers[uuid]
     }
 
+    /// What the runtime actually cares about: which displays exist, where,
+    /// at what scale. The notification fires for far more — a ProMotion
+    /// refresh switch, a Screen Sharing session renegotiating, another app
+    /// rebuilding the menu bar.
+    private var geometry: [String: String] = [:]
+
+    private static func currentGeometry() -> [String: String] {
+        var out: [String: String] = [:]
+        for screen in NSScreen.screens {
+            guard let uuid = displayUUID(for: screen) else { continue }
+            out[uuid] = "\(screen.frame)|\(screen.backingScaleFactor)"
+        }
+        return out
+    }
+
     @objc private func screensChanged() {
+        let new = Self.currentGeometry()
+        guard new != geometry else {
+            // Same displays, same geometry: only the mode can have changed,
+            // and the display link dies with it. Rebuild the links, leave
+            // the windows — and every running plugin — alone.
+            log.info("screen parameters changed without geometry; rebuilding links only")
+            for controller in controllers.values { controller.scheduler.rebuildLink() }
+            return
+        }
+        log.info("screen geometry changed")
+        geometry = new
         reconcile()
         onScreensChanged.send()
     }

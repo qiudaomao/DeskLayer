@@ -52,6 +52,11 @@ final class PluginRegistry: ObservableObject {
     let didChange = PassthroughSubject<Void, Never>()
 
     private var watcher: DispatchSourceFileSystemObject?
+    /// id|mtime|size|origin per plugin — what the last rescan saw. The
+    /// folder watcher fires for directory writes that change no plugin
+    /// (.DS_Store, Spotlight), and a rescan that finds nothing different
+    /// must not restart every running item.
+    private var scanFingerprint: String?
     private var propertiesCache: [String: [PluginProperty]] = [:]
     private var permissionsCache: [String: Set<String>] = [:]
     private var metadataCache: [String: PluginMetadata] = [:]
@@ -278,9 +283,6 @@ final class PluginRegistry: ObservableObject {
     }
 
     func rescan() {
-        propertiesCache.removeAll()
-        permissionsCache.removeAll()
-        metadataCache.removeAll()
         var found: [PluginDescriptor] = []
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: Self.directoryURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
@@ -304,6 +306,18 @@ final class PluginRegistry: ObservableObject {
                 }
             }
         }
+        let fingerprint = found.map { descriptor -> String in
+            let attrs = try? FileManager.default.attributesOfItem(atPath: descriptor.sourceURL.path)
+            let modified = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+            let size = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+            return "\(descriptor.id)|\(modified)|\(size)|\(descriptor.origin)"
+        }.sorted().joined(separator: "\n")
+        guard fingerprint != scanFingerprint else { return }
+        scanFingerprint = fingerprint
+
+        propertiesCache.removeAll()
+        permissionsCache.removeAll()
+        metadataCache.removeAll()
         plugins = found.sorted { $0.id < $1.id }
         log.info("plugins folder scan: \(self.plugins.map(\.id).joined(separator: ","), privacy: .public)")
         didChange.send()

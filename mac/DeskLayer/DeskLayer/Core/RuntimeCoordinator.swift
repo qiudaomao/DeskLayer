@@ -93,7 +93,12 @@ final class RuntimeCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
         screens.onScreensChanged
-            .sink { [weak self] in self?.rebuild() }
+            // Reconcile, not rebuild: a resize re-places every item (their
+            // frames are normalized), and only items whose display came or
+            // went are (re)spawned. JS state survives a resolution change —
+            // Screen Sharing renegotiates the display often enough that a
+            // full restart on each one is very visible.
+            .sink { [weak self] in self?.reconcile() }
             .store(in: &cancellables)
         // Hot-reload running items when a plugin file changes (edit, import,
         // or an applied update).
@@ -234,6 +239,7 @@ final class RuntimeCoordinator: ObservableObject {
     }
 
     func rebuild() {
+        log.info("full rebuild: tearing down \(self.running.count) items")
         // Teardown current runtime. Clear hook handlers synchronously first
         // so a stale instance's async teardown can't drop a re-registration.
         hookServer.removeAllHandlers()
