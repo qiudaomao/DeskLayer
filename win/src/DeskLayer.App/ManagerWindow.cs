@@ -194,6 +194,17 @@ public sealed class ManagerWindow : Window
         catch { /* best effort */ }
     }
 
+    /// Device pixels per point on the primary display (2.0 at 200% scale) —
+    /// the frame editor, default sizes, and resize limits all speak points.
+    private double DpiScale
+    {
+        get
+        {
+            var dip = SystemParameters.PrimaryScreenWidth;
+            return dip > 0 ? Math.Clamp(screenBounds.Width / dip, 0.5, 4.0) : 1.0;
+        }
+    }
+
     private void RegistryChanged() => Dispatcher.BeginInvoke(() =>
     {
         infoCache.Clear();
@@ -928,16 +939,16 @@ public sealed class ManagerWindow : Window
             var scale = OverviewScale();
             // The drag proposal in points, resolved against the plugin's
             // declared policy: aspect follows the dominant axis, limits snap.
-            var proposedW = (startSize.Width + (p.X - start.X)) / scale;
-            var proposedH = (startSize.Height + (p.Y - start.Y)) / scale;
+            var proposedW = (startSize.Width + (p.X - start.X)) / scale / DpiScale;
+            var proposedH = (startSize.Height + (p.Y - start.Y)) / scale / DpiScale;
             var edited = Math.Abs(p.X - start.X) >= Math.Abs(p.Y - start.Y)
                 ? PluginMetadata.PluginInfo.SizeAxis.Width
                 : PluginMetadata.PluginInfo.SizeAxis.Height;
             var (w, h) = info.ResolvedSize(proposedW, proposedH, edited);
             var maxW = Math.Max(24, overview.Width - Canvas.GetLeft(rect));
             var maxH = Math.Max(18, overview.Height - Canvas.GetTop(rect));
-            rect.Width = Math.Clamp(w * scale, 24, maxW);
-            rect.Height = Math.Clamp(h * scale, 18, maxH);
+            rect.Width = Math.Clamp(w * DpiScale * scale, 24, maxW);
+            rect.Height = Math.Clamp(h * DpiScale * scale, 18, maxH);
             e.Handled = true;
         };
         grip.MouseLeftButtonUp += (_, e) =>
@@ -947,9 +958,9 @@ public sealed class ManagerWindow : Window
             grip.ReleaseMouseCapture();
             e.Handled = true;
             var scale = OverviewScale();
-            var (wPts, hPts) = info.ResolvedSize(rect.Width / scale, rect.Height / scale, null);
-            var w = wPts / screenBounds.Width;
-            var h = hPts / screenBounds.Height;
+            var (wPts, hPts) = info.ResolvedSize(rect.Width / scale / DpiScale, rect.Height / scale / DpiScale, null);
+            var w = wPts * DpiScale / screenBounds.Width;
+            var h = hPts * DpiScale / screenBounds.Height;
             var top = Canvas.GetTop(rect) / scale / screenBounds.Height;
             store.Update(layout => layout with
             {
@@ -970,8 +981,10 @@ public sealed class ManagerWindow : Window
     {
         double w = 0.2, h = 0.2;
         var info = InfoFor(pluginId);
-        if (info.Width is { } pw && screenBounds.Width > 0) w = Math.Min(pw / screenBounds.Width, 1);
-        if (info.Height is { } ph && screenBounds.Height > 0) h = Math.Min(ph / screenBounds.Height, 1);
+        var pointsWide = screenBounds.Width / DpiScale;
+        var pointsHigh = screenBounds.Height / DpiScale;
+        if (info.Width is { } pw && pointsWide > 0) w = Math.Min(pw / pointsWide, 1);
+        if (info.Height is { } ph && pointsHigh > 0) h = Math.Min(ph / pointsHigh, 1);
         var item = new LayoutItem
         {
             Id = Guid.NewGuid(),
@@ -1107,7 +1120,9 @@ public sealed class ManagerWindow : Window
     private void AddFrameEditor(LayoutItem item, Action<Func<LayoutItem, LayoutItem>> commit)
     {
         inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Frame (points)", Margin = new Thickness(2, 18, 0, 2) });
-        double sw = screenBounds.Width, sh = screenBounds.Height;
+        // Point-denominated screen size: normalized fractions multiply out to
+        // points here and to device pixels in the engine.
+        double sw = screenBounds.Width / DpiScale, sh = screenBounds.Height / DpiScale;
         var frame = item.NormalizedFrame;
         var info = InfoFor(item.PluginId);
 

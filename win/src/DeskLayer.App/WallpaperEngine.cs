@@ -40,12 +40,19 @@ public sealed class WallpaperEngine : IDisposable
     private IntPtr pendingHwnd;
     private volatile bool hwndChanged;
 
+    /// Device pixels per point on the primary display (2.0 at 200% scale).
+    /// The plugin contract is in points — declared sizes, canvas drawing,
+    /// declarative layout — and rendering multiplies by this, mac parity.
+    private readonly double dpiScale;
+
     public WallpaperEngine(LayoutStore store, PluginRegistry registry, System.Drawing.Rectangle screenBounds, Action<string> log)
     {
         this.store = store;
         this.registry = registry;
         this.screenBounds = screenBounds;
         this.log = log;
+        var dipWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
+        dpiScale = dipWidth > 0 ? Math.Clamp(screenBounds.Width / dipWidth, 0.5, 4.0) : 1.0;
         // Binds lazily on the resolved port ($server handlers only); mac parity.
         hookServer = new HookServer(log);
     }
@@ -318,7 +325,7 @@ public sealed class WallpaperEngine : IDisposable
                             var (w, h) = (item.PixelWidth, item.PixelHeight);
                             PostToUi?.Invoke(() =>
                             {
-                                var pixels = DeclarativeRasterizer.Rasterize(json, w, h,
+                                var pixels = DeclarativeRasterizer.Rasterize(json, w, h, dpiScale,
                                     message => log($"[{item.Layout.PluginId}] {message}"));
                                 lock (item.Gate)
                                 {
@@ -552,7 +559,7 @@ public sealed class WallpaperEngine : IDisposable
             // ctx.drawImage; bare .js plugins have none.
             var imageCache = plugin.AssetsDirectory is { } assets ? new ImageCache(dc, assets) : null;
             var canvas = instance.Mode == RenderMode.Canvas
-                ? new D2DCanvas(dc, factory, dwrite, w, h)
+                ? new D2DCanvas(dc, factory, dwrite, w, h, dpiScale)
                 {
                     PropertyProvider = name => instance.PropertyNamed(name)?.BridgeValue,
                     ImageProvider = imageCache != null ? imageCache.Image : null,
@@ -672,7 +679,7 @@ public sealed class WallpaperEngine : IDisposable
         if (floating.Panel == null)
         {
             // WPF windows position in DIPs; the layout frame is physical px.
-            var scale = screenBounds.Width / System.Windows.SystemParameters.PrimaryScreenWidth;
+            var scale = dpiScale;
             var frame = floating.Layout.NormalizedFrame;
             var widthPx = frame.W * screenBounds.Width;
             var heightPx = frame.H * screenBounds.Height;
@@ -762,7 +769,7 @@ public sealed class WallpaperEngine : IDisposable
             (float)((1 - frame.Y - frame.H) * screenBounds.Height),
             (float)(frame.W * screenBounds.Width),
             (float)(frame.H * screenBounds.Height));
-        var scale = screenBounds.Width / System.Windows.SystemParameters.PrimaryScreenWidth;
+        var scale = dpiScale;
 
         var host = new WebViewHostWindow(webItem.Config, webItem.Layout, pixelRect, scale,
             message => log($"[{webItem.Layout.PluginId}] {message}"));

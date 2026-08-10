@@ -37,16 +37,23 @@ public sealed class D2DCanvas : IDisposable
     private Color4 strokeColor = new(0f, 0f, 0f, 1f);
     private string fontSpec = "13px Segoe UI";
 
+    /// Device pixels per point. The JS contract is in points (mac parity):
+    /// ctx.width/height report points, and every draw is scaled up so a
+    /// 13px font is 13 points — 26 device pixels on a 200% display, not 13.
+    private readonly Matrix3x2 baseTransform;
+
     private readonly List<(List<Vector2> pts, bool closed)> figures = new();
     private List<Vector2>? openFigure;
 
-    public D2DCanvas(ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite, double width, double height)
+    public D2DCanvas(ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite,
+                     double width, double height, double deviceScale = 1)
     {
         this.dc = dc;
         this.factory = factory;
         this.dwrite = dwrite;
-        widthPts = width;
-        heightPts = height;
+        widthPts = width / deviceScale;
+        heightPts = height / deviceScale;
+        baseTransform = Matrix3x2.CreateScale((float)deviceScale);
         brush = dc.CreateSolidColorBrush(fillColor);
     }
 
@@ -55,12 +62,12 @@ public sealed class D2DCanvas : IDisposable
     {
         current = Matrix3x2.Identity;
         stack.Clear();
-        dc.Transform = Matrix3x2.Identity;
+        dc.Transform = baseTransform;
         figures.Clear();
         openFigure = null;
     }
 
-    private void Apply() => dc.Transform = current;
+    private void Apply() => dc.Transform = current * baseTransform;
 
     // ---- state ----
 
