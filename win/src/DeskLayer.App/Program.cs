@@ -153,13 +153,30 @@ internal static class Program
             manager.Show();
         }
 
+        using var updater = new UpdateController();
+
         var menu = new ContextMenuStrip();
         menu.Items.Add("Manager…", null, (_, _) => OpenManager());
         menu.Items.Add("Reload", null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
+        var startup = new ToolStripMenuItem("Start with Windows") { Checked = LoginItem.IsEnabled };
+        startup.Click += (_, _) => { LoginItem.SetEnabled(!startup.Checked); startup.Checked = LoginItem.IsEnabled; };
+        menu.Items.Add(startup);
+        menu.Items.Add("Check for updates…", null, async (_, _) =>
+        {
+            try { await updater.CheckAtUserRequest(); }
+            catch (Exception ex) { Log($"update check failed: {ex.Message}"); }
+        });
         menu.Items.Add("Exit", null, (_, _) => Application.Exit());
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) => OpenManager();
         if (Environment.GetEnvironmentVariable("DESKLAYER_OPEN_MANAGER") == "1") OpenManager();
+
+        // Quiet launch check (unless disabled for scripted runs).
+        if (Environment.GetEnvironmentVariable("DESKLAYER_NO_UPDATE_CHECK") != "1")
+        {
+            try { updater.StartQuietCheck(); }
+            catch (Exception ex) { Log($"update loop failed to start: {ex.Message}"); }
+        }
 
         Log($"started — screen {screen.Width}x{screen.Height}, {registry.Plugins.Count} plugins, {store.Layout.Items.Count} items");
         Application.Run();

@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>DeskLayer for Windows</title>
+        <description>DeskLayer Windows release feed</description>
+        <language>en</language>
+        <item>
+            <title>2.0.0</title>
+            <pubDate>Mon, 10 Aug 2026 12:00:00 +0800</pubDate>
+            <sparkle:version>2000</sparkle:version>
+            <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>DeskLayer for Windows</h2>
+<ul><li>First Windows release (placeholder appcast item for updater wiring).</li></ul>
+            ]]></description>
+            <sparkle:os>windows</sparkle:os>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/win-2.0.0/DeskLayer-Setup-2.0.0.exe" length="8192" type="application/octet-stream" sparkle:edSignature="8BEkG26U6RlnWsLis/gWA+InGjtCsuqwv+UFaEsZtO3a74H2LE/+Vk/VY7I4tyLJB2XugW8XLvJNWj/ePZpjAw=="/>
+        </item>
+    </channel>
+</rss>
