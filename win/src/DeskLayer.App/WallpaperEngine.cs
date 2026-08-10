@@ -30,6 +30,7 @@ public sealed class WallpaperEngine : IDisposable
     private readonly LayoutStore store;
     private readonly PluginRegistry registry;
     private readonly SystemStatsBinding systemStats = new();
+    private readonly HookServer hookServer;
     private readonly System.Drawing.Rectangle screenBounds;
     private readonly Action<string> log;
 
@@ -45,6 +46,8 @@ public sealed class WallpaperEngine : IDisposable
         this.registry = registry;
         this.screenBounds = screenBounds;
         this.log = log;
+        hookServer = new HookServer(log);
+        hookServer.Start(8787); // loopback; mac parity
     }
 
     public void RequestRebuild() => rebuildRequested = true;
@@ -86,6 +89,7 @@ public sealed class WallpaperEngine : IDisposable
         public required PluginInstance Instance;
         public required ID2D1Bitmap1 Surface;
         public D2DCanvas? Canvas; // canvas mode only
+        public ImageCache? Images; // .deskplugin folder assets, if any
         public required System.Drawing.RectangleF DestRect;
         public required int PixelWidth;
         public required int PixelHeight;
@@ -106,6 +110,7 @@ public sealed class WallpaperEngine : IDisposable
         {
             Disposed = true;
             Canvas?.Dispose();
+            Images?.Dispose();
             Surface.Dispose();
             Instance.Dispose();
         }
@@ -205,6 +210,8 @@ public sealed class WallpaperEngine : IDisposable
                 if (rebuildRequested)
                 {
                     rebuildRequested = false;
+                    hookServer.RemoveAllHandlers(); // before teardown, so a
+                    // stale item's dispose can't drop a fresh registration
                     foreach (var item in items) item.Dispose();
                     items.Clear();
                     DisposeFloatingItems();
@@ -409,6 +416,7 @@ public sealed class WallpaperEngine : IDisposable
                 instance?.Dispose(); // webview items are built by BuildWebItems
                 continue;
             }
+            WireHooks(layoutItem, instance);
 
             // Bottom-left-origin normalized frame → top-left pixel rect.
             var frame = layoutItem.NormalizedFrame;
@@ -425,10 +433,14 @@ public sealed class WallpaperEngine : IDisposable
             dc.Clear(new Color4(0f, 0f, 0f, 0f));
             dc.EndDraw();
 
+            // Folder plugins (Name.deskplugin/) carry image assets for
+            // ctx.drawImage; bare .js plugins have none.
+            var imageCache = plugin.AssetsDirectory is { } assets ? new ImageCache(dc, assets) : null;
             var canvas = instance.Mode == RenderMode.Canvas
                 ? new D2DCanvas(dc, factory, dwrite, w, h)
                 {
                     PropertyProvider = name => instance.PropertyNamed(name)?.BridgeValue,
+                    ImageProvider = imageCache != null ? imageCache.Image : null,
                 }
                 : null;
 
@@ -438,12 +450,28 @@ public sealed class WallpaperEngine : IDisposable
                 Instance = instance,
                 Surface = surface,
                 Canvas = canvas,
+                Images = imageCache,
                 DestRect = new System.Drawing.RectangleF(x, y, w, h),
                 PixelWidth = w,
                 PixelHeight = h,
                 Background = layoutItem.BackgroundColor is { } css && CssColor.TryParse(css, out var bg) ? bg : null,
             };
         }
+    }
+
+    /// Wire a $server-permitted instance's hook registrations to the loopback
+    /// server. The HookServer delivers on a connection thread; the registered
+    /// deliver callback (from HostBindings) just enqueues onto the plugin's
+    /// completion queue, so JS still runs on the render thread at Pump.
+    private void WireHooks(LayoutItem layout, PluginInstance instance)
+    {
+        if (!instance.Permissions.Contains("server"))
+        {
+            instance.ConfigureHookRegistrar(null);
+            return;
+        }
+        instance.ConfigureHookRegistrar((method, deliver) =>
+            hookServer.AddHandler(new HookServer.Handler(layout.Id, method, deliver)));
     }
 
     // ---- floating items (render thread builds, UI thread hosts) ----
@@ -472,6 +500,7 @@ public sealed class WallpaperEngine : IDisposable
                 instance?.Dispose(); // webview floats are built by BuildWebItems
                 continue;
             }
+            WireHooks(layoutItem, instance);
             floatingItems.Add(new FloatingItem { Layout = layoutItem, Instance = instance });
         }
     }
@@ -695,5 +724,6 @@ public sealed class WallpaperEngine : IDisposable
     {
         running = false;
         renderThread?.Join(2000);
+        hookServer.Dispose();
     }
 }

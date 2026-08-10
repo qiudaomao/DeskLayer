@@ -69,7 +69,7 @@ public sealed class PluginInstance : IDisposable
     /// server, or null to drop them (permission not granted).
     public void ConfigureHookRegistrar(Action<string, Action<string, string>>? registrar)
     {
-        if (host != null) host.HookRegistrar = registrar;
+        host?.ConfigureHookRegistrar(registrar);
     }
 
     /// Zero-valued $system source for probe boots (mode detection etc.).

@@ -27,6 +27,9 @@ public sealed class D2DCanvas : IDisposable
     private readonly Dictionary<string, IDWriteTextFormat> formats = new();
 
     public Func<string, object?>? PropertyProvider { get; set; }
+    /// Named-image lookup for drawImage (a .deskplugin folder's assets), or
+    /// null for bare .js plugins.
+    public Func<string, ID2D1Bitmap?>? ImageProvider { get; set; }
 
     private Matrix3x2 current = Matrix3x2.Identity;
     private readonly Stack<(Matrix3x2 m, Color4 fill, Color4 stroke, double lw, string font)> stack = new();
@@ -211,10 +214,10 @@ public sealed class D2DCanvas : IDisposable
 
     public void drawImage(string name, double x, double y, double w, double h)
     {
-        // Folder assets arrive with the .deskplugin loader (M2); bare .js
-        // plugins have none. Draw a faint placeholder so misuse is visible.
-        brush.Color = new Color4(1, 1, 1, 0.1f);
-        dc.FillRectangle(new System.Drawing.RectangleF((float)x, (float)y, (float)w, (float)h), brush);
+        var image = ImageProvider?.Invoke(name);
+        if (image == null) return; // missing asset: draw nothing (mac parity)
+        dc.DrawBitmap(image, new System.Drawing.RectangleF((float)x, (float)y, (float)w, (float)h),
+            (float)Math.Clamp(globalAlpha, 0, 1), BitmapInterpolationMode.Linear, null);
     }
 
     public object? getProp(string name) => PropertyProvider?.Invoke(name);

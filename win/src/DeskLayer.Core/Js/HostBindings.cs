@@ -40,9 +40,21 @@ public sealed class HostBindings
     public IReadOnlySet<string> Permissions { get; set; } = new HashSet<string>();
     /// Resolved SSH destinations for this item (name → connection details).
     public IReadOnlyList<ResolvedSsh> SshHosts { get; set; } = Array.Empty<ResolvedSsh>();
-    /// Wired by the host: register a $server handler, or null when the
-    /// "server" permission wasn't granted (buffered hooks are dropped).
-    public Action<string, Action<string, string>>? HookRegistrar { get; set; }
+
+    // $server.on runs at top-level load, before the coordinator wires the
+    // registrar (and before permissions resolve). Buffer registrations until
+    // ConfigureHookRegistrar is called; a null registrar drops them (the
+    // "server" permission wasn't granted).
+    private readonly List<(string method, Action<string, string> deliver)> pendingHooks = new();
+    private Action<string, Action<string, string>>? hookRegistrar;
+
+    public void ConfigureHookRegistrar(Action<string, Action<string, string>>? registrar)
+    {
+        hookRegistrar = registrar;
+        if (registrar == null) { pendingHooks.Clear(); return; }
+        foreach (var (method, deliver) in pendingHooks) registrar(method, deliver);
+        pendingHooks.Clear();
+    }
 
     public sealed record ResolvedSsh(string Name, string Host, int Port, string User, string? KeyPath);
 
@@ -206,10 +218,12 @@ public sealed class HostBindings
     private void ServerOn(string method, JsValue handler)
     {
         // No permission check here: $server.on runs at load, before
-        // permissions resolve. Enforcement is upstream — HookRegistrar is
-        // only wired when "server" is granted.
-        HookRegistrar?.Invoke(method.ToUpperInvariant(), (eventJson, body) =>
-            Complete(handler, ParseJson(eventJson), body));
+        // permissions resolve. Enforcement is upstream — the registrar is
+        // only wired when "server" is granted; otherwise these are dropped.
+        void Deliver(string eventJson, string body) => Complete(handler, ParseJson(eventJson), body);
+        var upper = method.ToUpperInvariant();
+        if (hookRegistrar != null) hookRegistrar(upper, Deliver);
+        else pendingHooks.Add((upper, Deliver));
     }
 
     private JsValue ParseJson(string json)
