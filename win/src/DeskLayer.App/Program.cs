@@ -132,10 +132,25 @@ internal static class Program
             Text = "DeskLayer",
             Visible = true,
         };
+        ManagerWindow? manager = null;
+        void OpenManager()
+        {
+            if (manager is { IsLoaded: true })
+            {
+                manager.Activate();
+                return;
+            }
+            manager = new ManagerWindow(store, registry, screen);
+            manager.Show();
+        }
+
         var menu = new ContextMenuStrip();
+        menu.Items.Add("Manager…", null, (_, _) => OpenManager());
         menu.Items.Add("Reload", null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
         menu.Items.Add("Exit", null, (_, _) => Application.Exit());
         tray.ContextMenuStrip = menu;
+        tray.DoubleClick += (_, _) => OpenManager();
+        if (Environment.GetEnvironmentVariable("DESKLAYER_OPEN_MANAGER") == "1") OpenManager();
 
         Log($"started — screen {screen.Width}x{screen.Height}, {registry.Plugins.Count} plugins, {store.Layout.Items.Count} items");
         Application.Run();
