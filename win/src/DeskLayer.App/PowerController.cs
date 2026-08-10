@@ -25,6 +25,19 @@ public sealed class PowerController : IDisposable
     [DllImport("wtsapi32.dll")] private static extern bool WTSRegisterSessionNotification(IntPtr hwnd, int flags);
     [DllImport("wtsapi32.dll")] private static extern bool WTSUnRegisterSessionNotification(IntPtr hwnd);
     [DllImport("kernel32.dll")] private static extern bool GetSystemPowerStatus(out SystemPowerStatus status);
+    [DllImport("shell32.dll")] private static extern int SHQueryUserNotificationState(out int state);
+
+    // QUNS states: 6 = presentation mode, 8 = running a D3D full-screen app.
+    // Both mean something is covering the desktop full-screen; a wallpaper
+    // renderer behind them is pure waste, so pause.
+    private const int QunsPresentationMode = 6;
+    private const int QunsRunningD3DFullScreen = 8;
+
+    private static bool ForegroundFullScreen()
+    {
+        return SHQueryUserNotificationState(out var state) == 0
+            && state is QunsPresentationMode or QunsRunningD3DFullScreen;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SystemPowerStatus
@@ -72,7 +85,7 @@ public sealed class PowerController : IDisposable
         if (GetSystemPowerStatus(out var status))
             batterySaver = (status.SystemStatusFlag & 0x1) != 0; // battery-saver on
 
-        var next = suspended || locked
+        var next = suspended || locked || ForegroundFullScreen()
             ? RenderPolicy.Paused
             : batterySaver ? RenderPolicy.Throttled(10) : RenderPolicy.Run;
 
