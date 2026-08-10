@@ -128,7 +128,18 @@ public sealed class ManagerWindow : Window
 
         // Debug: render the Manager to a PNG (proves what WPF draws even when
         // a headless screen-capture can't composite the window). Optional
-        // pre-dump selection hooks exercise the inspector's detail views.
+        // pre-dump selection hooks exercise the inspector's detail views;
+        // DESKLAYER_WINDOW_POS pins the window for synthetic-click tests, and
+        // DESKLAYER_DUMP_AFTER re-dumps N seconds later so a scripted
+        // interaction's result can be captured.
+        if (Environment.GetEnvironmentVariable("DESKLAYER_WINDOW_POS") is { Length: > 0 } pos &&
+            pos.Split(',') is { Length: 2 } parts &&
+            double.TryParse(parts[0], out var left) && double.TryParse(parts[1], out var top))
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = left;
+            Top = top;
+        }
         var dump = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_MANAGER");
         if (!string.IsNullOrEmpty(dump))
             Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
@@ -144,6 +155,12 @@ public sealed class ManagerWindow : Window
                         SelectStore(entry.Url);
                     UpdateLayout();
                     DumpToPng(dump);
+                    if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_DUMP_AFTER"), out var seconds) && seconds > 0)
+                    {
+                        var again = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+                        again.Tick += (_, _) => { again.Stop(); UpdateLayout(); DumpToPng(dump); };
+                        again.Start();
+                    }
                 }));
         var dumpCreate = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_CREATE");
         if (!string.IsNullOrEmpty(dumpCreate))
@@ -177,7 +194,30 @@ public sealed class ManagerWindow : Window
         catch { /* best effort */ }
     }
 
-    private void RegistryChanged() => Dispatcher.BeginInvoke(() => { RefreshSidebar(); RefreshInspector(); });
+    private void RegistryChanged() => Dispatcher.BeginInvoke(() =>
+    {
+        infoCache.Clear();
+        RefreshSidebar();
+        RefreshInspector();
+    });
+
+    /// Declared metadata (size, resize policy, limits) per plugin. ExtractInfo
+    /// boots a throwaway Jint engine, too heavy to re-run on every overview
+    /// refresh — cached until the registry rescans.
+    private readonly Dictionary<string, PluginMetadata.PluginInfo> infoCache = new();
+
+    private PluginMetadata.PluginInfo InfoFor(string pluginId)
+    {
+        if (infoCache.TryGetValue(pluginId, out var cached)) return cached;
+        var info = new PluginMetadata.PluginInfo(null, null, null, null, null, null);
+        if (registry.Plugin(pluginId) is { } plugin)
+        {
+            try { info = PluginMetadata.ExtractInfo(File.ReadAllText(plugin.SourcePath)); }
+            catch (IOException) { }
+        }
+        infoCache[pluginId] = info;
+        return info;
+    }
     private void StoresChanged() => Dispatcher.BeginInvoke(() => { RefreshSidebar(); RefreshInspector(); });
     private void RefreshFromStore() => Dispatcher.BeginInvoke(() => { RefreshOverview(); RefreshInspector(); });
 
@@ -742,7 +782,8 @@ public sealed class ManagerWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
             });
-            // Resize grip — visible on the selected item only.
+            // Resize grip — visible on the selected item only, and never on
+            // a plugin that declares resizable: false.
             var grip = new Border
             {
                 Width = 12,
@@ -752,7 +793,8 @@ public sealed class ManagerWindow : Window
                 Background = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
                 CornerRadius = new CornerRadius(5, 0, 4, 0),
                 Cursor = Cursors.SizeNWSE,
-                Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed,
+                Visibility = isSelected && InfoFor(item.PluginId).Resizable
+                    ? Visibility.Visible : Visibility.Collapsed,
             };
             content.Children.Add(grip);
             var rect = new Border
@@ -791,8 +833,11 @@ public sealed class ManagerWindow : Window
             child.Background = new SolidColorBrush(isSelected
                 ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
                 : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44));
+            var resizable = isSelected && child.Tag is Guid gripId &&
+                store.Layout.Items.FirstOrDefault(i => i.Id == gripId) is { } gripItem &&
+                InfoFor(gripItem.PluginId).Resizable;
             if (child.Child is Grid content && content.Children.Count > 1)
-                content.Children[1].Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
+                content.Children[1].Visibility = resizable ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
@@ -862,9 +907,14 @@ public sealed class ManagerWindow : Window
         Point start = default;
         Size startSize = default;
         var resizing = false;
+        PluginMetadata.PluginInfo info = new(null, null, null, null, null, null);
         grip.MouseLeftButtonDown += (_, e) =>
         {
             SelectItemInPlace(itemId);
+            info = store.Layout.Items.FirstOrDefault(i => i.Id == itemId) is { } item
+                ? InfoFor(item.PluginId)
+                : new PluginMetadata.PluginInfo(null, null, null, null, null, null);
+            if (!info.Resizable) return;
             start = e.GetPosition(overview);
             startSize = new Size(rect.Width, rect.Height);
             resizing = true;
@@ -875,10 +925,19 @@ public sealed class ManagerWindow : Window
         {
             if (!resizing) return;
             var p = e.GetPosition(overview);
-            var maxW = overview.Width - Canvas.GetLeft(rect);
-            var maxH = overview.Height - Canvas.GetTop(rect);
-            rect.Width = Math.Clamp(startSize.Width + (p.X - start.X), 24, Math.Max(24, maxW));
-            rect.Height = Math.Clamp(startSize.Height + (p.Y - start.Y), 18, Math.Max(18, maxH));
+            var scale = OverviewScale();
+            // The drag proposal in points, resolved against the plugin's
+            // declared policy: aspect follows the dominant axis, limits snap.
+            var proposedW = (startSize.Width + (p.X - start.X)) / scale;
+            var proposedH = (startSize.Height + (p.Y - start.Y)) / scale;
+            var edited = Math.Abs(p.X - start.X) >= Math.Abs(p.Y - start.Y)
+                ? PluginMetadata.PluginInfo.SizeAxis.Width
+                : PluginMetadata.PluginInfo.SizeAxis.Height;
+            var (w, h) = info.ResolvedSize(proposedW, proposedH, edited);
+            var maxW = Math.Max(24, overview.Width - Canvas.GetLeft(rect));
+            var maxH = Math.Max(18, overview.Height - Canvas.GetTop(rect));
+            rect.Width = Math.Clamp(w * scale, 24, maxW);
+            rect.Height = Math.Clamp(h * scale, 18, maxH);
             e.Handled = true;
         };
         grip.MouseLeftButtonUp += (_, e) =>
@@ -888,8 +947,9 @@ public sealed class ManagerWindow : Window
             grip.ReleaseMouseCapture();
             e.Handled = true;
             var scale = OverviewScale();
-            var w = rect.Width / scale / screenBounds.Width;
-            var h = rect.Height / scale / screenBounds.Height;
+            var (wPts, hPts) = info.ResolvedSize(rect.Width / scale, rect.Height / scale, null);
+            var w = wPts / screenBounds.Width;
+            var h = hPts / screenBounds.Height;
             var top = Canvas.GetTop(rect) / scale / screenBounds.Height;
             store.Update(layout => layout with
             {
@@ -909,17 +969,9 @@ public sealed class ManagerWindow : Window
     private void AddToDesktop(string pluginId)
     {
         double w = 0.2, h = 0.2;
-        var plugin = registry.Plugin(pluginId);
-        if (plugin != null)
-        {
-            try
-            {
-                var info = PluginMetadata.ExtractInfo(File.ReadAllText(plugin.SourcePath));
-                if (info.Width is { } pw && screenBounds.Width > 0) w = Math.Min(pw / screenBounds.Width, 1);
-                if (info.Height is { } ph && screenBounds.Height > 0) h = Math.Min(ph / screenBounds.Height, 1);
-            }
-            catch (IOException) { }
-        }
+        var info = InfoFor(pluginId);
+        if (info.Width is { } pw && screenBounds.Width > 0) w = Math.Min(pw / screenBounds.Width, 1);
+        if (info.Height is { } ph && screenBounds.Height > 0) h = Math.Min(ph / screenBounds.Height, 1);
         var item = new LayoutItem
         {
             Id = Guid.NewGuid(),
@@ -1057,20 +1109,27 @@ public sealed class ManagerWindow : Window
         inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Frame (points)", Margin = new Thickness(2, 18, 0, 2) });
         double sw = screenBounds.Width, sh = screenBounds.Height;
         var frame = item.NormalizedFrame;
+        var info = InfoFor(item.PluginId);
 
         var x = new TextBox { Text = Math.Round(frame.X * sw).ToString("0") };
         var y = new TextBox { Text = Math.Round((1 - frame.Y - frame.H) * sh).ToString("0") };
-        var w = new TextBox { Text = Math.Round(frame.W * sw).ToString("0") };
-        var h = new TextBox { Text = Math.Round(frame.H * sh).ToString("0") };
+        var w = new TextBox { Text = Math.Round(frame.W * sw).ToString("0"), IsEnabled = info.Resizable };
+        var h = new TextBox { Text = Math.Round(frame.H * sh).ToString("0"), IsEnabled = info.Resizable };
 
-        void CommitFrame()
+        void CommitFrame(PluginMetadata.PluginInfo.SizeAxis? edited)
         {
             if (!double.TryParse(x.Text, out var px) || !double.TryParse(y.Text, out var py) ||
                 !double.TryParse(w.Text, out var pw) || !double.TryParse(h.Text, out var ph)) return;
             px = Math.Clamp(px, 0, sw);
             py = Math.Clamp(py, 0, sh);
-            pw = Math.Max(pw, 8);
-            ph = Math.Max(ph, 8);
+            // Declared limits and aspect: out-of-range input snaps to the
+            // limit, and the untouched axis follows the edited one — so the
+            // fields never show a size the item can't take (mac FrameEditor).
+            (pw, ph) = info.ResolvedSize(pw, ph, edited);
+            x.Text = Math.Round(px).ToString("0");
+            y.Text = Math.Round(py).ToString("0");
+            w.Text = Math.Round(pw).ToString("0");
+            h.Text = Math.Round(ph).ToString("0");
             // Back to bottom-left for storage; y is the top edge and stays put.
             var bottom = Math.Max(sh - py - ph, 0);
             commit(i => i with
@@ -1086,7 +1145,7 @@ public sealed class ManagerWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var row = 0;
-        void AddField(string label, TextBox box, int column)
+        void AddField(string label, TextBox box, int column, PluginMetadata.PluginInfo.SizeAxis? axis)
         {
             var cell = new StackPanel();
             cell.Children.Add(new TextBlock
@@ -1096,8 +1155,8 @@ public sealed class ManagerWindow : Window
                 Foreground = (Brush)FindResource("TextSecondary"),
                 Margin = new Thickness(2, row == 0 ? 0 : 8, 0, 2),
             });
-            box.LostFocus += (_, _) => CommitFrame();
-            box.KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitFrame(); };
+            box.LostFocus += (_, _) => CommitFrame(axis);
+            box.KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitFrame(axis); };
             cell.Children.Add(box);
             Grid.SetColumn(cell, column);
             Grid.SetRow(cell, row);
@@ -1105,12 +1164,47 @@ public sealed class ManagerWindow : Window
         }
         grid.RowDefinitions.Add(new RowDefinition());
         grid.RowDefinitions.Add(new RowDefinition());
-        AddField("X", x, 0);
-        AddField("Y (from top)", y, 2);
+        AddField("X", x, 0, null);
+        AddField("Y (from top)", y, 2, null);
         row = 1;
-        AddField("Width", w, 0);
-        AddField("Height", h, 2);
+        AddField("Width", w, 0, PluginMetadata.PluginInfo.SizeAxis.Width);
+        AddField("Height", h, 2, PluginMetadata.PluginInfo.SizeAxis.Height);
         inspector.Children.Add(grid);
+
+        if (!info.Resizable)
+            inspector.Children.Add(new TextBlock
+            {
+                Text = "This plugin declares a fixed size (resizable: false).",
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                Margin = new Thickness(2, 4, 0, 0),
+            });
+        else if (LimitsSummary(info) is { } limits)
+            inspector.Children.Add(new TextBlock
+            {
+                Text = $"Limits: {limits} pt",
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                Margin = new Thickness(2, 4, 0, 0),
+            });
+    }
+
+    /// "W 100–300  H ≥ 80", or null when the plugin declares no limits.
+    private static string? LimitsSummary(PluginMetadata.PluginInfo info)
+    {
+        static string? Range(double? min, double? max) => (min, max) switch
+        {
+            ({ } lo, { } hi) => $"{(int)lo}–{(int)hi}",
+            ({ } lo, null) => $"≥ {(int)lo}",
+            (null, { } hi) => $"≤ {(int)hi}",
+            _ => null,
+        };
+        var parts = new[]
+        {
+            Range(info.MinWidth, info.MaxWidth) is { } wRange ? $"W {wRange}" : null,
+            Range(info.MinHeight, info.MaxHeight) is { } hRange ? $"H {hRange}" : null,
+        }.Where(p => p != null).ToArray();
+        return parts.Length == 0 ? null : string.Join("  ", parts);
     }
 
     private void AddPropertyAndPermissionEditors(LayoutItem item, InstalledPlugin? plugin, Action<Func<LayoutItem, LayoutItem>> commit)
@@ -1484,13 +1578,12 @@ public sealed class ManagerWindow : Window
     {
         var plugin = registry.Plugin(pluginId);
         var usageCount = store.Layout.Items.Count(i => i.PluginId == pluginId);
-        PluginMetadata.PluginInfo info = new(null, null, null, null, null, null);
+        var info = InfoFor(pluginId);
         string? source = null;
         if (plugin != null)
         {
             try { source = File.ReadAllText(plugin.SourcePath); }
             catch (IOException) { }
-            if (source != null) info = PluginMetadata.ExtractInfo(source);
         }
 
         inspector.Children.Add(new TextBlock { Text = pluginId, FontSize = 16, FontWeight = FontWeights.SemiBold });
@@ -1538,6 +1631,10 @@ public sealed class ManagerWindow : Window
             permissions is { Count: > 0 } ? string.Join(", ", permissions.OrderBy(p => p)) : "none"));
         if (info.Width is { } dw && info.Height is { } dh)
             inspector.Children.Add(LabeledRow("Default size", $"{(int)dw} × {(int)dh}"));
+        inspector.Children.Add(LabeledRow("Resize",
+            !info.Resizable ? "fixed size" : info.KeepsAspect ? "keeps aspect" : "free"));
+        if (LimitsSummary(info) is { } limits)
+            inspector.Children.Add(LabeledRow("Limits", limits));
 
         // Properties — read-only here: values are edited per placed item.
         inspector.Children.Add(Divider());

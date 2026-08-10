@@ -43,10 +43,53 @@ public static class PluginMetadata
     }
 
     /// Everything the inspector shows about a plugin, read from plugin.export
-    /// the same inert way Extract reads version/updateURL.
+    /// the same inert way Extract reads version/updateURL — including the
+    /// resize policy (mac PluginMetadata parity).
     public sealed record PluginInfo(
         string? Version, string? UpdateUrl, string? Author, string? Description,
-        double? Width, double? Height);
+        double? Width, double? Height,
+        bool Resizable = true, bool? LockAspect = null,
+        double? MinWidth = null, double? MaxWidth = null,
+        double? MinHeight = null, double? MaxHeight = null)
+    {
+        /// Whether a corner drag should keep the aspect ratio: an explicit
+        /// scaleMode/lockAspect wins; a declared size implies a natural
+        /// aspect worth keeping.
+        public bool KeepsAspect => LockAspect ?? (Width is > 0 && Height is > 0);
+
+        /// Clamp a point size to the declared limits.
+        public (double W, double H) Clamp(double w, double h)
+        {
+            if (MinWidth is { } minW) w = Math.Max(w, minW);
+            if (MaxWidth is { } maxW) w = Math.Min(w, maxW);
+            if (MinHeight is { } minH) h = Math.Max(h, minH);
+            if (MaxHeight is { } maxH) h = Math.Min(h, maxH);
+            return (w, h);
+        }
+
+        public enum SizeAxis { Width, Height }
+
+        /// The size an editor should settle on after the user changes one:
+        /// limits applied, and for aspect-locked plugins the untouched axis
+        /// follows the edited one. Out-of-range input snaps to the limit
+        /// rather than being kept (mac resolvedSize).
+        public (double W, double H) ResolvedSize(double w, double h, SizeAxis? edited, double floor = 8)
+        {
+            if (edited is { } axis && KeepsAspect && Width is > 0 && Height is > 0)
+            {
+                var ratio = Width.Value / Height.Value;
+                if (axis == SizeAxis.Width) h = w / ratio;
+                else w = h * ratio;
+                // Clamp, then re-derive the edited axis: its partner may have
+                // hit a limit first, and the aspect has to survive that.
+                (w, h) = Clamp(w, h);
+                if (axis == SizeAxis.Width) w = h * ratio;
+                else h = w / ratio;
+            }
+            (w, h) = Clamp(w, h);
+            return (Math.Max(w, floor), Math.Max(h, floor));
+        }
+    }
 
     public static PluginInfo ExtractInfo(string source)
     {
@@ -76,8 +119,22 @@ public static class PluginMetadata
                     $"(plugin.export && typeof plugin.export.{field} === 'number') ? plugin.export.{field} : null");
                 return value.IsNumber() ? value.AsNumber() : null;
             }
+            bool? Flag(string field)
+            {
+                var value = engine.Evaluate(
+                    $"(plugin.export && typeof plugin.export.{field} === 'boolean') ? plugin.export.{field} : null");
+                return value.IsBoolean() ? value.AsBoolean() : null;
+            }
+            // scaleMode: "ratio" | "free" (alias: lockAspect: true/false).
+            var lockAspect = Str("scaleMode")?.ToLowerInvariant() is { } mode
+                ? mode is "ratio" or "aspect" or "locked"
+                : Flag("lockAspect");
             return new PluginInfo(Str("version"), Str("updateURL"), Str("author"),
-                Str("description"), Num("width"), Num("height"));
+                Str("description"), Num("width"), Num("height"),
+                Resizable: Flag("resizable") ?? true,
+                LockAspect: lockAspect,
+                MinWidth: Num("minWidth"), MaxWidth: Num("maxWidth"),
+                MinHeight: Num("minHeight"), MaxHeight: Num("maxHeight"));
         }
         catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
