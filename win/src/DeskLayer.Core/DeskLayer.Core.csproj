@@ -15,6 +15,8 @@
          the same files the mac app ships as plugin-dts.txt/plugin-guide.md. -->
     <EmbeddedResource Include="..\..\..\shared\spec\plugin.d.ts" Link="plugin.d.ts" LogicalName="DeskLayer.Core.plugin.d.ts" />
     <EmbeddedResource Include="..\..\..\shared\spec\plugin-guide.md" Link="plugin-guide.md" LogicalName="DeskLayer.Core.plugin-guide.md" />
+    <!-- UI translations, keyed by the English string (see Localization.cs). -->
+    <EmbeddedResource Include="strings.json" LogicalName="DeskLayer.Core.strings.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Jint" Version="3.1.2" />

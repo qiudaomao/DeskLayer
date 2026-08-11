@@ -7,6 +7,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using DeskLayer.Core;
 using DeskLayer.Core.Llm;
 using DeskLayer.Core.Model;
 
@@ -30,7 +31,7 @@ public sealed class CreatePluginDialog : Window
     private readonly TextBox baseUrl = new();
     private readonly PasswordBox apiKey = new();
     private readonly Grid modelRow = new();
-    private readonly Button fetchModels = new() { Content = "Fetch Models", Margin = new Thickness(6, 0, 0, 0) };
+    private readonly Button fetchModels = new() { Content = L.T(L.T("Fetch Models")), Margin = new Thickness(6, 0, 0, 0) };
     private readonly StackPanel steps = new();
     private readonly ScrollViewer stepsScroll;
     private readonly TextBlock errorText = new()
@@ -57,7 +58,7 @@ public sealed class CreatePluginDialog : Window
         this.author = author;
         this.registry = registry;
 
-        Title = "Create Plugin";
+        Title = L.T("Create Plugin");
         Width = 480;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -68,18 +69,18 @@ public sealed class CreatePluginDialog : Window
 
         var panel = new StackPanel { Margin = new Thickness(20) };
 
-        panel.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Create Plugin" });
+        panel.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Create Plugin") });
         panel.Children.Add(new TextBlock
         {
-            Text = "Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation.",
+            Text = L.T("Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation."),
             FontSize = 11,
             Foreground = (Brush)FindResource("TextSecondary"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 10),
         });
 
-        panel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = "Start from" });
-        baseFrom.Items.Add("A new plugin");
+        panel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = L.T("Start from") });
+        baseFrom.Items.Add(L.T("A new plugin"));
         foreach (var plugin in registry.Plugins) baseFrom.Items.Add(plugin.Id);
         baseFrom.SelectedIndex = 0;
         // Selecting a plugin in the library first is the natural way to say
@@ -90,18 +91,18 @@ public sealed class CreatePluginDialog : Window
         panel.Children.Add(baseFrom);
         panel.Children.Add(resultChoice);
 
-        panel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = "What should it do?" });
+        panel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = L.T("What should it do?") });
         panel.Children.Add(prompt);
 
         // Endpoint settings, collapsed once configured.
-        endpoint.Header = new TextBlock { Text = "Endpoint", FontSize = 11, Foreground = (Brush)FindResource("TextSecondary") };
+        endpoint.Header = new TextBlock { Text = L.T("Endpoint"), FontSize = 11, Foreground = (Brush)FindResource("TextSecondary") };
         var endpointPanel = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = "Base URL", Margin = new Thickness(2, 2, 0, 3) });
+        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = L.T("Base URL"), Margin = new Thickness(2, 2, 0, 3) });
         baseUrl.Text = author.Settings.BaseUrl;
         baseUrl.LostFocus += (_, _) => { author.Settings.BaseUrl = baseUrl.Text.Trim(); author.Settings.Save(); };
         endpointPanel.Children.Add(baseUrl);
 
-        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = "API key", Margin = new Thickness(2, 8, 0, 3) });
+        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = L.T("API key"), Margin = new Thickness(2, 8, 0, 3) });
         apiKey.Password = author.ApiKey;
         apiKey.Background = (Brush)FindResource("FieldBg");
         apiKey.Foreground = (Brush)FindResource("TextPrimary");
@@ -110,12 +111,12 @@ public sealed class CreatePluginDialog : Window
         apiKey.PasswordChanged += (_, _) => author.ApiKey = apiKey.Password;
         endpointPanel.Children.Add(apiKey);
 
-        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = "Model", Margin = new Thickness(2, 8, 0, 3) });
+        endpointPanel.Children.Add(new TextBlock { Style = (Style)FindResource("CaptionText"), Text = L.T("Model"), Margin = new Thickness(2, 8, 0, 3) });
         fetchModels.Click += (_, _) => { typesModel = false; author.FetchModels(); };
         endpointPanel.Children.Add(modelRow);
         endpointPanel.Children.Add(new TextBlock
         {
-            Text = "Any OpenAI-compatible endpoint. The key is stored encrypted for this Windows account.",
+            Text = L.T("Any OpenAI-compatible endpoint. The key is stored encrypted for this Windows account."),
             FontSize = 10,
             Foreground = (Brush)FindResource("TextSecondary"),
             TextWrapping = TextWrapping.Wrap,
@@ -153,7 +154,7 @@ public sealed class CreatePluginDialog : Window
         };
         buttons.Children.Add(showInstalled);
 
-        var close = new Button { Content = "Close" };
+        var close = new Button { Content = L.T("Close") };
         close.Click += (_, _) => Close();
         Grid.SetColumn(close, 2);
         buttons.Children.Add(close);
@@ -211,7 +212,7 @@ public sealed class CreatePluginDialog : Window
             // silently. Only the copy is offered.
             resultChoice.Children.Add(new TextBlock
             {
-                Text = $"{base_} was installed from a store, so the rewrite is saved as a separate plugin.",
+                Text = L.T("{0} was installed from a store, so the rewrite is saved as a separate plugin.", base_),
                 FontSize = 10,
                 Foreground = (Brush)FindResource("TextSecondary"),
                 TextWrapping = TextWrapping.Wrap,
@@ -221,14 +222,14 @@ public sealed class CreatePluginDialog : Window
 
         var replace = new RadioButton
         {
-            Content = $"Replace {base_}",
+            Content = L.T("Replace {0}", base_),
             IsChecked = replacesBase,
             Foreground = (Brush)FindResource("TextPrimary"),
             FontSize = 12,
         };
         var copy = new RadioButton
         {
-            Content = "Keep both, make a copy",
+            Content = L.T("Keep both, make a copy"),
             IsChecked = !replacesBase,
             Foreground = (Brush)FindResource("TextPrimary"),
             FontSize = 12,
@@ -240,7 +241,7 @@ public sealed class CreatePluginDialog : Window
         resultChoice.Children.Add(copy);
         resultChoice.Children.Add(new TextBlock
         {
-            Text = $"Replacing keeps the current version as {base_}.js.bak.",
+            Text = L.T("Replacing keeps the current version as {0}.js.bak.", base_),
             FontSize = 10,
             Foreground = (Brush)FindResource("TextSecondary"),
             Margin = new Thickness(0, 4, 0, 0),
@@ -286,7 +287,7 @@ public sealed class CreatePluginDialog : Window
                 Content = typesModel ? "☰" : "✎",
                 Margin = new Thickness(6, 0, 0, 0),
                 Padding = new Thickness(8, 4, 8, 4),
-                ToolTip = typesModel ? "Choose from the fetched models" : "Type a model name instead",
+                ToolTip = typesModel ? L.T("Choose from the fetched models") : L.T("Type a model name instead"),
             };
             toggle.Click += (_, _) => { typesModel = !typesModel; RenderModelRow(); };
             Grid.SetColumn(toggle, 1);
@@ -342,14 +343,14 @@ public sealed class CreatePluginDialog : Window
         // Buttons.
         if (author.InstalledPluginId is { } installed)
         {
-            showInstalled.Content = $"Show {installed}";
+            showInstalled.Content = L.T("Show {0}", installed);
             showInstalled.Visibility = Visibility.Visible;
         }
         else showInstalled.Visibility = Visibility.Collapsed;
 
-        action.Content = author.IsRunning ? "Stop" : (BasePluginId == null ? "Create" : "Rewrite");
+        action.Content = author.IsRunning ? L.T("Stop") : (BasePluginId == null ? L.T("Create") : L.T("Rewrite"));
         action.Style = author.IsRunning ? null : (Style)FindResource("AccentButton");
-        fetchModels.Content = author.IsFetchingModels ? "Fetching…" : "Fetch Models";
+        fetchModels.Content = author.IsFetchingModels ? L.T("Fetching…") : L.T("Fetch Models");
         fetchModels.IsEnabled = !author.IsFetchingModels && author.Settings.ModelsUrl != null;
         baseFrom.IsEnabled = !author.IsRunning;
         prompt.IsEnabled = !author.IsRunning;

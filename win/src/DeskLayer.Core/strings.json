@@ -1,0 +1,694 @@
+{
+  "+ Add Server": {
+    "zh-Hans": "+ 添加服务器",
+    "ja": "+ サーバーを追加"
+  },
+  "A new plugin": {
+    "zh-Hans": "新建插件",
+    "ja": "新しいプラグイン"
+  },
+  "A store is a JSON catalog listing plugins you can install. It becomes its own category in the library.": {
+    "zh-Hans": "插件商店是一个列出可安装插件的 JSON 目录，添加后会成为插件库中的一个分类。",
+    "ja": "ストアはインストールできるプラグインを列挙した JSON カタログです。追加するとライブラリ内の独立したカテゴリになります。"
+  },
+  "API key": {
+    "zh-Hans": "API 密钥",
+    "ja": "API キー"
+  },
+  "Add": {
+    "zh-Hans": "添加",
+    "ja": "追加"
+  },
+  "Add Plugin Store": {
+    "zh-Hans": "添加插件商店",
+    "ja": "プラグインストアを追加"
+  },
+  "Add Plugin Store…": {
+    "zh-Hans": "添加插件商店…",
+    "ja": "プラグインストアを追加…"
+  },
+  "Add Plugin…": {
+    "zh-Hans": "添加插件…",
+    "ja": "プラグインを追加…"
+  },
+  "Add a plugin or a plugin store": {
+    "zh-Hans": "添加插件或插件商店",
+    "ja": "プラグインまたはプラグインストアを追加"
+  },
+  "Add to Desktop": {
+    "zh-Hans": "添加到桌面",
+    "ja": "デスクトップに追加"
+  },
+  "Add {0}": {
+    "zh-Hans": "添加 {0}",
+    "ja": "{0} を追加"
+  },
+  "Add {0} to the desktop": {
+    "zh-Hans": "将 {0} 添加到桌面",
+    "ja": "{0} をデスクトップに追加"
+  },
+  "Alias": {
+    "zh-Hans": "别名",
+    "ja": "エイリアス"
+  },
+  "Any OpenAI-compatible endpoint. The key is stored encrypted for this Windows account.": {
+    "zh-Hans": "任何兼容 OpenAI 的接口均可。密钥会以当前 Windows 账户加密保存。",
+    "ja": "OpenAI 互換のエンドポイントが利用できます。キーはこの Windows アカウント用に暗号化して保存されます。"
+  },
+  "Asking {0}…": {
+    "zh-Hans": "正在询问 {0}…",
+    "ja": "{0} に問い合わせ中…"
+  },
+  "Auth": {
+    "zh-Hans": "认证方式",
+    "ja": "認証方式"
+  },
+  "Author": {
+    "zh-Hans": "作者",
+    "ja": "作者"
+  },
+  "Auto-update on launch": {
+    "zh-Hans": "启动时自动更新",
+    "ja": "起動時に自動更新"
+  },
+  "Background": {
+    "zh-Hans": "背景",
+    "ja": "背景"
+  },
+  "Base URL": {
+    "zh-Hans": "接口地址",
+    "ja": "ベース URL"
+  },
+  "Cancel": {
+    "zh-Hans": "取消",
+    "ja": "キャンセル"
+  },
+  "Cancelled.": {
+    "zh-Hans": "已取消。",
+    "ja": "キャンセルしました。"
+  },
+  "Capabilities": {
+    "zh-Hans": "功能",
+    "ja": "機能"
+  },
+  "Catalog URL": {
+    "zh-Hans": "目录地址",
+    "ja": "カタログ URL"
+  },
+  "Check for Update": {
+    "zh-Hans": "检查更新",
+    "ja": "アップデートを確認"
+  },
+  "Check for updates…": {
+    "zh-Hans": "检查更新…",
+    "ja": "アップデートを確認…"
+  },
+  "Checking…": {
+    "zh-Hans": "检查中…",
+    "ja": "確認中…"
+  },
+  "Choose an SSH identity (private key) file": {
+    "zh-Hans": "选择 SSH 身份（私钥）文件",
+    "ja": "SSH 認証鍵（秘密鍵）ファイルを選択"
+  },
+  "Choose from the fetched models": {
+    "zh-Hans": "从已获取的模型中选择",
+    "ja": "取得したモデルから選ぶ"
+  },
+  "Choose plugin .js files to import": {
+    "zh-Hans": "选择要导入的插件 .js 文件",
+    "ja": "読み込むプラグインの .js ファイルを選択"
+  },
+  "Choose…": {
+    "zh-Hans": "选择…",
+    "ja": "選択…"
+  },
+  "Click-through": {
+    "zh-Hans": "鼠标穿透",
+    "ja": "クリックを透過"
+  },
+  "Close": {
+    "zh-Hans": "关闭",
+    "ja": "閉じる"
+  },
+  "Couldn't read a plugin catalog from that URL.": {
+    "zh-Hans": "无法从该网址读取插件目录。",
+    "ja": "その URL からプラグインカタログを読み取れませんでした。"
+  },
+  "Couldn't read the generated plugin.": {
+    "zh-Hans": "无法读取生成的插件。",
+    "ja": "生成されたプラグインを読み込めませんでした。"
+  },
+  "Couldn't rename that plugin.": {
+    "zh-Hans": "无法重命名该插件。",
+    "ja": "そのプラグインの名称を変更できませんでした。"
+  },
+  "Create": {
+    "zh-Hans": "生成",
+    "ja": "作成"
+  },
+  "Create Plugin": {
+    "zh-Hans": "生成插件",
+    "ja": "プラグインを作成"
+  },
+  "Create Plugin…": {
+    "zh-Hans": "生成插件…",
+    "ja": "プラグインを作成…"
+  },
+  "Default size": {
+    "zh-Hans": "默认尺寸",
+    "ja": "デフォルトサイズ"
+  },
+  "Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation.": {
+    "zh-Hans": "描述你想要的效果。模型会拿到 DeskLayer 的插件 API 并编写 JavaScript；只有通过校验才会安装。",
+    "ja": "作りたいものを書いてください。モデルは DeskLayer のプラグイン API を渡されて JavaScript を書きます。検証を通るまでインストールされません。"
+  },
+  "Desktop": {
+    "zh-Hans": "桌面",
+    "ja": "デスクトップ"
+  },
+  "Enabled": {
+    "zh-Hans": "启用",
+    "ja": "有効"
+  },
+  "Endpoint": {
+    "zh-Hans": "接口设置",
+    "ja": "エンドポイント"
+  },
+  "Exit": {
+    "zh-Hans": "退出",
+    "ja": "終了"
+  },
+  "Failed": {
+    "zh-Hans": "失败",
+    "ja": "失敗"
+  },
+  "Fetch Models": {
+    "zh-Hans": "获取模型",
+    "ja": "モデルを取得"
+  },
+  "Fetching…": {
+    "zh-Hans": "获取中…",
+    "ja": "取得中…"
+  },
+  "Floating Window": {
+    "zh-Hans": "浮动窗口",
+    "ja": "フローティングウインドウ"
+  },
+  "Frame (points)": {
+    "zh-Hans": "位置与尺寸（点）",
+    "ja": "フレーム（ポイント）"
+  },
+  "Height": {
+    "zh-Hans": "高度",
+    "ja": "高さ"
+  },
+  "Height follows this plugin's content.": {
+    "zh-Hans": "高度跟随插件内容。",
+    "ja": "高さはプラグインの内容に追従します。"
+  },
+  "Host": {
+    "zh-Hans": "主机",
+    "ja": "ホスト"
+  },
+  "Identity key": {
+    "zh-Hans": "身份密钥",
+    "ja": "認証鍵"
+  },
+  "Install": {
+    "zh-Hans": "安装",
+    "ja": "インストール"
+  },
+  "Install & Add to Desktop": {
+    "zh-Hans": "安装并添加到桌面",
+    "ja": "インストールしてデスクトップに追加"
+  },
+  "Install {0}": {
+    "zh-Hans": "安装 {0}",
+    "ja": "{0} をインストール"
+  },
+  "Installed": {
+    "zh-Hans": "已安装",
+    "ja": "インストール済み"
+  },
+  "Installed {0}": {
+    "zh-Hans": "已安装 {0}",
+    "ja": "{0} をインストールしました"
+  },
+  "Installing…": {
+    "zh-Hans": "安装中…",
+    "ja": "インストール中…"
+  },
+  "Its catalog disappears from the library. Installed plugins are untouched.": {
+    "zh-Hans": "其目录将从插件库中移除，已安装的插件不受影响。",
+    "ja": "カタログはライブラリから消えます。インストール済みのプラグインはそのまま残ります。"
+  },
+  "Keep both, make a copy": {
+    "zh-Hans": "保留原插件，另存为副本",
+    "ja": "元を残してコピーを作成"
+  },
+  "Kept the previous version as {0}.js.bak": {
+    "zh-Hans": "已将上一版本保留为 {0}.js.bak",
+    "ja": "以前のバージョンを {0}.js.bak として保存しました"
+  },
+  "Limits": {
+    "zh-Hans": "尺寸限制",
+    "ja": "サイズ制限"
+  },
+  "Limits: {0} pt": {
+    "zh-Hans": "限制：{0} 点",
+    "ja": "制限：{0} pt"
+  },
+  "Listing installed plugins…": {
+    "zh-Hans": "正在列出已安装的插件…",
+    "ja": "インストール済みプラグインを列挙中…"
+  },
+  "Loading…": {
+    "zh-Hans": "载入中…",
+    "ja": "読み込み中…"
+  },
+  "Manager…": {
+    "zh-Hans": "管理器…",
+    "ja": "マネージャー…"
+  },
+  "Model": {
+    "zh-Hans": "模型",
+    "ja": "モデル"
+  },
+  "No Selection": {
+    "zh-Hans": "未选择",
+    "ja": "選択なし"
+  },
+  "No hosts found in ~/.ssh/config.": {
+    "zh-Hans": "在 ~/.ssh/config 中未找到主机。",
+    "ja": "~/.ssh/config にホストが見つかりません。"
+  },
+  "No key chosen": {
+    "zh-Hans": "未选择密钥",
+    "ja": "鍵が未選択です"
+  },
+  "No plugin was written.": {
+    "zh-Hans": "没有写出任何插件。",
+    "ja": "プラグインは書き出されませんでした。"
+  },
+  "No plugins yet.\nUse + below to add a store.": {
+    "zh-Hans": "还没有插件。\n用下方的 + 添加插件商店。",
+    "ja": "プラグインがありません。\n下の + からストアを追加してください。"
+  },
+  "No properties declared": {
+    "zh-Hans": "未声明任何属性",
+    "ja": "プロパティが宣言されていません"
+  },
+  "No update URL declared": {
+    "zh-Hans": "未声明更新地址",
+    "ja": "アップデート URL が宣言されていません"
+  },
+  "None": {
+    "zh-Hans": "无",
+    "ja": "なし"
+  },
+  "On desktop": {
+    "zh-Hans": "桌面实例",
+    "ja": "デスクトップ上"
+  },
+  "On: clicks pass through to windows beneath. Off: the window accepts mouse events and can be dragged.": {
+    "zh-Hans": "开启：点击穿透到下层窗口。关闭：窗口接收鼠标事件，可拖动。",
+    "ja": "オン：クリックは下のウインドウに透過します。オフ：ウインドウがマウス操作を受け取り、ドラッグできます。"
+  },
+  "Open plugins folder": {
+    "zh-Hans": "打开插件文件夹",
+    "ja": "プラグインフォルダを開く"
+  },
+  "Permissions": {
+    "zh-Hans": "权限",
+    "ja": "権限"
+  },
+  "Permissions requested": {
+    "zh-Hans": "请求的权限",
+    "ja": "要求される権限"
+  },
+  "Plugin Store": {
+    "zh-Hans": "插件商店",
+    "ja": "プラグインストア"
+  },
+  "Plugin scripts (*.js)": {
+    "zh-Hans": "插件脚本 (*.js)",
+    "ja": "プラグインスクリプト (*.js)"
+  },
+  "Plugins": {
+    "zh-Hans": "插件",
+    "ja": "プラグイン"
+  },
+  "Plugins from {0} keep their name so updates can find them.": {
+    "zh-Hans": "来自 {0} 的插件会保留名称，以便更新时能找到它们。",
+    "ja": "{0} のプラグインは、アップデートで見つけられるよう名称を保持します。"
+  },
+  "Plugins target a server by name: ssh(cmd, \"{0}\").": {
+    "zh-Hans": "插件通过名称指定服务器：ssh(cmd, \"{0}\")。",
+    "ja": "プラグインは名前でサーバーを指定します：ssh(cmd, \"{0}\")。"
+  },
+  "Port": {
+    "zh-Hans": "端口",
+    "ja": "ポート"
+  },
+  "Properties": {
+    "zh-Hans": "属性",
+    "ja": "プロパティ"
+  },
+  "Reached the turn limit.": {
+    "zh-Hans": "已达到轮次上限。",
+    "ja": "ターン上限に達しました。"
+  },
+  "Reading {0}…": {
+    "zh-Hans": "正在读取 {0}…",
+    "ja": "{0} を読み込み中…"
+  },
+  "Refresh": {
+    "zh-Hans": "刷新",
+    "ja": "更新"
+  },
+  "Refresh {0}": {
+    "zh-Hans": "刷新 {0}",
+    "ja": "{0} を更新"
+  },
+  "Reinstall from Store": {
+    "zh-Hans": "从商店重新安装",
+    "ja": "ストアから再インストール"
+  },
+  "Reload": {
+    "zh-Hans": "重新加载",
+    "ja": "再読み込み"
+  },
+  "Remove Store": {
+    "zh-Hans": "移除商店",
+    "ja": "ストアを削除"
+  },
+  "Remove from Desktop": {
+    "zh-Hans": "从桌面移除",
+    "ja": "デスクトップから削除"
+  },
+  "Remove this server": {
+    "zh-Hans": "移除此服务器",
+    "ja": "このサーバーを削除"
+  },
+  "Remove {0}?": {
+    "zh-Hans": "移除 {0}？",
+    "ja": "{0} を削除しますか？"
+  },
+  "Removing a store only drops its listing. Plugins you already installed from it stay on disk.": {
+    "zh-Hans": "移除商店只会删除其列表，已从中安装的插件仍保留在磁盘上。",
+    "ja": "ストアを削除してもリストが消えるだけです。そこからインストール済みのプラグインはディスクに残ります。"
+  },
+  "Rename": {
+    "zh-Hans": "重命名",
+    "ja": "名称を変更"
+  },
+  "Rename Plugin": {
+    "zh-Hans": "重命名插件",
+    "ja": "プラグインの名称を変更"
+  },
+  "Rename…": {
+    "zh-Hans": "重命名…",
+    "ja": "名称を変更…"
+  },
+  "Replace {0}": {
+    "zh-Hans": "替换 {0}",
+    "ja": "{0} を置き換える"
+  },
+  "Replacing keeps the current version as {0}.js.bak.": {
+    "zh-Hans": "替换时会把当前版本保留为 {0}.js.bak。",
+    "ja": "置き換え時、現在のバージョンは {0}.js.bak として保存されます。"
+  },
+  "Resize": {
+    "zh-Hans": "缩放方式",
+    "ja": "リサイズ"
+  },
+  "Rewrite": {
+    "zh-Hans": "重写",
+    "ja": "書き換え"
+  },
+  "Rewrite with AI…": {
+    "zh-Hans": "用 AI 重写…",
+    "ja": "AI で書き換え…"
+  },
+  "SSH Destinations": {
+    "zh-Hans": "SSH 目标",
+    "ja": "SSH 接続先"
+  },
+  "SSH agent": {
+    "zh-Hans": "SSH 代理",
+    "ja": "SSH エージェント"
+  },
+  "Select an item on the desktop, or a plugin in the sidebar.": {
+    "zh-Hans": "请在桌面上选择一个项目，或在侧栏中选择插件。",
+    "ja": "デスクトップの項目、またはサイドバーのプラグインを選択してください。"
+  },
+  "Set the base URL and model first.": {
+    "zh-Hans": "请先设置接口地址和模型。",
+    "ja": "先にベース URL とモデルを設定してください。"
+  },
+  "Show Installed Plugin": {
+    "zh-Hans": "显示已安装的插件",
+    "ja": "インストール済みのプラグインを表示"
+  },
+  "Show as": {
+    "zh-Hans": "显示为",
+    "ja": "表示形式"
+  },
+  "Show in Explorer": {
+    "zh-Hans": "在文件资源管理器中显示",
+    "ja": "エクスプローラーで表示"
+  },
+  "Show {0}": {
+    "zh-Hans": "显示 {0}",
+    "ja": "{0} を表示"
+  },
+  "Start from": {
+    "zh-Hans": "基于",
+    "ja": "ベース"
+  },
+  "Start with Windows": {
+    "zh-Hans": "开机时启动",
+    "ja": "Windows 起動時に開始"
+  },
+  "Stop": {
+    "zh-Hans": "停止",
+    "ja": "停止"
+  },
+  "Stopped.": {
+    "zh-Hans": "已停止。",
+    "ja": "停止しました。"
+  },
+  "Store": {
+    "zh-Hans": "商店",
+    "ja": "ストア"
+  },
+  "Switch to dark theme": {
+    "zh-Hans": "切换到深色主题",
+    "ja": "ダークテーマに切り替え"
+  },
+  "Switch to light theme": {
+    "zh-Hans": "切换到浅色主题",
+    "ja": "ライトテーマに切り替え"
+  },
+  "That base URL isn't valid.": {
+    "zh-Hans": "基础地址无效。",
+    "ja": "ベース URL が正しくありません。"
+  },
+  "The endpoint listed no models.": {
+    "zh-Hans": "接口没有列出任何模型。",
+    "ja": "エンドポイントにモデルがありません。"
+  },
+  "The endpoint returned no reply.": {
+    "zh-Hans": "接口没有返回内容。",
+    "ja": "エンドポイントから応答がありませんでした。"
+  },
+  "The file is renamed too. Items on your desktop follow it.": {
+    "zh-Hans": "文件也会一并重命名，桌面上的项目会自动跟随。",
+    "ja": "ファイル名も変わります。デスクトップ上の項目もそのまま追従します。"
+  },
+  "The generated plugin isn't valid.": {
+    "zh-Hans": "生成的插件校验未通过。",
+    "ja": "生成されたプラグインは有効ではありません。"
+  },
+  "The model didn't write a plugin.": {
+    "zh-Hans": "模型没有写出插件。",
+    "ja": "モデルはプラグインを書きませんでした。"
+  },
+  "The plugin file is deleted.": {
+    "zh-Hans": "插件文件将被删除。",
+    "ja": "プラグインファイルが削除されます。"
+  },
+  "The store lists {0}.": {
+    "zh-Hans": "商店中的版本为 {0}。",
+    "ja": "ストアには {0} があります。"
+  },
+  "This build is missing the plugin API documentation.": {
+    "zh-Hans": "此版本缺少插件 API 文档。",
+    "ja": "このビルドにはプラグイン API のドキュメントが含まれていません。"
+  },
+  "This plugin declares a fixed size (resizable: false).": {
+    "zh-Hans": "此插件声明了固定尺寸（resizable: false）。",
+    "ja": "このプラグインは固定サイズを宣言しています（resizable: false）。"
+  },
+  "Type a model name instead": {
+    "zh-Hans": "手动输入模型名称",
+    "ja": "モデル名を入力する"
+  },
+  "Uninstall": {
+    "zh-Hans": "卸载",
+    "ja": "アンインストール"
+  },
+  "Uninstall {0}?": {
+    "zh-Hans": "卸载 {0}？",
+    "ja": "{0} をアンインストールしますか？"
+  },
+  "Up to date ({0})": {
+    "zh-Hans": "已是最新（{0}）",
+    "ja": "最新です（{0}）"
+  },
+  "Update failed: HTTP {0}": {
+    "zh-Hans": "更新失败：HTTP {0}",
+    "ja": "更新に失敗しました：HTTP {0}"
+  },
+  "Update failed: plugin body was not text": {
+    "zh-Hans": "更新失败：插件内容不是文本",
+    "ja": "更新に失敗しました：プラグイン本文がテキストではありません"
+  },
+  "Update failed: response was not text": {
+    "zh-Hans": "更新失败：响应不是文本",
+    "ja": "更新に失敗しました：応答がテキストではありません"
+  },
+  "Update failed: {0}": {
+    "zh-Hans": "更新失败：{0}",
+    "ja": "アップデートに失敗しました：{0}"
+  },
+  "Update to {0}": {
+    "zh-Hans": "更新到 {0}",
+    "ja": "{0} に更新"
+  },
+  "Updated": {
+    "zh-Hans": "更新时间",
+    "ja": "更新日時"
+  },
+  "Updated {0} → {1}": {
+    "zh-Hans": "已从 {0} 更新到 {1}",
+    "ja": "{0} → {1} に更新しました"
+  },
+  "Updates": {
+    "zh-Hans": "更新",
+    "ja": "アップデート"
+  },
+  "Use ~/.ssh/config alias": {
+    "zh-Hans": "使用 ~/.ssh/config 别名",
+    "ja": "~/.ssh/config のエイリアスを使う"
+  },
+  "User": {
+    "zh-Hans": "用户",
+    "ja": "ユーザ"
+  },
+  "User Installed": {
+    "zh-Hans": "用户安装",
+    "ja": "ユーザーがインストール"
+  },
+  "Uses your ssh agent. (Password auth isn't supported on Windows.)": {
+    "zh-Hans": "使用你的 ssh 代理。（Windows 上不支持密码认证。）",
+    "ja": "ssh エージェントを使用します。（Windows ではパスワード認証は未対応です。）"
+  },
+  "Validating {0}…": {
+    "zh-Hans": "正在校验 {0}…",
+    "ja": "{0} を検証中…"
+  },
+  "Version": {
+    "zh-Hans": "版本",
+    "ja": "バージョン"
+  },
+  "Wallpaper": {
+    "zh-Hans": "桌面壁纸",
+    "ja": "壁紙"
+  },
+  "What should it do?": {
+    "zh-Hans": "它应该做什么？",
+    "ja": "何をするプラグインですか？"
+  },
+  "Width": {
+    "zh-Hans": "宽度",
+    "ja": "幅"
+  },
+  "Width and height follow this plugin's content.": {
+    "zh-Hans": "宽度和高度跟随插件内容。",
+    "ja": "幅と高さはプラグインの内容に追従します。"
+  },
+  "Width follows this plugin's content.": {
+    "zh-Hans": "宽度跟随插件内容。",
+    "ja": "幅はプラグインの内容に追従します。"
+  },
+  "Writing {0}…": {
+    "zh-Hans": "正在写入 {0}…",
+    "ja": "{0} を書き込み中…"
+  },
+  "X": {
+    "zh-Hans": "X",
+    "ja": "X"
+  },
+  "Y (from top)": {
+    "zh-Hans": "Y（自上）",
+    "ja": "Y（上から）"
+  },
+  "Z-order": {
+    "zh-Hans": "层级",
+    "ja": "重ね順"
+  },
+  "fixed size": {
+    "zh-Hans": "固定尺寸",
+    "ja": "固定サイズ"
+  },
+  "free": {
+    "zh-Hans": "自由",
+    "ja": "自由"
+  },
+  "from {0}": {
+    "zh-Hans": "来自 {0}",
+    "ja": "提供元：{0}"
+  },
+  "keeps aspect": {
+    "zh-Hans": "保持比例",
+    "ja": "縦横比を維持"
+  },
+  "none": {
+    "zh-Hans": "无",
+    "ja": "なし"
+  },
+  "not placed": {
+    "zh-Hans": "未放置",
+    "ja": "未配置"
+  },
+  "ssh resolves the host name, user, port, and key.": {
+    "zh-Hans": "ssh 会据此解析主机名、用户、端口和密钥。",
+    "ja": "ssh がホスト名・ユーザ・ポート・鍵を解決します。"
+  },
+  "{0} (added)": {
+    "zh-Hans": "{0}（已添加）",
+    "ja": "{0}（追加済み）"
+  },
+  "{0} ({1})": {
+    "zh-Hans": "{0}（{1}）",
+    "ja": "{0}（{1}）"
+  },
+  "{0} came from a store, so this is saved as a copy.": {
+    "zh-Hans": "{0} 来自插件商店，因此这次会保存为副本。",
+    "ja": "{0} はストア由来のため、複製として保存されます。"
+  },
+  "{0} items": {
+    "zh-Hans": "{0} 个项目",
+    "ja": "{0} 個の項目"
+  },
+  "{0} items on your desktop use it and will stop rendering.": {
+    "zh-Hans": "桌面上有 {0} 个项目在使用它，将停止渲染。",
+    "ja": "デスクトップ上の {0} 個の項目が使用中で、描画が停止します。"
+  },
+  "{0} was installed from a store, so the rewrite is saved as a separate plugin.": {
+    "zh-Hans": "{0} 安装自插件商店，因此重写结果会保存为独立的插件。",
+    "ja": "{0} はストアからインストールされたため、書き換え結果は別のプラグインとして保存されます。"
+  }
+}

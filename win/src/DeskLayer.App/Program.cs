@@ -183,17 +183,17 @@ internal static class Program
         using var updater = new UpdateController();
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Manager…", null, (_, _) => OpenManager());
-        menu.Items.Add("Reload", null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
-        var startup = new ToolStripMenuItem("Start with Windows") { Checked = LoginItem.IsEnabled };
+        menu.Items.Add(L.T("Manager…"), null, (_, _) => OpenManager());
+        menu.Items.Add(L.T("Reload"), null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
+        var startup = new ToolStripMenuItem(L.T("Start with Windows")) { Checked = LoginItem.IsEnabled };
         startup.Click += (_, _) => { LoginItem.SetEnabled(!startup.Checked); startup.Checked = LoginItem.IsEnabled; };
         menu.Items.Add(startup);
-        menu.Items.Add("Check for updates…", null, async (_, _) =>
+        menu.Items.Add(L.T("Check for updates…"), null, async (_, _) =>
         {
             try { await updater.CheckAtUserRequest(); }
             catch (Exception ex) { Log($"update check failed: {ex.Message}"); }
         });
-        menu.Items.Add("Exit", null, (_, _) => Application.Exit());
+        menu.Items.Add(L.T("Exit"), null, (_, _) => Application.Exit());
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) => OpenManager();
         // Deferred so it opens once the message loop is pumping — a WPF window

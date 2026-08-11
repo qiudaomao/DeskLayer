@@ -11,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using DeskLayer.Core;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -83,7 +84,7 @@ public sealed class ColorField : Border
     private void Refresh()
     {
         ((Border)swatch.Child).Background = isNone ? Brushes.Transparent : new SolidColorBrush(current);
-        label.Text = isNone ? "None" : Format(current);
+        label.Text = isNone ? L.T("None") : Format(current);
     }
 
     private void Commit(Color color)
@@ -225,7 +226,7 @@ public sealed class ColorField : Border
         bottom.Children.Add(hex);
         if (allowNone)
         {
-            var none = new Button { Content = "None", Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
+            var none = new Button { Content = L.T("None"), Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
             none.Click += (_, _) => CommitNone();
             bottom.Children.Add(none);
         }

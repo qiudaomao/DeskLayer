@@ -101,7 +101,7 @@ public sealed class ManagerWindow : Window
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 24, 330, 0),
             Padding = new Thickness(8, 4, 8, 4),
-            ToolTip = dark ? "Switch to light theme" : "Switch to dark theme",
+            ToolTip = dark ? L.T("Switch to light theme") : L.T("Switch to dark theme"),
         };
         themeToggle.Click += (_, _) =>
         {
@@ -400,11 +400,11 @@ public sealed class ManagerWindow : Window
         // Bottom bar: "+" menu (add / create / stores) and the folder button.
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 4, 8, 6) };
         var menu = new ContextMenu { Placement = System.Windows.Controls.Primitives.PlacementMode.Top };
-        var plus = IconButton("", "Add a plugin or a plugin store",
+        var plus = IconButton("", L.T("Add a plugin or a plugin store"),
             () => { RebuildPlusMenu(menu); menu.IsOpen = true; });
         menu.PlacementTarget = plus;
         bottom.Children.Add(plus);
-        bottom.Children.Add(IconButton("", "Open plugins folder", OpenPluginsFolder));
+        bottom.Children.Add(IconButton("", L.T("Open plugins folder"), OpenPluginsFolder));
 
         var bottomWrap = new StackPanel();
         bottomWrap.Children.Add(new Border { Height = 1, Background = (Brush)FindResource("CardBorder") });
@@ -424,10 +424,10 @@ public sealed class ManagerWindow : Window
     private void RebuildPlusMenu(ContextMenu menu)
     {
         menu.Items.Clear();
-        var import = new MenuItem { Header = "Add Plugin…" };
+        var import = new MenuItem { Header = L.T("Add Plugin…") };
         import.Click += (_, _) => ImportPlugins();
         menu.Items.Add(import);
-        var create = new MenuItem { Header = "Create Plugin…" };
+        var create = new MenuItem { Header = L.T("Create Plugin…") };
         create.Click += (_, _) => OpenCreatePlugin();
         menu.Items.Add(create);
         menu.Items.Add(new Separator());
@@ -438,7 +438,7 @@ public sealed class ManagerWindow : Window
             var added = storeRegistry.Stores.Any(s => s.Url == preset.Url);
             var item = new MenuItem
             {
-                Header = added ? $"{preset.Name} (added)" : $"Add {preset.Name}",
+                Header = added ? L.T("{0} (added)", preset.Name) : L.T("Add {0}", preset.Name),
                 IsEnabled = !added,
             };
             var p = preset;
@@ -446,7 +446,7 @@ public sealed class ManagerWindow : Window
             menu.Items.Add(item);
         }
         menu.Items.Add(new Separator());
-        var addStore = new MenuItem { Header = "Add Plugin Store…" };
+        var addStore = new MenuItem { Header = L.T("Add Plugin Store…") };
         addStore.Click += (_, _) => OpenAddStoreDialog();
         menu.Items.Add(addStore);
     }
@@ -458,7 +458,7 @@ public sealed class ManagerWindow : Window
         // Installed — everything on disk, whichever store it came from.
         if (registry.Plugins.Count > 0)
         {
-            sidebarPanel.Children.Add(GroupHeader("Installed", registry.Plugins.Count, "installed", trailing: null));
+            sidebarPanel.Children.Add(GroupHeader(L.T("Installed"), registry.Plugins.Count, "installed", trailing: null));
             if (!collapsed.Contains("installed"))
                 foreach (var plugin in registry.Plugins)
                 {
@@ -468,7 +468,7 @@ public sealed class ManagerWindow : Window
                         title: id,
                         isSelected: selectedPluginId == id,
                         onSelect: () => SelectPlugin(id),
-                        trailing: IconButton("", $"Add {id} to the desktop", () => AddToDesktop(id))));
+                        trailing: IconButton("", L.T("Add {0} to the desktop", id), () => AddToDesktop(id))));
                 }
         }
 
@@ -477,7 +477,7 @@ public sealed class ManagerWindow : Window
         {
             var url = entry.Url;
             var key = "store:" + url;
-            var refresh = IconButton("", $"Refresh {entry.DisplayName}",
+            var refresh = IconButton("", L.T("Refresh {0}", entry.DisplayName),
                 async () => await storeRegistry.RefreshAll(true));
             sidebarPanel.Children.Add(GroupHeader(entry.DisplayName, entry.Catalog?.Plugins.Count ?? 0, key,
                 trailing: refresh, onSelect: () => SelectStore(url), isSelected: selectedStoreUrl == url));
@@ -492,8 +492,8 @@ public sealed class ManagerWindow : Window
                     var p = plugin;
                     var storeName = entry.DisplayName;
                     Border trailing = installed
-                        ? IconButton("", $"Add {name} to the desktop", () => AddToDesktop(name))
-                        : IconButton("", $"Install {name}", async () =>
+                        ? IconButton("", L.T("Add {0} to the desktop", name), () => AddToDesktop(name))
+                        : IconButton("", L.T("Install {0}", name), async () =>
                         {
                             // Installing straight from the row: the detail
                             // pane says nothing extra for a plugin the user
@@ -525,7 +525,7 @@ public sealed class ManagerWindow : Window
             {
                 sidebarPanel.Children.Add(new TextBlock
                 {
-                    Text = "Loading…",
+                    Text = L.T("Loading…"),
                     FontSize = 11,
                     Foreground = (Brush)FindResource("TextSecondary"),
                     Margin = new Thickness(24, 2, 4, 4),
@@ -536,7 +536,7 @@ public sealed class ManagerWindow : Window
         if (sidebarPanel.Children.Count == 0)
             sidebarPanel.Children.Add(new TextBlock
             {
-                Text = "No plugins yet.\nUse + below to add a store.",
+                Text = L.T("No plugins yet.\nUse + below to add a store."),
                 Foreground = (Brush)FindResource("TextSecondary"),
                 FontSize = 12,
                 Margin = new Thickness(8, 8, 8, 8),
@@ -654,9 +654,9 @@ public sealed class ManagerWindow : Window
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Plugin scripts (*.js)|*.js",
+            Filter = L.T("Plugin scripts (*.js)") + "|*.js",
             Multiselect = true,
-            Title = "Choose plugin .js files to import",
+            Title = L.T("Choose plugin .js files to import"),
         };
         if (dialog.ShowDialog(this) != true) return;
         Directory.CreateDirectory(PluginRegistry.PluginsDirectory);
@@ -679,11 +679,95 @@ public sealed class ManagerWindow : Window
         dialog.ShowDialog();
     }
 
+    /// Renames the plugin file and repoints every placed item, so items keep
+    /// rendering instead of pointing at a file that no longer exists.
+    private void OpenRenameDialog(string pluginId)
+    {
+        var dialog = new Window
+        {
+            Title = L.T("Rename Plugin"),
+            Owner = this,
+            Width = 400,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Resources = Theme.Load(dark),
+            Background = (Brush)FindResource("WindowBg"),
+            ResizeMode = ResizeMode.NoResize,
+        };
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(Section(L.T("Rename Plugin")));
+        panel.Children.Add(new TextBlock
+        {
+            Text = L.T("The file is renamed too. Items on your desktop follow it."),
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextSecondary"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 10),
+        });
+        var name = new TextBox { Text = pluginId };
+        panel.Children.Add(name);
+        var error = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A)),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        panel.Children.Add(error);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        var cancel = new Button { Content = L.T("Cancel") };
+        cancel.Click += (_, _) => dialog.Close();
+        var apply = new Button { Content = L.T("Rename"), Style = (Style)FindResource("AccentButton"), Margin = new Thickness(8, 0, 0, 0) };
+        void Apply()
+        {
+            var result = registry.Rename(pluginId, name.Text);
+            if (!result.IsOK)
+            {
+                error.Text = result.Message ?? L.T("Couldn't rename that plugin.");
+                error.Visibility = Visibility.Visible;
+                return;
+            }
+            if (result.Outcome == PluginRegistry.RenameOutcome.Renamed && result.Name is { } renamed)
+            {
+                // Preferences keyed by id travel with the plugin, or the
+                // rename would silently turn auto-update off.
+                if (updater.IsAutoUpdate(pluginId))
+                {
+                    updater.SetAutoUpdate(pluginId, false);
+                    updater.SetAutoUpdate(renamed, true);
+                }
+                store.Update(layout => layout with
+                {
+                    Items = layout.Items
+                        .Select(i => i.PluginId == pluginId ? i with { PluginId = renamed } : i)
+                        .ToList(),
+                });
+                infoCache.Remove(pluginId);
+                SelectPlugin(renamed);
+            }
+            dialog.Close();
+        }
+        apply.Click += (_, _) => Apply();
+        name.KeyDown += (_, e) => { if (e.Key == Key.Enter) Apply(); };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(apply);
+        panel.Children.Add(buttons);
+        dialog.Content = panel;
+        dialog.ShowDialog();
+    }
+
     private void OpenAddStoreDialog()
     {
         var dialog = new Window
         {
-            Title = "Add Plugin Store",
+            Title = L.T("Add Plugin Store"),
             Owner = this,
             Width = 440,
             SizeToContent = SizeToContent.Height,
@@ -693,10 +777,10 @@ public sealed class ManagerWindow : Window
             ResizeMode = ResizeMode.NoResize,
         };
         var panel = new StackPanel { Margin = new Thickness(20) };
-        panel.Children.Add(Section("Add Plugin Store"));
+        panel.Children.Add(Section(L.T("Add Plugin Store")));
         panel.Children.Add(new TextBlock
         {
-            Text = "A store is a JSON catalog listing plugins you can install. It becomes its own category in the library.",
+            Text = L.T("A store is a JSON catalog listing plugins you can install. It becomes its own category in the library."),
             FontSize = 11,
             Foreground = (Brush)FindResource("TextSecondary"),
             TextWrapping = TextWrapping.Wrap,
@@ -719,9 +803,9 @@ public sealed class ManagerWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 14, 0, 0),
         };
-        var cancel = new Button { Content = "Cancel" };
+        var cancel = new Button { Content = L.T("Cancel") };
         cancel.Click += (_, _) => dialog.Close();
-        var add = new Button { Content = "Add", Style = (Style)FindResource("AccentButton"), Margin = new Thickness(8, 0, 0, 0) };
+        var add = new Button { Content = L.T("Add"), Style = (Style)FindResource("AccentButton"), Margin = new Thickness(8, 0, 0, 0) };
         add.Click += async (_, _) =>
         {
             var text = url.Text.Trim();
@@ -732,7 +816,7 @@ public sealed class ManagerWindow : Window
             if (ok) dialog.Close();
             else
             {
-                error.Text = "Couldn't read a plugin catalog from that URL.";
+                error.Text = L.T("Couldn't read a plugin catalog from that URL.");
                 error.Visibility = Visibility.Visible;
             }
         };
@@ -750,7 +834,7 @@ public sealed class ManagerWindow : Window
     private UIElement BuildOverview()
     {
         var panel = new DockPanel { Margin = new Thickness(12) };
-        var header = Section("Desktop");
+        var header = Section(L.T("Desktop"));
         DockPanel.SetDock(header, Dock.Top);
         var host = new Grid();
         overview.Background = WallpaperBrush() ?? (Brush)FindResource("OverviewBg");
@@ -1055,13 +1139,13 @@ public sealed class ManagerWindow : Window
         }
         inspector.Children.Add(new TextBlock
         {
-            Text = "No Selection",
+            Text = L.T("No Selection"),
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("TextSecondary"),
         });
         inspector.Children.Add(new TextBlock
         {
-            Text = "Select an item on the desktop, or a plugin in the sidebar.",
+            Text = L.T("Select an item on the desktop, or a plugin in the sidebar."),
             FontSize = 11,
             Foreground = (Brush)FindResource("TextSecondary"),
             TextWrapping = TextWrapping.Wrap,
@@ -1087,19 +1171,19 @@ public sealed class ManagerWindow : Window
         if (storeRegistry.OriginOf(item.PluginId) is { } origin)
             inspector.Children.Add(new TextBlock
             {
-                Text = "from " + origin,
+                Text = L.T("from {0}", origin),
                 Foreground = (Brush)FindResource("TextSecondary"),
                 FontSize = 11,
                 Margin = new Thickness(0, 1, 0, 0),
             });
 
-        var enabled = new CheckBox { Content = "Enabled", IsChecked = item.IsEnabled, Margin = new Thickness(0, 12, 0, 0) };
+        var enabled = new CheckBox { Content = L.T("Enabled"), IsChecked = item.IsEnabled, Margin = new Thickness(0, 12, 0, 0) };
         enabled.Checked += (_, _) => Commit(i => i with { IsEnabled = true });
         enabled.Unchecked += (_, _) => Commit(i => i with { IsEnabled = false });
         inspector.Children.Add(enabled);
 
-        inspector.Children.Add(Caption("Show as"));
-        var target = new ComboBox { ItemsSource = new[] { "Wallpaper", "Floating Window" }, SelectedIndex = item.Target == RenderTarget.Wallpaper ? 0 : 1 };
+        inspector.Children.Add(Caption(L.T("Show as")));
+        var target = new ComboBox { ItemsSource = new[] { L.T("Wallpaper"), L.T("Floating Window") }, SelectedIndex = item.Target == RenderTarget.Wallpaper ? 0 : 1 };
         target.SelectionChanged += (_, _) => Commit(i => i with { Target = target.SelectedIndex == 0 ? RenderTarget.Wallpaper : RenderTarget.FloatingWindow });
         inspector.Children.Add(target);
 
@@ -1107,22 +1191,22 @@ public sealed class ManagerWindow : Window
         {
             var clickThrough = new CheckBox
             {
-                Content = "Click-through",
+                Content = L.T("Click-through"),
                 IsChecked = item.ClickThrough,
                 Margin = new Thickness(0, 12, 0, 0),
-                ToolTip = "On: clicks pass through to windows beneath. Off: the window accepts mouse events and can be dragged.",
+                ToolTip = L.T("On: clicks pass through to windows beneath. Off: the window accepts mouse events and can be dragged."),
             };
             clickThrough.Checked += (_, _) => Commit(i => i with { ClickThrough = true });
             clickThrough.Unchecked += (_, _) => Commit(i => i with { ClickThrough = false });
             inspector.Children.Add(clickThrough);
         }
 
-        inspector.Children.Add(Caption("Z-order"));
+        inspector.Children.Add(Caption(L.T("Z-order")));
         var zOrder = new TextBox { Text = item.ZOrder.ToString() };
         zOrder.LostFocus += (_, _) => { if (int.TryParse(zOrder.Text, out var z)) Commit(i => i with { ZOrder = z }); };
         inspector.Children.Add(zOrder);
 
-        inspector.Children.Add(Caption("Background"));
+        inspector.Children.Add(Caption(L.T("Background")));
         inspector.Children.Add(new ColorField(item.BackgroundColor, allowNone: true,
             hex => Commit(i => i with { BackgroundColor = hex })));
 
@@ -1132,7 +1216,7 @@ public sealed class ManagerWindow : Window
         AddPropertyAndPermissionEditors(item, plugin, Commit);
         AddUpdateControls(item.PluginId, plugin);
 
-        var delete = new Button { Content = "Remove from Desktop", Style = (Style)FindResource("DangerButton"), Margin = new Thickness(0, 18, 0, 0) };
+        var delete = new Button { Content = L.T("Remove from Desktop"), Style = (Style)FindResource("DangerButton"), Margin = new Thickness(0, 18, 0, 0) };
         delete.Click += (_, _) =>
         {
             selectedItemId = null;
@@ -1146,7 +1230,7 @@ public sealed class ManagerWindow : Window
     /// item's display, height grows downward.
     private void AddFrameEditor(LayoutItem item, Action<Func<LayoutItem, LayoutItem>> commit)
     {
-        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Frame (points)", Margin = new Thickness(2, 18, 0, 2) });
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Frame (points)"), Margin = new Thickness(2, 18, 0, 2) });
         // Point-denominated screen size: normalized fractions multiply out to
         // points here and to device pixels in the engine.
         double sw = screenBounds.Width / DpiScale, sh = screenBounds.Height / DpiScale;
@@ -1216,24 +1300,24 @@ public sealed class ManagerWindow : Window
         }
         grid.RowDefinitions.Add(new RowDefinition());
         grid.RowDefinitions.Add(new RowDefinition());
-        AddField("X", x, 0, null);
-        AddField("Y (from top)", y, 2, null);
+        AddField(L.T("X"), x, 0, null);
+        AddField(L.T("Y (from top)"), y, 2, null);
         row = 1;
-        AddField("Width", w, 0, PluginMetadata.PluginInfo.SizeAxis.Width);
-        AddField("Height", h, 2, PluginMetadata.PluginInfo.SizeAxis.Height);
+        AddField(L.T("Width"), w, 0, PluginMetadata.PluginInfo.SizeAxis.Width);
+        AddField(L.T("Height"), h, 2, PluginMetadata.PluginInfo.SizeAxis.Height);
         inspector.Children.Add(grid);
 
         var autoNote = (info.AutoSizeWidth, info.AutoSizeHeight) switch
         {
-            (true, true) => "Width and height follow this plugin's content.",
-            (true, false) => "Width follows this plugin's content.",
-            (false, true) => "Height follows this plugin's content.",
+            (true, true) => L.T("Width and height follow this plugin's content."),
+            (true, false) => L.T("Width follows this plugin's content."),
+            (false, true) => L.T("Height follows this plugin's content."),
             _ => null,
         };
         if (!info.Resizable)
             inspector.Children.Add(new TextBlock
             {
-                Text = "This plugin declares a fixed size (resizable: false).",
+                Text = L.T("This plugin declares a fixed size (resizable: false)."),
                 FontSize = 10,
                 Foreground = (Brush)FindResource("TextSecondary"),
                 Margin = new Thickness(2, 4, 0, 0),
@@ -1250,7 +1334,7 @@ public sealed class ManagerWindow : Window
         else if (LimitsSummary(info) is { } limits)
             inspector.Children.Add(new TextBlock
             {
-                Text = $"Limits: {limits} pt",
+                Text = L.T("Limits: {0} pt", limits),
                 FontSize = 10,
                 Foreground = (Brush)FindResource("TextSecondary"),
                 Margin = new Thickness(2, 4, 0, 0),
@@ -1290,7 +1374,7 @@ public sealed class ManagerWindow : Window
 
         if (permissions is { Count: > 0 })
         {
-            inspector.Children.Add(Caption("Permissions requested"));
+            inspector.Children.Add(Caption(L.T("Permissions requested")));
             inspector.Children.Add(new TextBlock
             {
                 Text = "⚠ " + string.Join(", ", permissions.OrderBy(p => p)),
@@ -1311,7 +1395,7 @@ public sealed class ManagerWindow : Window
     /// ~/.ssh/config, so an alias resolves host, user, port, and key.
     private void AddSshEditor(LayoutItem item, Action<Func<LayoutItem, LayoutItem>> commit)
     {
-        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "SSH Destinations", Margin = new Thickness(2, 18, 0, 6) });
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("SSH Destinations"), Margin = new Thickness(2, 18, 0, 6) });
         var aliases = SshConfigFile.Aliases();
         var hosts = item.SshHosts.Count > 0 ? item.SshHosts.ToList() : new List<SshConfig> { new() };
         void Push(List<SshConfig> updated) => commit(i => i with { SshHosts = updated });
@@ -1340,7 +1424,7 @@ public sealed class ManagerWindow : Window
             header.Children.Add(name);
             if (hosts.Count > 1)
             {
-                var remove = IconButton("", "Remove this server", () =>
+                var remove = IconButton("", L.T("Remove this server"), () =>
                 {
                     var copy = hosts.ToList();
                     copy.RemoveAt(idx);
@@ -1355,7 +1439,7 @@ public sealed class ManagerWindow : Window
 
             var usesAlias = new CheckBox
             {
-                Content = "Use ~/.ssh/config alias",
+                Content = L.T("Use ~/.ssh/config alias"),
                 IsChecked = host.UsesAlias,
                 Margin = new Thickness(0, 8, 0, 0),
             };
@@ -1365,7 +1449,7 @@ public sealed class ManagerWindow : Window
 
             if (host.UsesAlias)
             {
-                inspector.Children.Add(Caption("Alias"));
+                inspector.Children.Add(Caption(L.T("Alias")));
                 if (aliases.Count == 0)
                 {
                     var aliasBox = new TextBox { Text = host.Host };
@@ -1377,7 +1461,7 @@ public sealed class ManagerWindow : Window
                     inspector.Children.Add(aliasBox);
                     inspector.Children.Add(new TextBlock
                     {
-                        Text = "No hosts found in ~/.ssh/config.",
+                        Text = L.T("No hosts found in ~/.ssh/config."),
                         FontSize = 10,
                         Foreground = (Brush)FindResource("TextSecondary"),
                         Margin = new Thickness(0, 4, 0, 0),
@@ -1404,7 +1488,7 @@ public sealed class ManagerWindow : Window
                     inspector.Children.Add(picker);
                     inspector.Children.Add(new TextBlock
                     {
-                        Text = "ssh resolves the host name, user, port, and key.",
+                        Text = L.T("ssh resolves the host name, user, port, and key."),
                         FontSize = 10,
                         Foreground = (Brush)FindResource("TextSecondary"),
                         Margin = new Thickness(0, 4, 0, 0),
@@ -1413,7 +1497,7 @@ public sealed class ManagerWindow : Window
             }
             else
             {
-                inspector.Children.Add(Caption("Host"));
+                inspector.Children.Add(Caption(L.T("Host")));
                 var hostBox = new TextBox { Text = host.Host };
                 hostBox.LostFocus += (_, _) =>
                 {
@@ -1421,7 +1505,7 @@ public sealed class ManagerWindow : Window
                 };
                 inspector.Children.Add(hostBox);
 
-                inspector.Children.Add(Caption("Port"));
+                inspector.Children.Add(Caption(L.T("Port")));
                 var portBox = new TextBox { Text = host.Port.ToString() };
                 portBox.LostFocus += (_, _) =>
                 {
@@ -1430,7 +1514,7 @@ public sealed class ManagerWindow : Window
                 };
                 inspector.Children.Add(portBox);
 
-                inspector.Children.Add(Caption("User"));
+                inspector.Children.Add(Caption(L.T("User")));
                 var userBox = new TextBox { Text = host.User };
                 userBox.LostFocus += (_, _) =>
                 {
@@ -1438,10 +1522,10 @@ public sealed class ManagerWindow : Window
                 };
                 inspector.Children.Add(userBox);
 
-                inspector.Children.Add(Caption("Auth"));
+                inspector.Children.Add(Caption(L.T("Auth")));
                 var auth = new ComboBox
                 {
-                    ItemsSource = new[] { "SSH agent", "Identity key" },
+                    ItemsSource = new[] { L.T("SSH agent"), L.T("Identity key") },
                     SelectedIndex = host.Auth == SshAuth.Key ? 1 : 0,
                 };
                 auth.SelectionChanged += (_, _) =>
@@ -1458,19 +1542,19 @@ public sealed class ManagerWindow : Window
                     keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     keyRow.Children.Add(new TextBlock
                     {
-                        Text = host.KeyPath.Length == 0 ? "No key chosen" : Path.GetFileName(host.KeyPath),
+                        Text = host.KeyPath.Length == 0 ? L.T("No key chosen") : Path.GetFileName(host.KeyPath),
                         FontSize = 11,
                         Foreground = (Brush)FindResource("TextSecondary"),
                         VerticalAlignment = VerticalAlignment.Center,
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         ToolTip = host.KeyPath.Length == 0 ? null : host.KeyPath,
                     });
-                    var choose = new Button { Content = "Choose…", Padding = new Thickness(8, 4, 8, 4) };
+                    var choose = new Button { Content = L.T("Choose…"), Padding = new Thickness(8, 4, 8, 4) };
                     choose.Click += (_, _) =>
                     {
                         var dialog = new Microsoft.Win32.OpenFileDialog
                         {
-                            Title = "Choose an SSH identity (private key) file",
+                            Title = L.T("Choose an SSH identity (private key) file"),
                             InitialDirectory = Path.Combine(
                                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh"),
                         };
@@ -1485,7 +1569,7 @@ public sealed class ManagerWindow : Window
                 {
                     inspector.Children.Add(new TextBlock
                     {
-                        Text = "Uses your ssh agent. (Password auth isn't supported on Windows.)",
+                        Text = L.T("Uses your ssh agent. (Password auth isn't supported on Windows.)"),
                         FontSize = 10,
                         Foreground = (Brush)FindResource("TextSecondary"),
                         Margin = new Thickness(0, 4, 0, 0),
@@ -1494,7 +1578,7 @@ public sealed class ManagerWindow : Window
             }
         }
 
-        var addServer = new Button { Content = "+ Add Server", Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var addServer = new Button { Content = L.T("+ Add Server"), Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         addServer.Click += (_, _) =>
         {
             var n = hosts.Count + 1;
@@ -1507,7 +1591,7 @@ public sealed class ManagerWindow : Window
         if (hosts.Count > 1)
             inspector.Children.Add(new TextBlock
             {
-                Text = $"Plugins target a server by name: ssh(cmd, \"{hosts[1].Name}\").",
+                Text = L.T("Plugins target a server by name: ssh(cmd, \"{0}\").", hosts[1].Name),
                 FontSize = 10,
                 Foreground = (Brush)FindResource("TextSecondary"),
                 Margin = new Thickness(0, 4, 0, 0),
@@ -1519,10 +1603,10 @@ public sealed class ManagerWindow : Window
 
         if (declared is { Count: > 0 })
         {
-            inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Properties", Margin = new Thickness(2, 18, 0, 6) });
+            inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Properties"), Margin = new Thickness(2, 18, 0, 6) });
             foreach (var property in declared)
             {
-                inspector.Children.Add(Caption($"{property.Name} ({property.ValueType})"));
+                inspector.Children.Add(Caption(L.T("{0} ({1})", property.Name, L.T(property.ValueType))));
                 var name = property.Name;
                 var valueType = property.ValueType;
                 void CommitValue(PropertyValue value) => commit(i =>
@@ -1552,7 +1636,7 @@ public sealed class ManagerWindow : Window
     private void AddUpdateControls(string pluginId, InstalledPlugin? plugin)
     {
         if (plugin == null) return;
-        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Updates", Margin = new Thickness(2, 18, 0, 6) });
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Updates"), Margin = new Thickness(2, 18, 0, 6) });
 
         string? updateUrl = null;
         try { updateUrl = PluginMetadata.Extract(File.ReadAllText(plugin.SourcePath)).updateUrl; }
@@ -1560,24 +1644,24 @@ public sealed class ManagerWindow : Window
 
         if (updateUrl != null)
         {
-            var auto = new CheckBox { Content = "Auto-update on launch", IsChecked = updater.IsAutoUpdate(pluginId) };
+            var auto = new CheckBox { Content = L.T("Auto-update on launch"), IsChecked = updater.IsAutoUpdate(pluginId) };
             auto.Checked += (_, _) => updater.SetAutoUpdate(pluginId, true);
             auto.Unchecked += (_, _) => updater.SetAutoUpdate(pluginId, false);
             inspector.Children.Add(auto);
 
             var status = new TextBlock { Foreground = (Brush)FindResource("TextSecondary"), FontSize = 11, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
-            var check = new Button { Content = "Check for Update", Margin = new Thickness(0, 8, 0, 0) };
+            var check = new Button { Content = L.T("Check for Update"), Margin = new Thickness(0, 8, 0, 0) };
             check.Click += async (_, _) =>
             {
                 check.IsEnabled = false;
-                status.Text = "Checking…";
+                status.Text = L.T("Checking…");
                 try
                 {
                     var result = await updater.Check(pluginId, File.ReadAllText(plugin.SourcePath), plugin.SourcePath);
                     status.Text = result.Message;
                     if (result.Outcome == UpdateOutcome.Updated) registry.Rescan();
                 }
-                catch (Exception ex) { status.Text = "Update failed: " + ex.Message; }
+                catch (Exception ex) { status.Text = L.T("Update failed: {0}", ex.Message); }
                 finally { check.IsEnabled = true; }
             };
             inspector.Children.Add(check);
@@ -1593,14 +1677,14 @@ public sealed class ManagerWindow : Window
         {
             inspector.Children.Add(new TextBlock
             {
-                Text = "No update URL declared",
+                Text = L.T("No update URL declared"),
                 FontSize = 11,
                 Foreground = (Brush)FindResource("TextSecondary"),
             });
             return;
         }
 
-        inspector.Children.Add(LabeledRow("Store", source.Value.StoreName));
+        inspector.Children.Add(LabeledRow(L.T("Store"), source.Value.StoreName));
         string? installedVersion = null;
         try { installedVersion = PluginMetadata.Extract(File.ReadAllText(plugin.SourcePath)).version; }
         catch (IOException) { }
@@ -1611,12 +1695,12 @@ public sealed class ManagerWindow : Window
         var status2 = new TextBlock { Foreground = (Brush)FindResource("TextSecondary"), FontSize = 11, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap };
         if (newer)
         {
-            status2.Text = $"The store lists {listed}.";
+            status2.Text = L.T("The store lists {0}.", listed);
             status2.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A));
         }
         var button = new Button
         {
-            Content = newer && listed != null ? $"Update to {listed}" : "Reinstall from Store",
+            Content = newer && listed != null ? L.T("Update to {0}", listed) : L.T("Reinstall from Store"),
             Margin = new Thickness(0, 4, 0, 0),
         };
         var sp = source.Value;
@@ -1625,7 +1709,7 @@ public sealed class ManagerWindow : Window
             button.IsEnabled = false;
             var error = await storeRegistry.Install(sp.Plugin, sp.StoreName, PluginRegistry.PluginsDirectory);
             registry.Rescan();
-            status2.Text = error ?? $"Installed {sp.Plugin.Version ?? ""}".TrimEnd();
+            status2.Text = error ?? L.T("Installed {0}", sp.Plugin.Version ?? "").TrimEnd();
             button.IsEnabled = true;
         };
         inspector.Children.Add(button);
@@ -1666,14 +1750,14 @@ public sealed class ManagerWindow : Window
         var origin = storeRegistry.OriginOf(pluginId);
         inspector.Children.Add(new TextBlock
         {
-            Text = origin != null ? $"from {origin}" : "User Installed",
+            Text = origin != null ? L.T("from {0}", origin) : L.T("User Installed"),
             Foreground = (Brush)FindResource("TextSecondary"),
             FontSize = 11,
             Margin = new Thickness(0, 1, 0, 8),
         });
 
-        inspector.Children.Add(LabeledRow("Version", info.Version ?? "—"));
-        if (info.Author != null) inspector.Children.Add(LabeledRow("Author", info.Author));
+        inspector.Children.Add(LabeledRow(L.T("Version"), info.Version ?? "—"));
+        if (info.Author != null) inspector.Children.Add(LabeledRow(L.T("Author"), info.Author));
         if (info.Description != null)
             inspector.Children.Add(new TextBlock
             {
@@ -1683,14 +1767,15 @@ public sealed class ManagerWindow : Window
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4, 0, 0),
             });
-        inspector.Children.Add(LabeledRow("On desktop", usageCount == 0 ? "not placed" : $"{usageCount} item{(usageCount == 1 ? "" : "s")}"));
+        inspector.Children.Add(LabeledRow(L.T("On desktop"),
+            usageCount == 0 ? L.T("not placed") : L.T("{0} items", usageCount)));
 
         inspector.Children.Add(Divider());
         AddUpdateControls(pluginId, plugin);
 
         // Capabilities (mac "Capabilities" section).
         inspector.Children.Add(Divider());
-        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Capabilities", Margin = new Thickness(2, 0, 0, 6) });
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Capabilities"), Margin = new Thickness(2, 0, 0, 6) });
         IReadOnlySet<string>? permissions = null;
         IReadOnlyList<PluginProperty>? declared = null;
         if (source != null)
@@ -1703,47 +1788,69 @@ public sealed class ManagerWindow : Window
             }
             catch { }
         }
-        inspector.Children.Add(LabeledRow("Permissions",
-            permissions is { Count: > 0 } ? string.Join(", ", permissions.OrderBy(p => p)) : "none"));
+        inspector.Children.Add(LabeledRow(L.T("Permissions"),
+            permissions is { Count: > 0 } ? string.Join(", ", permissions.OrderBy(p => p)) : L.T("none")));
         if (info.Width is { } dw && info.Height is { } dh)
-            inspector.Children.Add(LabeledRow("Default size", $"{(int)dw} × {(int)dh}"));
-        inspector.Children.Add(LabeledRow("Resize",
-            !info.Resizable ? "fixed size" : info.KeepsAspect ? "keeps aspect" : "free"));
+            inspector.Children.Add(LabeledRow(L.T("Default size"), $"{(int)dw} × {(int)dh}"));
+        inspector.Children.Add(LabeledRow(L.T("Resize"),
+            !info.Resizable ? L.T("fixed size") : info.KeepsAspect ? L.T("keeps aspect") : L.T("free")));
         if (LimitsSummary(info) is { } limits)
-            inspector.Children.Add(LabeledRow("Limits", limits));
+            inspector.Children.Add(LabeledRow(L.T("Limits"), limits));
 
         // Properties — read-only here: values are edited per placed item.
         inspector.Children.Add(Divider());
-        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = "Properties", Margin = new Thickness(2, 0, 0, 6) });
+        inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Properties"), Margin = new Thickness(2, 0, 0, 6) });
         if (declared is { Count: > 0 })
             foreach (var property in declared)
                 inspector.Children.Add(LabeledRow(property.Name, property.Value.StringValue));
         else
-            inspector.Children.Add(new TextBlock { Text = "No properties declared", FontSize = 11, Foreground = (Brush)FindResource("TextSecondary") });
+            inspector.Children.Add(new TextBlock { Text = L.T("No properties declared"), FontSize = 11, Foreground = (Brush)FindResource("TextSecondary") });
 
         // Source: reveal + add-to-desktop + rewrite-with-AI + uninstall.
         inspector.Children.Add(Divider());
-        var add = new Button { Content = "Add to Desktop", Style = (Style)FindResource("AccentButton") };
+        var add = new Button { Content = L.T("Add to Desktop"), Style = (Style)FindResource("AccentButton") };
         add.Click += (_, _) => AddToDesktop(pluginId);
         inspector.Children.Add(add);
 
         if (plugin != null)
         {
-            var reveal = new Button { Content = "Show in Explorer", Margin = new Thickness(0, 8, 0, 0) };
+            var reveal = new Button { Content = L.T("Show in Explorer"), Margin = new Thickness(0, 8, 0, 0) };
             reveal.Click += (_, _) => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{plugin.SourcePath}\"") { UseShellExecute = true });
             inspector.Children.Add(reveal);
 
-            var rewrite = new Button { Content = "Rewrite with AI…", Margin = new Thickness(0, 8, 0, 0) };
+            var rewrite = new Button { Content = L.T("Rewrite with AI…"), Margin = new Thickness(0, 8, 0, 0) };
             rewrite.Click += (_, _) => OpenCreatePlugin();
             inspector.Children.Add(rewrite);
 
-            var uninstall = new Button { Content = "Uninstall", Style = (Style)FindResource("DangerButton"), Margin = new Thickness(0, 8, 0, 0) };
+            // Store plugins keep their catalog name: an update looks the
+            // plugin up by name, and a renamed copy would be installed
+            // alongside it rather than over it.
+            var fromStore = storeRegistry.OriginOf(pluginId);
+            var rename = new Button
+            {
+                Content = L.T("Rename…"),
+                Margin = new Thickness(0, 8, 0, 0),
+                IsEnabled = fromStore == null,
+            };
+            rename.Click += (_, _) => OpenRenameDialog(pluginId);
+            inspector.Children.Add(rename);
+            if (fromStore is { } storeName)
+                inspector.Children.Add(new TextBlock
+                {
+                    Text = L.T("Plugins from {0} keep their name so updates can find them.", storeName),
+                    FontSize = 10,
+                    Foreground = (Brush)FindResource("TextSecondary"),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(2, 4, 0, 0),
+                });
+
+            var uninstall = new Button { Content = L.T("Uninstall"), Style = (Style)FindResource("DangerButton"), Margin = new Thickness(0, 8, 0, 0) };
             uninstall.Click += (_, _) =>
             {
                 var message = usageCount > 0
-                    ? $"{usageCount} item{(usageCount == 1 ? "" : "s")} on your desktop use it and will stop rendering."
-                    : "The plugin file is deleted.";
-                if (MessageBox.Show(this, message, $"Uninstall {pluginId}?",
+                    ? L.T("{0} items on your desktop use it and will stop rendering.", usageCount)
+                    : L.T("The plugin file is deleted.");
+                if (MessageBox.Show(this, message, L.T("Uninstall {0}?", pluginId),
                         MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
                 try
                 {
@@ -1768,7 +1875,7 @@ public sealed class ManagerWindow : Window
         inspector.Children.Add(new TextBlock { Text = entry.DisplayName, FontSize = 16, FontWeight = FontWeights.SemiBold });
         inspector.Children.Add(new TextBlock
         {
-            Text = "Plugin Store",
+            Text = L.T("Plugin Store"),
             Foreground = (Brush)FindResource("TextSecondary"),
             FontSize = 11,
             Margin = new Thickness(0, 1, 0, 8),
@@ -1776,8 +1883,8 @@ public sealed class ManagerWindow : Window
 
         var total = entry.Catalog?.Plugins.Count ?? 0;
         var installed = entry.Catalog?.Plugins.Count(p => registry.Plugin(p.Name) != null) ?? 0;
-        inspector.Children.Add(LabeledRow("Plugins", total.ToString()));
-        inspector.Children.Add(LabeledRow("Installed", installed.ToString()));
+        inspector.Children.Add(LabeledRow(L.T("Plugins"), total.ToString()));
+        inspector.Children.Add(LabeledRow(L.T("Installed"), installed.ToString()));
         if (entry.LastError is { } error)
             inspector.Children.Add(new TextBlock
             {
@@ -1801,7 +1908,7 @@ public sealed class ManagerWindow : Window
         }
 
         inspector.Children.Add(Divider());
-        inspector.Children.Add(Caption("Catalog URL"));
+        inspector.Children.Add(Caption(L.T("Catalog URL")));
         inspector.Children.Add(new TextBlock
         {
             Text = entry.Url,
@@ -1811,9 +1918,9 @@ public sealed class ManagerWindow : Window
             TextWrapping = TextWrapping.Wrap,
         });
         if (entry.FetchedAt is { } fetched)
-            inspector.Children.Add(LabeledRow("Updated", fetched.LocalDateTime.ToString("g")));
+            inspector.Children.Add(LabeledRow(L.T("Updated"), fetched.LocalDateTime.ToString("g")));
 
-        var refresh = new Button { Content = "Refresh", Margin = new Thickness(0, 8, 0, 0) };
+        var refresh = new Button { Content = L.T("Refresh"), Margin = new Thickness(0, 8, 0, 0) };
         refresh.Click += async (_, _) =>
         {
             refresh.IsEnabled = false;
@@ -1823,12 +1930,12 @@ public sealed class ManagerWindow : Window
         inspector.Children.Add(refresh);
 
         inspector.Children.Add(Divider());
-        var remove = new Button { Content = "Remove Store", Style = (Style)FindResource("DangerButton") };
+        var remove = new Button { Content = L.T("Remove Store"), Style = (Style)FindResource("DangerButton") };
         remove.Click += (_, _) =>
         {
             if (MessageBox.Show(this,
-                    "Its catalog disappears from the library. Installed plugins are untouched.",
-                    $"Remove {entry.DisplayName}?", MessageBoxButton.OKCancel, MessageBoxImage.Question)
+                    L.T("Its catalog disappears from the library. Installed plugins are untouched."),
+                    L.T("Remove {0}?", entry.DisplayName), MessageBoxButton.OKCancel, MessageBoxImage.Question)
                 != MessageBoxResult.OK) return;
             storeRegistry.RemoveStore(entry.Url);
             selectedStoreUrl = null;
@@ -1836,7 +1943,7 @@ public sealed class ManagerWindow : Window
         inspector.Children.Add(remove);
         inspector.Children.Add(new TextBlock
         {
-            Text = "Removing a store only drops its listing. Plugins you already installed from it stay on disk.",
+            Text = L.T("Removing a store only drops its listing. Plugins you already installed from it stay on disk."),
             FontSize = 10,
             Foreground = (Brush)FindResource("TextSecondary"),
             TextWrapping = TextWrapping.Wrap,
@@ -1855,7 +1962,7 @@ public sealed class ManagerWindow : Window
         inspector.Children.Add(new TextBlock { Text = name, FontSize = 16, FontWeight = FontWeights.SemiBold });
         inspector.Children.Add(new TextBlock
         {
-            Text = $"from {entry?.DisplayName ?? "store"}",
+            Text = L.T("from {0}", entry?.DisplayName ?? L.T("Store")),
             Foreground = (Brush)FindResource("TextSecondary"),
             FontSize = 11,
             Margin = new Thickness(0, 1, 0, 8),
@@ -1870,8 +1977,8 @@ public sealed class ManagerWindow : Window
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 6),
             });
-        if (plugin?.Version is { } version) inspector.Children.Add(LabeledRow("Version", version));
-        if (plugin?.Author is { } author2) inspector.Children.Add(LabeledRow("Author", author2));
+        if (plugin?.Version is { } version) inspector.Children.Add(LabeledRow(L.T("Version"), version));
+        if (plugin?.Author is { } author2) inspector.Children.Add(LabeledRow(L.T("Author"), author2));
 
         inspector.Children.Add(Divider());
         if (isInstalled)
@@ -1883,7 +1990,7 @@ public sealed class ManagerWindow : Window
                 FontSize = 12,
                 Margin = new Thickness(0, 0, 0, 8),
             });
-            var show = new Button { Content = "Show Installed Plugin" };
+            var show = new Button { Content = L.T("Show Installed Plugin") };
             show.Click += (_, _) => SelectPlugin(name);
             inspector.Children.Add(show);
             return;
@@ -1891,16 +1998,16 @@ public sealed class ManagerWindow : Window
         if (plugin == null || entry == null) return;
 
         var status = new TextBlock { Foreground = (Brush)FindResource("TextSecondary"), FontSize = 11, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
-        var install = new Button { Content = "Install", Style = (Style)FindResource("AccentButton") };
-        var installAdd = new Button { Content = "Install & Add to Desktop", Margin = new Thickness(0, 8, 0, 0) };
+        var install = new Button { Content = L.T("Install"), Style = (Style)FindResource("AccentButton") };
+        var installAdd = new Button { Content = L.T("Install & Add to Desktop"), Margin = new Thickness(0, 8, 0, 0) };
         async Task Install(bool thenPlace)
         {
             install.IsEnabled = false;
             installAdd.IsEnabled = false;
-            status.Text = "Installing…";
+            status.Text = L.T("Installing…");
             var error = await storeRegistry.Install(plugin, entry.DisplayName, PluginRegistry.PluginsDirectory);
             registry.Rescan();
-            status.Text = error ?? "Installed";
+            status.Text = error ?? L.T("Installed");
             install.IsEnabled = true;
             installAdd.IsEnabled = true;
             // Placing selects the new item — only once the install landed.

@@ -51,7 +51,7 @@ public sealed class PluginUpdater
     {
         var (localVersion, updateUrlString) = PluginMetadata.Extract(installedSource);
         if (string.IsNullOrEmpty(updateUrlString) || !Uri.TryCreate(updateUrlString, UriKind.Absolute, out var updateUrl))
-            return new(UpdateOutcome.NoUpdateUrl, "No update URL declared");
+            return new(UpdateOutcome.NoUpdateUrl, L.T("No update URL declared"));
         localVersion ??= "0";
 
         // 1) Manifest first (small JSON).
@@ -59,7 +59,7 @@ public sealed class PluginUpdater
         if (manifest != null)
         {
             if (CompareVersions(manifest.Version, localVersion) <= 0)
-                return new(UpdateOutcome.UpToDate, $"Up to date ({localVersion})");
+                return new(UpdateOutcome.UpToDate, L.T("Up to date ({0})", localVersion));
             var bodyUrl = !string.IsNullOrEmpty(manifest.Url) && Uri.TryCreate(manifest.Url, UriKind.Absolute, out var u)
                 ? u : BodyUrl(updateUrl);
             return await Download(bodyUrl, destination, localVersion, manifest.Version, pluginId);
@@ -71,18 +71,18 @@ public sealed class PluginUpdater
             using var req = new HttpRequestMessage(HttpMethod.Get, updateUrl);
             req.Headers.CacheControl = new() { NoCache = true };
             var response = await Http.SendAsync(req);
-            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Failed, $"Update failed: HTTP {(int)response.StatusCode}");
+            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Failed, L.T("Update failed: HTTP {0}", (int)response.StatusCode));
             var remoteSource = await response.Content.ReadAsStringAsync();
-            if (string.IsNullOrEmpty(remoteSource)) return new(UpdateOutcome.Failed, "Update failed: response was not text");
+            if (string.IsNullOrEmpty(remoteSource)) return new(UpdateOutcome.Failed, L.T("Update failed: response was not text"));
             var (remoteVersion, _) = PluginMetadata.Extract(remoteSource);
             remoteVersion ??= "0";
             if (CompareVersions(remoteVersion, localVersion) <= 0)
-                return new(UpdateOutcome.UpToDate, $"Up to date ({localVersion})");
+                return new(UpdateOutcome.UpToDate, L.T("Up to date ({0})", localVersion));
             File.WriteAllText(destination, remoteSource);
             log($"updated {pluginId} {localVersion} → {remoteVersion}");
-            return new(UpdateOutcome.Updated, $"Updated {localVersion} → {remoteVersion}");
+            return new(UpdateOutcome.Updated, L.T("Updated {0} → {1}", localVersion, remoteVersion));
         }
-        catch (Exception ex) { return new(UpdateOutcome.Failed, $"Update failed: {ex.Message}"); }
+        catch (Exception ex) { return new(UpdateOutcome.Failed, L.T("Update failed: {0}", ex.Message)); }
     }
 
     private sealed class Manifest { public string Version { get; set; } = "0"; public string? Url { get; set; } }
@@ -118,14 +118,14 @@ public sealed class PluginUpdater
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.CacheControl = new() { NoCache = true };
             var response = await Http.SendAsync(req);
-            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Failed, $"Update failed: HTTP {(int)response.StatusCode}");
+            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Failed, L.T("Update failed: HTTP {0}", (int)response.StatusCode));
             var source = await response.Content.ReadAsStringAsync();
-            if (string.IsNullOrEmpty(source)) return new(UpdateOutcome.Failed, "Update failed: plugin body was not text");
+            if (string.IsNullOrEmpty(source)) return new(UpdateOutcome.Failed, L.T("Update failed: plugin body was not text"));
             File.WriteAllText(destination, source);
             log($"updated {pluginId} {from} → {to} (manifest)");
-            return new(UpdateOutcome.Updated, $"Updated {from} → {to}");
+            return new(UpdateOutcome.Updated, L.T("Updated {0} → {1}", from, to));
         }
-        catch (Exception ex) { return new(UpdateOutcome.Failed, $"Update failed: {ex.Message}"); }
+        catch (Exception ex) { return new(UpdateOutcome.Failed, L.T("Update failed: {0}", ex.Message)); }
     }
 
     /// Dotted-numeric compare (1.2.10 > 1.2.9). Missing components are 0.

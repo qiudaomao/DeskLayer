@@ -125,7 +125,7 @@ public sealed class PluginAuthorSession
         cancelSource?.Cancel();
         cancelSource = null;
         IsRunning = false;
-        Add("Stopped.");
+        Add(L.T("Stopped."));
     }
 
     /// Asks the model for a plugin and installs what it produces.
@@ -135,13 +135,13 @@ public sealed class PluginAuthorSession
         Settings.Save();
         if (!Settings.IsConfigured)
         {
-            Error = "Set the base URL and model first.";
+            Error = L.T("Set the base URL and model first.");
             Notify();
             return;
         }
         if (!PluginDocs.IsAvailable)
         {
-            Error = "This build is missing the plugin API documentation.";
+            Error = L.T("This build is missing the plugin API documentation.");
             Notify();
             return;
         }
@@ -152,7 +152,7 @@ public sealed class PluginAuthorSession
 
         subject = Resolved(subject);
         if (subject.Kind == SubjectKind.Copy && subject.BasePluginId is { } base_ && IsStoreInstalled(base_))
-            Add($"{base_} came from a store, so this is saved as a copy.");
+            Add(L.T("{0} came from a store, so this is saved as a copy.", base_));
 
         var tools = new PluginTools(registry);
         cancelSource = new CancellationTokenSource();
@@ -177,7 +177,7 @@ public sealed class PluginAuthorSession
             ChatMessage.User(Request(prompt, subject)),
         };
 
-        Add($"Asking {Settings.Model}…");
+        Add(L.T("Asking {0}…", Settings.Model));
 
         var maxTurns = Math.Max(Settings.MaxTurns, 1);
         for (var turn = 1; turn <= maxTurns; turn++)
@@ -190,7 +190,7 @@ public sealed class PluginAuthorSession
             if (result.Error is { } failure)
             {
                 Error = failure;
-                Add("Failed", failure, isError: true);
+                Add(L.T("Failed"), failure, isError: true);
                 return;
             }
             if (result.Text is { } text)
@@ -218,7 +218,7 @@ public sealed class PluginAuthorSession
                 }
                 if (turn == maxTurns)
                 {
-                    Add("Reached the turn limit.", isError: true);
+                    Add(L.T("Reached the turn limit."), isError: true);
                     Finish("", subject, tools);
                     return;
                 }
@@ -231,8 +231,8 @@ public sealed class PluginAuthorSession
     {
         if (tools.Written.Count == 0)
         {
-            Error = text.Length == 0 ? "The model didn't write a plugin." : text;
-            Add("No plugin was written.", text.Length == 0 ? null : text, isError: true);
+            Error = text.Length == 0 ? L.T("The model didn't write a plugin.") : text;
+            Add(L.T("No plugin was written."), text.Length == 0 ? null : text, isError: true);
             return;
         }
         var written = tools.Written[0];
@@ -248,7 +248,7 @@ public sealed class PluginAuthorSession
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            Error = "Couldn't read the generated plugin.";
+            Error = L.T("Couldn't read the generated plugin.");
             Notify();
             return;
         }
@@ -256,7 +256,7 @@ public sealed class PluginAuthorSession
         if (!ok)
         {
             Error = message;
-            Add("The generated plugin isn't valid.", message, isError: true);
+            Add(L.T("The generated plugin isn't valid."), message, isError: true);
             return;
         }
 
@@ -267,7 +267,7 @@ public sealed class PluginAuthorSession
             try
             {
                 File.Copy(destination, destination + ".bak", overwrite: true);
-                Add($"Kept the previous version as {name}.js.bak");
+                Add(L.T("Kept the previous version as {0}.js.bak", name));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
@@ -288,7 +288,7 @@ public sealed class PluginAuthorSession
         var (version, _) = PluginMetadata.Extract(source);
         var detail = message;
         if (version != null) detail += $" v{version}";
-        Add($"Installed {name}", detail);
+        Add(L.T("Installed {0}", name), detail);
         log($"authored plugin {name}");
     }
 
@@ -402,10 +402,10 @@ public sealed class PluginAuthorSession
         var name = call.StringArgument("name");
         return call.Name switch
         {
-            "list_plugins" => "Listing installed plugins…",
-            "read_file" => $"Reading {name ?? "a file"}…",
-            "write_plugin" => $"Writing {name ?? "the plugin"}…",
-            "validate_plugin" => $"Validating {name ?? "the plugin"}…",
+            "list_plugins" => L.T("Listing installed plugins…"),
+            "read_file" => L.T("Reading {0}…", name ?? "a file"),
+            "write_plugin" => L.T("Writing {0}…", name ?? "the plugin"),
+            "validate_plugin" => L.T("Validating {0}…", name ?? "the plugin"),
             _ => call.Name,
         };
     }

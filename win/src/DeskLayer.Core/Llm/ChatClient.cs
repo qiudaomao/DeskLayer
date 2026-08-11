@@ -122,7 +122,7 @@ public sealed class ChatClient
         CancellationToken cancel = default)
     {
         var url = settings.CompletionsUrl;
-        if (url == null) return ChatTurn.Failed("That base URL isn't valid.");
+        if (url == null) return ChatTurn.Failed(L.T("That base URL isn't valid."));
 
         var body = new JsonObject { ["model"] = settings.Model };
         var wireMessages = new JsonArray();
@@ -155,7 +155,7 @@ public sealed class ChatClient
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
-            return ChatTurn.Failed("Cancelled.");
+            return ChatTurn.Failed(L.T("Cancelled."));
         }
         catch (Exception ex)
         {
@@ -163,7 +163,7 @@ public sealed class ChatClient
         }
 
         var message2 = DecodeFirstMessage(data);
-        if (message2 == null) return ChatTurn.Failed("The endpoint returned no reply.");
+        if (message2 == null) return ChatTurn.Failed(L.T("The endpoint returned no reply."));
         if (message2.ToolCalls is { Count: > 0 })
             return new ChatTurn { Tools = (message2.ToolCalls, message2) };
         return ChatTurn.FromText(message2.Content ?? "");
@@ -175,7 +175,7 @@ public sealed class ChatClient
         LlmSettings settings, string apiKey, CancellationToken cancel = default)
     {
         var url = settings.ModelsUrl;
-        if (url == null) return (null, "That base URL isn't valid.");
+        if (url == null) return (null, L.T("That base URL isn't valid."));
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (!string.IsNullOrEmpty(apiKey))
             request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
@@ -194,7 +194,7 @@ public sealed class ChatClient
                     var id = AsString(entry?["id"]) ?? AsString(entry?["name"]);
                     if (!string.IsNullOrEmpty(id)) ids.Add(id);
                 }
-            if (ids.Count == 0) return (null, "The endpoint listed no models.");
+            if (ids.Count == 0) return (null, L.T("The endpoint listed no models."));
             ids.Sort(StringComparer.Ordinal);
             return (ids, null);
         }
