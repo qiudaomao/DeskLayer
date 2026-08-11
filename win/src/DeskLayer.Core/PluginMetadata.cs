@@ -50,7 +50,8 @@ public static class PluginMetadata
         double? Width, double? Height,
         bool Resizable = true, bool? LockAspect = null,
         double? MinWidth = null, double? MaxWidth = null,
-        double? MinHeight = null, double? MaxHeight = null)
+        double? MinHeight = null, double? MaxHeight = null,
+        bool AutoSizeWidth = false, bool AutoSizeHeight = false)
     {
         /// Whether a corner drag should keep the aspect ratio: an explicit
         /// scaleMode/lockAspect wins; a declared size implies a natural
@@ -129,12 +130,17 @@ public static class PluginMetadata
             var lockAspect = Str("scaleMode")?.ToLowerInvariant() is { } mode
                 ? mode is "ratio" or "aspect" or "locked"
                 : Flag("lockAspect");
+            // autoSize: "width" | "height" | "both" | "none" — which axes
+            // follow the rendered content instead of the user's frame.
+            var autoSize = Str("autoSize")?.ToLowerInvariant() ?? "";
             return new PluginInfo(Str("version"), Str("updateURL"), Str("author"),
                 Str("description"), Num("width"), Num("height"),
                 Resizable: Flag("resizable") ?? true,
                 LockAspect: lockAspect,
                 MinWidth: Num("minWidth"), MaxWidth: Num("maxWidth"),
-                MinHeight: Num("minHeight"), MaxHeight: Num("maxHeight"));
+                MinHeight: Num("minHeight"), MaxHeight: Num("maxHeight"),
+                AutoSizeWidth: autoSize is "both" or "width",
+                AutoSizeHeight: autoSize is "both" or "height");
         }
         catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {

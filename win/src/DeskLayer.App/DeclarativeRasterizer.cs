@@ -24,7 +24,8 @@ public static class DeclarativeRasterizer
     /// of 13 is 13 points, mac parity) and rasterizes at the display's real
     /// pixel density instead of a 1:1 96-dpi mapping that looks tiny on a
     /// scaled 4K display.
-    public static byte[]? Rasterize(string treeJson, int width, int height, double deviceScale, Action<string> log)
+    public static byte[]? Rasterize(string treeJson, int width, int height, double deviceScale, Action<string> log,
+        bool autoSizeWidth = false, bool autoSizeHeight = false)
     {
         var node = ViewNode.Decode(treeJson);
         if (node == null)
@@ -40,11 +41,26 @@ public static class DeclarativeRasterizer
         // Wallpaper-item defaults: readable over arbitrary wallpapers.
         TextElement.SetFontSize(root, 13);
         TextElement.SetForeground(root, Brushes.White);
-        root.Width = widthPts;
-        root.Height = heightPts;
 
-        root.Measure(new Size(widthPts, heightPts));
-        root.Arrange(new Rect(0, 0, widthPts, heightPts));
+        // autoSize axes follow the content's natural size instead of being
+        // stretched across the item frame (mac parity: RemoteMonitor hugs
+        // its server list). Content anchors top-left; the slack stays
+        // transparent. Capped at the frame so it never overflows the surface.
+        var usedWidth = widthPts;
+        var usedHeight = heightPts;
+        if (autoSizeWidth || autoSizeHeight)
+        {
+            root.Measure(new Size(
+                autoSizeWidth ? double.PositiveInfinity : widthPts,
+                autoSizeHeight ? double.PositiveInfinity : heightPts));
+            if (autoSizeWidth) usedWidth = Math.Min(root.DesiredSize.Width, widthPts);
+            if (autoSizeHeight) usedHeight = Math.Min(root.DesiredSize.Height, heightPts);
+        }
+        root.Width = usedWidth;
+        root.Height = usedHeight;
+
+        root.Measure(new Size(usedWidth, usedHeight));
+        root.Arrange(new Rect(0, 0, usedWidth, usedHeight));
         root.UpdateLayout();
 
         var bitmap = new RenderTargetBitmap(width, height, 96 * deviceScale, 96 * deviceScale, PixelFormats.Pbgra32);

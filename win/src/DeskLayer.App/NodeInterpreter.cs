@@ -155,7 +155,7 @@ public static class NodeInterpreter
         var index = 0;
         foreach (var child in node.Children)
         {
-            var greedy = horizontal ? IsGreedyH(child) : IsGreedyV(child);
+            var greedy = horizontal ? IsGreedyH(child, true) : IsGreedyV(child, true);
             if (horizontal)
                 grid.ColumnDefinitions.Add(new ColumnDefinition
                 {
@@ -176,13 +176,13 @@ public static class NodeInterpreter
             {
                 Grid.SetColumn(el, index);
                 el.HorizontalAlignment = greedy ? HorizontalAlignment.Stretch : HorizontalAlignment.Center;
-                el.VerticalAlignment = IsGreedyV(child) ? VerticalAlignment.Stretch : VerticalAlignment.Center;
+                el.VerticalAlignment = IsGreedyV(child, false) ? VerticalAlignment.Stretch : VerticalAlignment.Center;
             }
             else
             {
                 Grid.SetRow(el, index);
                 el.VerticalAlignment = greedy ? VerticalAlignment.Stretch : VerticalAlignment.Center;
-                el.HorizontalAlignment = IsGreedyH(child) ? HorizontalAlignment.Stretch : HorizontalAlignment.Center;
+                el.HorizontalAlignment = IsGreedyH(child, false) ? HorizontalAlignment.Stretch : HorizontalAlignment.Center;
             }
             grid.Children.Add(el);
             index++;
@@ -192,28 +192,42 @@ public static class NodeInterpreter
 
     // ---- SwiftUI greediness rules ----
 
-    private static bool IsGreedyH(ViewNode node)
+    // A Spacer expands only along its parent stack's axis (SwiftUI): a
+    // Spacer inside an HStack is horizontally greedy but adds no height —
+    // treating it as greedy on both axes made every row containing one
+    // vertically star-split, spreading content apart and breaking natural-
+    // size measurement for autoSize. `inAxisStack` says whether the node
+    // sits in a stack whose axis is the one being asked about (true at the
+    // top level and in ZStacks, where a Spacer fills the space it's given).
+
+    private static bool IsGreedyH(ViewNode node, bool inAxisStack = true)
     {
         var frame = node.Modifier("frame");
         if (frame != null && frame.Args.Count > 0)
             return !frame.Args[0].IsNumber; // explicit width → hugging; null → greedy
         return node.Type switch
         {
-            "Spacer" or "Rect" or "ProgressBar" or "TextField" or "Video" or "Ring" => true,
-            "Root" or "ZStack" or "VStack" or "HStack" => node.Children.Any(IsGreedyH),
+            "Spacer" => inAxisStack,
+            "Rect" or "ProgressBar" or "TextField" or "Video" or "Ring" => true,
+            "Root" or "ZStack" => node.Children.Any(c => IsGreedyH(c, true)),
+            "HStack" => node.Children.Any(c => IsGreedyH(c, true)),
+            "VStack" => node.Children.Any(c => IsGreedyH(c, false)),
             _ => false,
         };
     }
 
-    private static bool IsGreedyV(ViewNode node)
+    private static bool IsGreedyV(ViewNode node, bool inAxisStack = true)
     {
         var frame = node.Modifier("frame");
         if (frame != null && frame.Args.Count > 1)
             return !frame.Args[1].IsNumber;
         return node.Type switch
         {
-            "Spacer" or "Rect" or "Video" or "Ring" => true,
-            "Root" or "ZStack" or "VStack" or "HStack" => node.Children.Any(IsGreedyV),
+            "Spacer" => inAxisStack,
+            "Rect" or "Video" or "Ring" => true,
+            "Root" or "ZStack" => node.Children.Any(c => IsGreedyV(c, true)),
+            "VStack" => node.Children.Any(c => IsGreedyV(c, true)),
+            "HStack" => node.Children.Any(c => IsGreedyV(c, false)),
             _ => false,
         };
     }

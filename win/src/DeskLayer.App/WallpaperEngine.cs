@@ -127,6 +127,8 @@ public sealed class WallpaperEngine : IDisposable
         public string? LastTree;
         public byte[]? PendingPixels;
         public bool RasterInFlight;
+        /// Declared metadata (autoSize axes), read once at spawn.
+        public DeskLayer.Core.PluginMetadata.PluginInfo? Info;
         public volatile bool Disposed;
         public readonly object Gate = new();
 
@@ -326,7 +328,9 @@ public sealed class WallpaperEngine : IDisposable
                             PostToUi?.Invoke(() =>
                             {
                                 var pixels = DeclarativeRasterizer.Rasterize(json, w, h, dpiScale,
-                                    message => log($"[{item.Layout.PluginId}] {message}"));
+                                    message => log($"[{item.Layout.PluginId}] {message}"),
+                                    item.Info?.AutoSizeWidth ?? false,
+                                    item.Info?.AutoSizeHeight ?? false);
                                 lock (item.Gate)
                                 {
                                     if (!item.Disposed) item.PendingPixels = pixels;
@@ -386,6 +390,11 @@ public sealed class WallpaperEngine : IDisposable
                     {
                         dc.Target = item.Surface;
                         dc.BeginDraw();
+                        // The device context is shared with canvas items,
+                        // which leave their DPI base transform set; these
+                        // pixels are already at device resolution, so a
+                        // leftover scale would draw them double-size.
+                        dc.Transform = System.Numerics.Matrix3x2.Identity;
                         dc.Clear(new Color4(0f, 0f, 0f, 0f));
                         using var uploaded = dc.CreateBitmap(
                             new System.Drawing.Size(item.PixelWidth, item.PixelHeight),
@@ -525,9 +534,10 @@ public sealed class WallpaperEngine : IDisposable
                 return null;
             }
 
+            var source = File.ReadAllText(plugin.SourcePath);
             var instance = PluginInstance.Boot(
                 layoutItem.PluginId,
-                File.ReadAllText(plugin.SourcePath),
+                source,
                 layoutItem.PropertyOverrides,
                 message => log($"[{layoutItem.PluginId}] {message}"),
                 hostStats: systemStats);
@@ -539,6 +549,7 @@ public sealed class WallpaperEngine : IDisposable
             }
             WireHooks(layoutItem, instance);
             WireSsh(layoutItem, instance);
+            var info = DeskLayer.Core.PluginMetadata.ExtractInfo(source);
 
             // Bottom-left-origin normalized frame → top-left pixel rect.
             var frame = layoutItem.NormalizedFrame;
@@ -570,6 +581,7 @@ public sealed class WallpaperEngine : IDisposable
             {
                 Layout = layoutItem,
                 Identity = new SpawnIdentity(layoutItem),
+                Info = info,
                 Instance = instance,
                 Surface = surface,
                 Canvas = canvas,
