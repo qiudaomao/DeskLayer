@@ -18,13 +18,19 @@ namespace DeskLayer.App;
 
 public static class DeclarativeRasterizer
 {
-    /// Must run on the STA UI thread. Returns width*height*4 premultiplied
-    /// BGRA bytes, or null when the tree fails to decode. `deviceScale` is
-    /// device pixels per point: the tree lays out in points (so a fontSize
-    /// of 13 is 13 points, mac parity) and rasterizes at the display's real
-    /// pixel density instead of a 1:1 96-dpi mapping that looks tiny on a
-    /// scaled 4K display.
-    public static byte[]? Rasterize(string treeJson, int width, int height, double deviceScale, Action<string> log,
+    /// One raster: premultiplied BGRA pixels, plus the tree's natural size in
+    /// points on the axes the plugin declared content-driven (the item's own
+    /// size on the others). The engine grows the item to `Desired*` so a
+    /// content change — a server added to RemoteMonitor — resizes the item
+    /// instead of being clipped.
+    public sealed record RasterResult(byte[] Pixels, double DesiredWidthPts, double DesiredHeightPts);
+
+    /// Must run on the STA UI thread. Returns null when the tree fails to
+    /// decode. `deviceScale` is device pixels per point: the tree lays out in
+    /// points (so a fontSize of 13 is 13 points, mac parity) and rasterizes
+    /// at the display's real pixel density instead of a 1:1 96-dpi mapping
+    /// that looks tiny on a scaled 4K display.
+    public static RasterResult? Rasterize(string treeJson, int width, int height, double deviceScale, Action<string> log,
         bool autoSizeWidth = false, bool autoSizeHeight = false)
     {
         var node = ViewNode.Decode(treeJson);
@@ -45,16 +51,28 @@ public static class DeclarativeRasterizer
         // autoSize axes follow the content's natural size instead of being
         // stretched across the item frame (mac parity: RemoteMonitor hugs
         // its server list). Content anchors top-left; the slack stays
-        // transparent. Capped at the frame so it never overflows the surface.
+        // transparent. The raster is capped at the frame so it never
+        // overflows this surface, but the uncapped desired size is reported
+        // so the engine can grow the item to fit.
         var usedWidth = widthPts;
         var usedHeight = heightPts;
+        var desiredWidth = widthPts;
+        var desiredHeight = heightPts;
         if (autoSizeWidth || autoSizeHeight)
         {
             root.Measure(new Size(
                 autoSizeWidth ? double.PositiveInfinity : widthPts,
                 autoSizeHeight ? double.PositiveInfinity : heightPts));
-            if (autoSizeWidth) usedWidth = Math.Min(root.DesiredSize.Width, widthPts);
-            if (autoSizeHeight) usedHeight = Math.Min(root.DesiredSize.Height, heightPts);
+            if (autoSizeWidth)
+            {
+                desiredWidth = root.DesiredSize.Width;
+                usedWidth = Math.Min(desiredWidth, widthPts);
+            }
+            if (autoSizeHeight)
+            {
+                desiredHeight = root.DesiredSize.Height;
+                usedHeight = Math.Min(desiredHeight, heightPts);
+            }
         }
         root.Width = usedWidth;
         root.Height = usedHeight;
@@ -68,7 +86,7 @@ public static class DeclarativeRasterizer
         var stride = width * 4;
         var pixels = new byte[stride * height];
         bitmap.CopyPixels(pixels, stride, 0);
-        return pixels;
+        return new RasterResult(pixels, desiredWidth, desiredHeight);
     }
 
     /// Writes rasterized BGRA pixels to a PNG — the headless way to inspect

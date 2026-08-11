@@ -804,7 +804,7 @@ public sealed class ManagerWindow : Window
                 Background = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
                 CornerRadius = new CornerRadius(5, 0, 4, 0),
                 Cursor = Cursors.SizeNWSE,
-                Visibility = isSelected && InfoFor(item.PluginId).Resizable
+                Visibility = isSelected && GripUsable(InfoFor(item.PluginId))
                     ? Visibility.Visible : Visibility.Collapsed,
             };
             content.Children.Add(grip);
@@ -833,6 +833,11 @@ public sealed class ManagerWindow : Window
         }
     }
 
+    /// A grip is worth showing only if some axis is the user's to set: a
+    /// fixed-size plugin has none, and a fully content-sized one snaps back.
+    private static bool GripUsable(PluginMetadata.PluginInfo info) =>
+        info.Resizable && !(info.AutoSizeWidth && info.AutoSizeHeight);
+
     /// Recolors the preview rects for a selection change without rebuilding
     /// them — rebuilding mid-mousedown would destroy the border being
     /// dragged and kill the drag.
@@ -846,7 +851,7 @@ public sealed class ManagerWindow : Window
                 : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44));
             var resizable = isSelected && child.Tag is Guid gripId &&
                 store.Layout.Items.FirstOrDefault(i => i.Id == gripId) is { } gripItem &&
-                InfoFor(gripItem.PluginId).Resizable;
+                GripUsable(InfoFor(gripItem.PluginId));
             if (child.Child is Grid content && content.Children.Count > 1)
                 content.Children[1].Visibility = resizable ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -945,6 +950,9 @@ public sealed class ManagerWindow : Window
                 ? PluginMetadata.PluginInfo.SizeAxis.Width
                 : PluginMetadata.PluginInfo.SizeAxis.Height;
             var (w, h) = info.ResolvedSize(proposedW, proposedH, edited);
+            // Content-driven axes ignore the drag — the render snaps them back.
+            if (info.AutoSizeWidth) w = rect.Width / scale / DpiScale;
+            if (info.AutoSizeHeight) h = rect.Height / scale / DpiScale;
             var maxW = Math.Max(24, overview.Width - Canvas.GetLeft(rect));
             var maxH = Math.Max(18, overview.Height - Canvas.GetTop(rect));
             rect.Width = Math.Clamp(w * DpiScale * scale, 24, maxW);
@@ -1128,8 +1136,18 @@ public sealed class ManagerWindow : Window
 
         var x = new TextBox { Text = Math.Round(frame.X * sw).ToString("0") };
         var y = new TextBox { Text = Math.Round((1 - frame.Y - frame.H) * sh).ToString("0") };
-        var w = new TextBox { Text = Math.Round(frame.W * sw).ToString("0"), IsEnabled = info.Resizable };
-        var h = new TextBox { Text = Math.Round(frame.H * sh).ToString("0"), IsEnabled = info.Resizable };
+        // An axis the plugin sizes from its own content isn't the user's to
+        // set: the next render would snap it straight back.
+        var w = new TextBox
+        {
+            Text = Math.Round(frame.W * sw).ToString("0"),
+            IsEnabled = info.Resizable && !info.AutoSizeWidth,
+        };
+        var h = new TextBox
+        {
+            Text = Math.Round(frame.H * sh).ToString("0"),
+            IsEnabled = info.Resizable && !info.AutoSizeHeight,
+        };
 
         void CommitFrame(PluginMetadata.PluginInfo.SizeAxis? edited)
         {
@@ -1186,12 +1204,28 @@ public sealed class ManagerWindow : Window
         AddField("Height", h, 2, PluginMetadata.PluginInfo.SizeAxis.Height);
         inspector.Children.Add(grid);
 
+        var autoNote = (info.AutoSizeWidth, info.AutoSizeHeight) switch
+        {
+            (true, true) => "Width and height follow this plugin's content.",
+            (true, false) => "Width follows this plugin's content.",
+            (false, true) => "Height follows this plugin's content.",
+            _ => null,
+        };
         if (!info.Resizable)
             inspector.Children.Add(new TextBlock
             {
                 Text = "This plugin declares a fixed size (resizable: false).",
                 FontSize = 10,
                 Foreground = (Brush)FindResource("TextSecondary"),
+                Margin = new Thickness(2, 4, 0, 0),
+            });
+        else if (autoNote != null)
+            inspector.Children.Add(new TextBlock
+            {
+                Text = autoNote,
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2, 4, 0, 0),
             });
         else if (LimitsSummary(info) is { } limits)

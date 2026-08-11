@@ -155,6 +155,12 @@ public static class Theme
               </Border>
               <ControlTemplate.Triggers>
                 <Trigger Property="IsFocused" Value="True"><Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
+                <!-- A read-only field (a fixed-size or content-sized axis)
+                     must look unavailable, not merely refuse the keystroke. -->
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="b" Property="Opacity" Value="0.5"/>
+                  <Setter TargetName="b" Property="Background" Value="{DynamicResource ButtonHover}"/>
+                </Trigger>
               </ControlTemplate.Triggers>
             </ControlTemplate>
           </Setter.Value>

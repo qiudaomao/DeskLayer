@@ -48,6 +48,10 @@ public sealed class PluginInstance : IDisposable
     public IReadOnlySet<string> Permissions { get; private set; } = new HashSet<string>();
     public bool IsErrored { get; private set; }
     public string? ErrorMessage { get; private set; }
+    /// Where plugin diagnostics go — set at boot so an error raised inside a
+    /// timer or promise callback is reported. The render loop skips an
+    /// errored item forever, so a silent failure looks like a frozen widget.
+    private Action<string> logSink = _ => { };
     public double DeclaredWidth { get; private set; }
     public double DeclaredHeight { get; private set; }
     /// Present only for webview-mode plugins.
@@ -149,6 +153,7 @@ public sealed class PluginInstance : IDisposable
 
             var instance = new PluginInstance(pluginId, engine, render);
             created = instance;
+            instance.logSink = logSink;
             instance.bindings = bindings;
             instance.host = host;
 
@@ -338,8 +343,10 @@ public sealed class PluginInstance : IDisposable
 
     private void MarkErrored(string message)
     {
+        if (IsErrored) return; // report the first failure, not the cascade
         IsErrored = true;
         ErrorMessage = message;
+        logSink($"stopped: {message}");
     }
 
     /// Runs due timers and completed fetch/WebSocket callbacks. Call from

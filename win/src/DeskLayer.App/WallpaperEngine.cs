@@ -111,13 +111,33 @@ public sealed class WallpaperEngine : IDisposable
     /// are baked into the instance at boot, so they belong here.
     private readonly record struct SpawnIdentity(
         string PluginId, string DisplayUuid, RenderTarget Target, bool ClickThrough,
-        string? Fps, string? Interval)
+        string? Fps, string? Interval, string SourceStamp)
     {
-        public SpawnIdentity(LayoutItem item) : this(
+        public SpawnIdentity(LayoutItem item, string sourceStamp) : this(
             item.PluginId, item.DisplayUuid, item.Target, item.ClickThrough,
             item.PropertyOverrides.TryGetValue("fps", out var f) ? f.StringValue : null,
-            item.PropertyOverrides.TryGetValue("interval", out var i) ? i.StringValue : null)
+            item.PropertyOverrides.TryGetValue("interval", out var i) ? i.StringValue : null,
+            sourceStamp)
         { }
+    }
+
+    /// mtime+size of a plugin's source. Part of the spawn identity, so an
+    /// installed update (store install, "Check for Update", or an edit) is a
+    /// respawn rather than a live edit — otherwise the old booted instance
+    /// keeps running the previous version until the app restarts.
+    private string SourceStamp(string pluginId)
+    {
+        var plugin = registry.Plugin(pluginId);
+        if (plugin == null) return "";
+        try
+        {
+            var info = new FileInfo(plugin.SourcePath);
+            return $"{info.LastWriteTimeUtc.Ticks}:{info.Length}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "";
+        }
     }
 
     private sealed class Item : IDisposable
@@ -139,8 +159,14 @@ public sealed class WallpaperEngine : IDisposable
         // freshly rasterized pixels awaiting upload, and lifecycle guards
         // for the UI-thread round trip.
         public string? LastTree;
-        public byte[]? PendingPixels;
+        /// Freshly rasterized pixels *with the size they were drawn at* — the
+        /// item can be resized between raster and upload, and uploading them
+        /// against a newer, larger size reads past the end of the buffer.
+        public (byte[] Pixels, int Width, int Height)? PendingRaster;
         public bool RasterInFlight;
+        /// Content's natural size in points from the last raster, for the
+        /// axes the plugin declares content-driven (autoSize).
+        public (double W, double H)? PendingAutoSize;
         /// Declared metadata (autoSize axes), read once at spawn.
         public DeskLayer.Core.PluginMetadata.PluginInfo? Info;
         public volatile bool Disposed;
@@ -196,8 +222,8 @@ public sealed class WallpaperEngine : IDisposable
         .Where(i => i.IsEnabled)
         .OrderBy(i => i.Id)
         .Select(i => i.Target == RenderTarget.FloatingWindow
-            ? $"{i.Id}|{i.PluginId}|F|{i.ClickThrough}|{i.NormalizedFrame.X:F4},{i.NormalizedFrame.Y:F4},{i.NormalizedFrame.W:F4},{i.NormalizedFrame.H:F4}|{i.BackgroundColor}"
-            : $"{i.Id}|{i.PluginId}|W|{i.ClickThrough}"));
+            ? $"{i.Id}|{i.PluginId}|F|{i.ClickThrough}|{i.NormalizedFrame.X:F4},{i.NormalizedFrame.Y:F4},{i.NormalizedFrame.W:F4},{i.NormalizedFrame.H:F4}|{i.BackgroundColor}|{SourceStamp(i.PluginId)}"
+            : $"{i.Id}|{i.PluginId}|W|{i.ClickThrough}|{SourceStamp(i.PluginId)}"));
 
     private void RenderLoop()
     {
@@ -341,19 +367,23 @@ public sealed class WallpaperEngine : IDisposable
                             var (w, h) = (item.PixelWidth, item.PixelHeight);
                             PostToUi?.Invoke(() =>
                             {
-                                var pixels = DeclarativeRasterizer.Rasterize(json, w, h, dpiScale,
+                                var raster = DeclarativeRasterizer.Rasterize(json, w, h, dpiScale,
                                     message => log($"[{item.Layout.PluginId}] {message}"),
                                     item.Info?.AutoSizeWidth ?? false,
                                     item.Info?.AutoSizeHeight ?? false);
                                 // Overwritten on every raster, so the file
                                 // holds the most recent frame at exit — the
                                 // first one is usually still "connecting…".
-                                if (pixels != null && dumpItemPath is { } dumpPath &&
+                                if (raster != null && dumpItemPath is { } dumpPath &&
                                     item.Layout.PluginId == dumpItemPlugin)
-                                    DeclarativeRasterizer.DumpPng(pixels, w, h, dumpPath, log);
+                                    DeclarativeRasterizer.DumpPng(raster.Pixels, w, h, dumpPath, log);
                                 lock (item.Gate)
                                 {
-                                    if (!item.Disposed) item.PendingPixels = pixels;
+                                    if (!item.Disposed && raster != null)
+                                    {
+                                        item.PendingRaster = (raster.Pixels, w, h);
+                                        item.PendingAutoSize = (raster.DesiredWidthPts, raster.DesiredHeightPts);
+                                    }
                                     item.RasterInFlight = false;
                                 }
                             });
@@ -398,14 +428,23 @@ public sealed class WallpaperEngine : IDisposable
                 // Upload freshly rasterized declarative pixels.
                 foreach (var item in items)
                 {
-                    byte[]? pixels;
+                    (byte[] Pixels, int Width, int Height)? raster;
+                    (double W, double H)? autoSize;
                     lock (item.Gate)
                     {
-                        pixels = item.PendingPixels;
-                        item.PendingPixels = null;
+                        raster = item.PendingRaster;
+                        item.PendingRaster = null;
+                        autoSize = item.PendingAutoSize;
+                        item.PendingAutoSize = null;
                     }
-                    if (pixels == null) continue;
-                    var handle = System.Runtime.InteropServices.GCHandle.Alloc(pixels, System.Runtime.InteropServices.GCHandleType.Pinned);
+                    // Growing the item swaps in a new, larger surface and
+                    // forces a re-raster, so these pixels are already stale.
+                    if (autoSize is { } natural && AdoptContentSize(item, natural.W, natural.H, dc)) continue;
+                    if (raster is not { } fresh) continue;
+                    if (fresh.Width != item.PixelWidth || fresh.Height != item.PixelHeight) continue;
+                    if (fresh.Pixels.Length < fresh.Width * fresh.Height * 4) continue;
+
+                    var handle = System.Runtime.InteropServices.GCHandle.Alloc(fresh.Pixels, System.Runtime.InteropServices.GCHandleType.Pinned);
                     try
                     {
                         dc.Target = item.Surface;
@@ -417,12 +456,12 @@ public sealed class WallpaperEngine : IDisposable
                         dc.Transform = System.Numerics.Matrix3x2.Identity;
                         dc.Clear(new Color4(0f, 0f, 0f, 0f));
                         using var uploaded = dc.CreateBitmap(
-                            new System.Drawing.Size(item.PixelWidth, item.PixelHeight),
-                            handle.AddrOfPinnedObject(), item.PixelWidth * 4,
+                            new System.Drawing.Size(fresh.Width, fresh.Height),
+                            handle.AddrOfPinnedObject(), fresh.Width * 4,
                             new BitmapProperties1(
                                 new Vortice.DCommon.PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
                                 96, 96, BitmapOptions.None));
-                        dc.DrawBitmap(uploaded, new System.Drawing.RectangleF(0, 0, item.PixelWidth, item.PixelHeight),
+                        dc.DrawBitmap(uploaded, new System.Drawing.RectangleF(0, 0, fresh.Width, fresh.Height),
                             1f, BitmapInterpolationMode.NearestNeighbor, null);
                         dc.EndDraw();
                     }
@@ -483,7 +522,8 @@ public sealed class WallpaperEngine : IDisposable
         for (var index = items.Count - 1; index >= 0; index--)
         {
             var item = items[index];
-            if (!wanted.TryGetValue(item.Layout.Id, out var want) || new SpawnIdentity(want) != item.Identity)
+            if (!wanted.TryGetValue(item.Layout.Id, out var want)
+                || new SpawnIdentity(want, SourceStamp(want.PluginId)) != item.Identity)
             {
                 hookServer.RemoveHandlers(item.Layout.Id);
                 item.Dispose();
@@ -496,7 +536,7 @@ public sealed class WallpaperEngine : IDisposable
         {
             if (running.Contains(layoutItem.Id))
             {
-                ApplyLiveEdits(items.First(i => i.Layout.Id == layoutItem.Id), layoutItem);
+                ApplyLiveEdits(items.First(i => i.Layout.Id == layoutItem.Id), layoutItem, dc);
             }
             else if (SpawnItem(layoutItem, dc, factory, dwrite) is { } spawned)
             {
@@ -507,7 +547,7 @@ public sealed class WallpaperEngine : IDisposable
 
     /// Absorb an edit the running item can keep: position/size, z-order,
     /// background, and non-cadence property overrides (pushed into JS live).
-    private void ApplyLiveEdits(Item item, LayoutItem layout)
+    private void ApplyLiveEdits(Item item, LayoutItem layout, ID2D1DeviceContext dc)
     {
         var frame = layout.NormalizedFrame;
         var w = Math.Max(8, (int)(frame.W * screenBounds.Width));
@@ -517,6 +557,11 @@ public sealed class WallpaperEngine : IDisposable
         // Position/size update the dest rect; the existing surface scales
         // (mac contentsGravity=.resize parity — no buffer rebuild, no state loss).
         item.DestRect = new System.Drawing.RectangleF(x, y, w, h);
+        // A declarative item re-rasters wholesale, so give it a surface at the
+        // new size instead of stretching the old pixels. Canvas items keep
+        // theirs: their content persists across frames and must not be lost.
+        if (item.Canvas == null && (w != item.PixelWidth || h != item.PixelHeight))
+            ResizeSurface(item, w, h, dc);
         item.Background = layout.BackgroundColor is { } css && CssColor.TryParse(css, out var bg) ? bg : null;
 
         // Push changed overrides (except cadence, which is in the identity).
@@ -542,6 +587,76 @@ public sealed class WallpaperEngine : IDisposable
             ? new HostBindings.ResolvedSsh(h.Name, h.Host, 22, "", null)
             : new HostBindings.ResolvedSsh(h.Name, h.Host, h.Port, h.User,
                 h.KeyPath.Length == 0 ? null : h.KeyPath)).ToList());
+    }
+
+    /// Rebuilds a declarative item's target bitmap at a new pixel size and
+    /// forces the next render to re-raster (the tree JSON may be unchanged,
+    /// but it has to be laid out again at the new size).
+    private void ResizeSurface(Item item, int width, int height, ID2D1DeviceContext dc)
+    {
+        try
+        {
+            var surface = dc.CreateBitmap(new System.Drawing.Size(width, height), IntPtr.Zero, 0,
+                new BitmapProperties1(
+                    new Vortice.DCommon.PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
+                    96, 96, BitmapOptions.Target));
+            dc.Target = surface;
+            dc.BeginDraw();
+            dc.Transform = System.Numerics.Matrix3x2.Identity;
+            dc.Clear(new Color4(0f, 0f, 0f, 0f));
+            dc.EndDraw();
+            item.Surface.Dispose();
+            item.Surface = surface;
+            item.PixelWidth = width;
+            item.PixelHeight = height;
+            item.LastTree = null; // same tree, new size — must re-raster
+        }
+        catch (SharpGen.Runtime.SharpGenException ex)
+        {
+            log($"{item.Layout.PluginId}: surface resize failed: {ex.Message}");
+        }
+    }
+
+    /// Grows (or shrinks) an item to its content's natural size on the axes
+    /// the plugin declares content-driven — the mac adoptContentSize. The
+    /// top-left corner stays put, because that is where the user placed the
+    /// item; frames are stored bottom-left, so the stored y moves with the
+    /// height. Limits still apply, and the store update is what makes the
+    /// Manager's preview agree with the desktop.
+    /// Returns true when the item was resized (its surface was replaced, so
+    /// any raster already in flight for the old size must be dropped).
+    private bool AdoptContentSize(Item item, double desiredWidthPts, double desiredHeightPts, ID2D1DeviceContext dc)
+    {
+        if (item.Info is not { } info) return false;
+        if (!info.AutoSizeWidth && !info.AutoSizeHeight) return false;
+        if (screenBounds.Width <= 0 || screenBounds.Height <= 0) return false;
+
+        var (limitedW, limitedH) = info.Clamp(desiredWidthPts, desiredHeightPts);
+        var frame = item.Layout.NormalizedFrame;
+        var wanted = new NormalizedFrame(
+            frame.X, frame.Y,
+            info.AutoSizeWidth ? Math.Min(limitedW * dpiScale / screenBounds.Width, 1) : frame.W,
+            info.AutoSizeHeight ? Math.Min(limitedH * dpiScale / screenBounds.Height, 1) : frame.H);
+
+        // A point either way is invisible and would ping-pong with rounding.
+        var epsilonW = 1.0 * dpiScale / screenBounds.Width;
+        var epsilonH = 1.0 * dpiScale / screenBounds.Height;
+        if (Math.Abs(wanted.W - frame.W) < epsilonW && Math.Abs(wanted.H - frame.H) < epsilonH) return false;
+
+        // Keep the top edge: an item whose height follows its content must
+        // grow downward, or the header the user aligned drifts up the screen.
+        var top = frame.Y + frame.H;
+        var updated = wanted with { Y = Math.Max(top - wanted.H, 0) };
+        var itemId = item.Layout.Id;
+        item.Layout = item.Layout with { NormalizedFrame = updated };
+        store.Update(layout => layout with
+        {
+            Items = layout.Items
+                .Select(i => i.Id == itemId ? i with { NormalizedFrame = updated } : i)
+                .ToList(),
+        });
+        ApplyLiveEdits(item, item.Layout, dc);
+        return true;
     }
 
     private Item? SpawnItem(LayoutItem layoutItem, ID2D1DeviceContext dc, ID2D1Factory1 factory, IDWriteFactory dwrite)
@@ -600,7 +715,7 @@ public sealed class WallpaperEngine : IDisposable
             return new Item
             {
                 Layout = layoutItem,
-                Identity = new SpawnIdentity(layoutItem),
+                Identity = new SpawnIdentity(layoutItem, SourceStamp(layoutItem.PluginId)),
                 Info = info,
                 Instance = instance,
                 Surface = surface,
