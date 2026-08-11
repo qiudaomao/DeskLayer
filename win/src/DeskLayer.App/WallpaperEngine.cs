@@ -45,6 +45,12 @@ public sealed class WallpaperEngine : IDisposable
     /// declarative layout — and rendering multiplies by this, mac parity.
     private readonly double dpiScale;
 
+    /// Debug: DESKLAYER_DUMP_ITEM=<pluginId>:<path> writes that declarative
+    /// item's next raster to a PNG. A remote or locked session can't always
+    /// be screen-captured, and this shows exactly what the item drew.
+    private readonly string? dumpItemPlugin;
+    private string? dumpItemPath;
+
     public WallpaperEngine(LayoutStore store, PluginRegistry registry, System.Drawing.Rectangle screenBounds, Action<string> log)
     {
         this.store = store;
@@ -53,6 +59,14 @@ public sealed class WallpaperEngine : IDisposable
         this.log = log;
         var dipWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
         dpiScale = dipWidth > 0 ? Math.Clamp(screenBounds.Width / dipWidth, 0.5, 4.0) : 1.0;
+        // First colon separates the plugin id from the path — a Windows path
+        // carries its own colon ("C:\..."), so LastIndexOf would split wrong.
+        if (Environment.GetEnvironmentVariable("DESKLAYER_DUMP_ITEM") is { Length: > 0 } spec &&
+            spec.IndexOf(':') is > 0 and var split)
+        {
+            dumpItemPlugin = spec[..split];
+            dumpItemPath = spec[(split + 1)..];
+        }
         // Binds lazily on the resolved port ($server handlers only); mac parity.
         hookServer = new HookServer(log);
     }
@@ -331,6 +345,12 @@ public sealed class WallpaperEngine : IDisposable
                                     message => log($"[{item.Layout.PluginId}] {message}"),
                                     item.Info?.AutoSizeWidth ?? false,
                                     item.Info?.AutoSizeHeight ?? false);
+                                // Overwritten on every raster, so the file
+                                // holds the most recent frame at exit — the
+                                // first one is usually still "connecting…".
+                                if (pixels != null && dumpItemPath is { } dumpPath &&
+                                    item.Layout.PluginId == dumpItemPlugin)
+                                    DeclarativeRasterizer.DumpPng(pixels, w, h, dumpPath, log);
                                 lock (item.Gate)
                                 {
                                     if (!item.Disposed) item.PendingPixels = pixels;

@@ -205,15 +205,7 @@ public static class NodeInterpreter
         var frame = node.Modifier("frame");
         if (frame != null && frame.Args.Count > 0)
             return !frame.Args[0].IsNumber; // explicit width → hugging; null → greedy
-        return node.Type switch
-        {
-            "Spacer" => inAxisStack,
-            "Rect" or "ProgressBar" or "TextField" or "Video" or "Ring" => true,
-            "Root" or "ZStack" => node.Children.Any(c => IsGreedyH(c, true)),
-            "HStack" => node.Children.Any(c => IsGreedyH(c, true)),
-            "VStack" => node.Children.Any(c => IsGreedyH(c, false)),
-            _ => false,
-        };
+        return InteriorGreedyH(node, inAxisStack);
     }
 
     private static bool IsGreedyV(ViewNode node, bool inAxisStack = true)
@@ -221,16 +213,30 @@ public static class NodeInterpreter
         var frame = node.Modifier("frame");
         if (frame != null && frame.Args.Count > 1)
             return !frame.Args[1].IsNumber;
-        return node.Type switch
-        {
-            "Spacer" => inAxisStack,
-            "Rect" or "Video" or "Ring" => true,
-            "Root" or "ZStack" => node.Children.Any(c => IsGreedyV(c, true)),
-            "VStack" => node.Children.Any(c => IsGreedyV(c, true)),
-            "HStack" => node.Children.Any(c => IsGreedyV(c, false)),
-            _ => false,
-        };
+        return InteriorGreedyV(node, inAxisStack);
     }
+
+    /// Greediness of the node's own content, ignoring any frame it carries —
+    /// what .frame() proposes its box to.
+    private static bool InteriorGreedyH(ViewNode node, bool inAxisStack = true) => node.Type switch
+    {
+        "Spacer" => inAxisStack,
+        "Rect" or "ProgressBar" or "TextField" or "Video" or "Ring" => true,
+        "Root" or "ZStack" => node.Children.Any(c => IsGreedyH(c, true)),
+        "HStack" => node.Children.Any(c => IsGreedyH(c, true)),
+        "VStack" => node.Children.Any(c => IsGreedyH(c, false)),
+        _ => false,
+    };
+
+    private static bool InteriorGreedyV(ViewNode node, bool inAxisStack = true) => node.Type switch
+    {
+        "Spacer" => inAxisStack,
+        "Rect" or "Video" or "Ring" => true,
+        "Root" or "ZStack" => node.Children.Any(c => IsGreedyV(c, true)),
+        "VStack" => node.Children.Any(c => IsGreedyV(c, true)),
+        "HStack" => node.Children.Any(c => IsGreedyV(c, false)),
+        _ => false,
+    };
 
     // ---- modifiers (applied in plugin-declared order) ----
 
@@ -281,12 +287,23 @@ public static class NodeInterpreter
                     var width = modifier.Args.Count > 0 ? (modifier.Args[0].IsNumber ? modifier.Args[0].DoubleValue : null) : null;
                     var height = modifier.Args.Count > 1 ? (modifier.Args[1].IsNumber ? modifier.Args[1].DoubleValue : null) : null;
                     var alignment = modifier.Args.Count > 2 ? modifier.Args[2].StringValue : null;
-                    element.HorizontalAlignment = alignment switch
-                    {
-                        "leading" => HorizontalAlignment.Left,
-                        "trailing" => HorizontalAlignment.Right,
-                        _ => HorizontalAlignment.Center,
-                    };
+                    // SwiftUI's .frame proposes the full size to its content:
+                    // greedy content (a ZStack of Rings, a Spacer) fills the
+                    // box; hugging content keeps its natural size and sits at
+                    // the given alignment. Centering greedy content at its
+                    // desired size shrank Ring stacks to the size of their
+                    // overlay text.
+                    element.HorizontalAlignment = InteriorGreedyH(node)
+                        ? HorizontalAlignment.Stretch
+                        : alignment switch
+                        {
+                            "leading" => HorizontalAlignment.Left,
+                            "trailing" => HorizontalAlignment.Right,
+                            _ => HorizontalAlignment.Center,
+                        };
+                    element.VerticalAlignment = InteriorGreedyV(node)
+                        ? VerticalAlignment.Stretch
+                        : VerticalAlignment.Center;
                     if (element is TextBlock tb)
                         tb.TextAlignment = alignment switch
                         {

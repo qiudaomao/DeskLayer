@@ -70,4 +70,24 @@ public static class DeclarativeRasterizer
         bitmap.CopyPixels(pixels, stride, 0);
         return pixels;
     }
+
+    /// Writes rasterized BGRA pixels to a PNG — the headless way to inspect
+    /// what a wallpaper item actually drew (a remote/locked session can't
+    /// always be screen-captured). Must run on the STA UI thread.
+    public static void DumpPng(byte[] pixels, int width, int height, string path, Action<string> log)
+    {
+        try
+        {
+            var source = BitmapSource.Create(width, height, 96, 96, PixelFormats.Pbgra32, null, pixels, width * 4);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(source));
+            using var stream = System.IO.File.Create(path);
+            encoder.Save(stream);
+            log($"dumped item raster to {path}");
+        }
+        catch (Exception ex)
+        {
+            log($"item dump failed: {ex.Message}");
+        }
+    }
 }
