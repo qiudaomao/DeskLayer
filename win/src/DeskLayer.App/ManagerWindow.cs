@@ -1357,6 +1357,20 @@ public sealed class ManagerWindow : Window
     }
 
     /// "W 100–300  H ≥ 80", or null when the plugin declares no limits.
+    /// How the plugin may be resized, in the mac's words: the aspect policy
+    /// first, then whichever axes size themselves from their content. A
+    /// fixed-size plugin says only that — auto sizing is what the plugin
+    /// does with a size, and it never gets one from the user.
+    private static string ResizeSummary(PluginMetadata.PluginInfo info)
+    {
+        if (!info.Resizable) return L.T("fixed size");
+        var parts = new List<string> { info.KeepsAspect ? L.T("keeps aspect") : L.T("free") };
+        if (info.AutoSizeWidth && info.AutoSizeHeight) parts.Add(L.T("auto-sizes"));
+        else if (info.AutoSizeHeight) parts.Add(L.T("auto height"));
+        else if (info.AutoSizeWidth) parts.Add(L.T("auto width"));
+        return string.Join(", ", parts);
+    }
+
     private static string? LimitsSummary(PluginMetadata.PluginInfo info)
     {
         static string? Range(double? min, double? max) => (min, max) switch
@@ -1807,8 +1821,7 @@ public sealed class ManagerWindow : Window
             permissions is { Count: > 0 } ? string.Join(", ", permissions.OrderBy(p => p)) : L.T("none")));
         if (info.Width is { } dw && info.Height is { } dh)
             inspector.Children.Add(LabeledRow(L.T("Default size"), $"{(int)dw} × {(int)dh}"));
-        inspector.Children.Add(LabeledRow(L.T("Resize"),
-            !info.Resizable ? L.T("fixed size") : info.KeepsAspect ? L.T("keeps aspect") : L.T("free")));
+        inspector.Children.Add(LabeledRow(L.T("Resize"), ResizeSummary(info)));
         if (LimitsSummary(info) is { } limits)
             inspector.Children.Add(LabeledRow(L.T("Limits"), limits));
 

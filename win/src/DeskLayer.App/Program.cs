@@ -94,7 +94,17 @@ internal static class Program
         // form is recreated on Explorer restarts, so it can't be the anchor).
         var uiAnchor = new Control();
         _ = uiAnchor.Handle;
-        engine.PostToUi = action => uiAnchor.BeginInvoke(action);
+        engine.PostToUi = action =>
+        {
+            // Teardown order: the message loop ends (destroying this anchor's
+            // handle) before engine.Dispose() runs, so the render thread's
+            // last marshals arrive too late. Dropping them is right — the
+            // windows they would touch are going away with the process — but
+            // throwing would abort the rest of the engine's cleanup.
+            if (!uiAnchor.IsHandleCreated || uiAnchor.IsDisposed) return;
+            try { uiAnchor.BeginInvoke(action); }
+            catch (InvalidOperationException) { }
+        };
 
         // Power/session policy (lock/suspend/battery-saver → pause/throttle).
         var power = new PowerController(Log);

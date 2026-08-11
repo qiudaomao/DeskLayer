@@ -647,6 +647,18 @@
     "zh-Hans": "层级",
     "ja": "重ね順"
   },
+  "auto height": {
+    "zh-Hans": "自动高度",
+    "ja": "高さ自動"
+  },
+  "auto width": {
+    "zh-Hans": "自动宽度",
+    "ja": "幅自動"
+  },
+  "auto-sizes": {
+    "zh-Hans": "自动调整大小",
+    "ja": "自動サイズ"
+  },
   "fixed size": {
     "zh-Hans": "固定尺寸",
     "ja": "固定サイズ"

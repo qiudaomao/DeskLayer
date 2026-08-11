@@ -189,6 +189,7 @@ public sealed class WallpaperEngine : IDisposable
     {
         public required LayoutItem Layout;
         public required PluginInstance Instance;
+        public DeskLayer.Core.PluginMetadata.PluginInfo? Info;
         public string? LastTree;
         public double NextDue;
         public bool RenderedOnce;
@@ -757,9 +758,10 @@ public sealed class WallpaperEngine : IDisposable
                 log($"{layoutItem.PluginId}: not installed, floating item offline");
                 continue;
             }
+            var source = File.ReadAllText(plugin.SourcePath);
             var instance = PluginInstance.Boot(
                 layoutItem.PluginId,
-                File.ReadAllText(plugin.SourcePath),
+                source,
                 layoutItem.PropertyOverrides,
                 message => log($"[{layoutItem.PluginId}] {message}"),
                 hostStats: systemStats);
@@ -772,7 +774,12 @@ public sealed class WallpaperEngine : IDisposable
             }
             WireHooks(layoutItem, instance);
             WireSsh(layoutItem, instance);
-            floatingItems.Add(new FloatingItem { Layout = layoutItem, Instance = instance });
+            floatingItems.Add(new FloatingItem
+            {
+                Layout = layoutItem,
+                Instance = instance,
+                Info = DeskLayer.Core.PluginMetadata.ExtractInfo(source),
+            });
         }
     }
 
@@ -840,8 +847,12 @@ public sealed class WallpaperEngine : IDisposable
                 Width = widthPx / scale,
                 Height = heightPx / scale,
             };
+            // The height is read at drag time, not captured: an auto-sizing
+            // panel may have grown since it was created, and the stored frame
+            // is bottom-left, so a stale height would jump the item.
             panel.OnMovedDip = (leftDip, topDip) =>
-                PersistMove(floating, leftDip * scale, topDip * scale, heightPx);
+                PersistMove(floating, leftDip * scale, topDip * scale,
+                    floating.Layout.NormalizedFrame.H * screenBounds.Height);
             floating.Panel = panel;
             // Modeless WPF on a WinForms loop: without keyboard interop a
             // TextField in the panel never receives typed characters.
@@ -849,6 +860,58 @@ public sealed class WallpaperEngine : IDisposable
             panel.Show();
         }
         floating.Panel.Content = rootContent;
+        AdoptFloatingContentSize(floating, rootContent);
+    }
+
+    /// The floating twin of AdoptContentSize: a declarative panel measures
+    /// its tree and takes the natural size on whichever axes the plugin
+    /// declares content-driven. The mac gets this for free — its declarative
+    /// host reports onContentSize whether it sits on the wallpaper or in a
+    /// panel — so without this a floating auto-height widget would keep its
+    /// first size no matter how much content arrived.
+    ///
+    /// A WPF DIP is a point here (the panel is placed in DIPs and the
+    /// rasterizer lays out in points), so DesiredSize needs no conversion.
+    private void AdoptFloatingContentSize(FloatingItem floating, System.Windows.FrameworkElement content)
+    {
+        if (floating.Panel is not { } panel) return;
+        if (floating.Info is not { } info) return;
+        if (!info.AutoSizeWidth && !info.AutoSizeHeight) return;
+        if (screenBounds.Width <= 0 || screenBounds.Height <= 0) return;
+
+        content.Measure(new System.Windows.Size(
+            info.AutoSizeWidth ? double.PositiveInfinity : panel.Width,
+            info.AutoSizeHeight ? double.PositiveInfinity : panel.Height));
+        var natural = content.DesiredSize;
+        if (natural.Width <= 0 || natural.Height <= 0) return;
+
+        var (limitedW, limitedH) = info.Clamp(natural.Width, natural.Height);
+        var wantedW = info.AutoSizeWidth ? limitedW : panel.Width;
+        var wantedH = info.AutoSizeHeight ? limitedH : panel.Height;
+        // A point either way is invisible and would ping-pong with rounding.
+        if (Math.Abs(wantedW - panel.Width) < 1 && Math.Abs(wantedH - panel.Height) < 1) return;
+
+        panel.Width = wantedW;
+        panel.Height = wantedH;
+
+        // Top-left anchored, like the wallpaper path: the stored frame is
+        // bottom-left, so the y moves with the height.
+        var frame = floating.Layout.NormalizedFrame;
+        var top = frame.Y + frame.H;
+        var updated = frame with
+        {
+            W = Math.Min(wantedW * dpiScale / screenBounds.Width, 1),
+            H = Math.Min(wantedH * dpiScale / screenBounds.Height, 1),
+        };
+        updated = updated with { Y = Math.Max(top - updated.H, 0) };
+        floating.Layout = floating.Layout with { NormalizedFrame = updated };
+        var itemId = floating.Layout.Id;
+        store.Update(layout => layout with
+        {
+            Items = layout.Items
+                .Select(item => item.Id == itemId ? item with { NormalizedFrame = updated } : item)
+                .ToList(),
+        }, quiet: true);
     }
 
     /// UI thread, after a drag: write the new normalized frame back without
