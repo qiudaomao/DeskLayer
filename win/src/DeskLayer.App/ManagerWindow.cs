@@ -162,6 +162,26 @@ public sealed class ManagerWindow : Window
                         again.Start();
                     }
                 }));
+        // Debug: open the first color well in the inspector and dump the
+        // picker (a Popup is its own window, invisible to a Manager dump).
+        var dumpPicker = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_PICKER");
+        if (!string.IsNullOrEmpty(dumpPicker))
+            Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                new Action(() =>
+                {
+                    if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_ITEM") is { Length: > 0 } sel
+                        && store.Layout.Items.FirstOrDefault(i => i.PluginId == sel) is { } match)
+                        SelectItem(match.Id);
+                    UpdateLayout();
+                    if (inspector.Children.OfType<ColorField>().FirstOrDefault() is not { } field) return;
+                    var popup = field.OpenPicker();
+                    Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+                    {
+                        if (popup.Child is FrameworkElement card) DumpElementToPng(card, dumpPicker);
+                        popup.IsOpen = false;
+                    }));
+                }));
+
         var dumpCreate = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_CREATE");
         if (!string.IsNullOrEmpty(dumpCreate))
             Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
@@ -178,12 +198,12 @@ public sealed class ManagerWindow : Window
                 }));
     }
 
-    private static void DumpElementToPng(Window window, string path)
+    private static void DumpElementToPng(FrameworkElement window, string path)
     {
         try
         {
-            var w = (int)Math.Max(window.ActualWidth, window.Width);
-            var h = (int)Math.Max(window.ActualHeight, 200);
+            var w = (int)Math.Max(window.ActualWidth, 100);
+            var h = (int)Math.Max(window.ActualHeight, 100);
             var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
             rtb.Render(window);
             var encoder = new PngBitmapEncoder();
@@ -1102,10 +1122,9 @@ public sealed class ManagerWindow : Window
         zOrder.LostFocus += (_, _) => { if (int.TryParse(zOrder.Text, out var z)) Commit(i => i with { ZOrder = z }); };
         inspector.Children.Add(zOrder);
 
-        inspector.Children.Add(Caption("Background (CSS color, empty = none)"));
-        var background = new TextBox { Text = item.BackgroundColor ?? "" };
-        background.LostFocus += (_, _) => Commit(i => i with { BackgroundColor = background.Text.Length == 0 ? null : background.Text });
-        inspector.Children.Add(background);
+        inspector.Children.Add(Caption("Background"));
+        inspector.Children.Add(new ColorField(item.BackgroundColor, allowNone: true,
+            hex => Commit(i => i with { BackgroundColor = hex })));
 
         AddFrameEditor(item, Commit);
 
@@ -1504,18 +1523,26 @@ public sealed class ManagerWindow : Window
             foreach (var property in declared)
             {
                 inspector.Children.Add(Caption($"{property.Name} ({property.ValueType})"));
-                var box = new TextBox { Text = property.Value.StringValue };
                 var name = property.Name;
                 var valueType = property.ValueType;
+                void CommitValue(PropertyValue value) => commit(i =>
+                {
+                    var overrides = new Dictionary<string, PropertyValue>(
+                        i.PropertyOverrides.ToDictionary(kv => kv.Key, kv => kv.Value)) { [name] = value };
+                    return i with { PropertyOverrides = overrides };
+                });
+
+                if (valueType == "color")
+                {
+                    inspector.Children.Add(new ColorField(property.Value.StringValue, allowNone: false,
+                        hex => { if (hex != null) CommitValue(PropertyValue.Color(hex)); }));
+                    continue;
+                }
+
+                var box = new TextBox { Text = property.Value.StringValue };
                 box.LostFocus += (_, _) =>
                 {
-                    var coerced = PropertyValue.Coerce(box.Text, valueType);
-                    if (coerced == null) return;
-                    commit(i =>
-                    {
-                        var overrides = new Dictionary<string, PropertyValue>(i.PropertyOverrides.ToDictionary(kv => kv.Key, kv => kv.Value)) { [name] = coerced.Value };
-                        return i with { PropertyOverrides = overrides };
-                    });
+                    if (PropertyValue.Coerce(box.Text, valueType) is { } coerced) CommitValue(coerced);
                 };
                 inspector.Children.Add(box);
             }
