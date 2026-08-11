@@ -5,16 +5,48 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>2.0.0</title>
-            <pubDate>Mon, 10 Aug 2026 12:00:00 +0800</pubDate>
-            <sparkle:version>2000</sparkle:version>
-            <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+            <title>1.1.5</title>
+            <pubDate>Tue, 11 Aug 2026 17:36:46 +0800</pubDate>
+            <sparkle:version>1.1.5</sparkle:version>
+            <sparkle:shortVersionString>1.1.5</sparkle:shortVersionString>
             <description><![CDATA[
 <h2>DeskLayer for Windows</h2>
-<ul><li>First Windows release (placeholder appcast item for updater wiring).</li></ul>
+<p>The first Windows release. Plugins written for the Mac run unmodified: the same plugin API, the same layout file, the same plugin store.</p>
+<ul>
+<li><b>Widgets on the desktop.</b> Plugins draw onto the wallpaper layer, behind your icons, or float in always-on-top windows.</li>
+<li><b>All three plugin modes</b> — canvas, declarative and webview.</li>
+<li><b>Manager</b> for placing, sizing and configuring widgets, with a plugin store, per-plugin updates, and light/dark themes.</li>
+<li><b>Write a plugin with a model</b> from inside the app, or rewrite one you already have.</li>
+<li><b>Simplified Chinese and Japanese</b>, following your Windows display language.</li>
+</ul>
+<p>Requires 64-bit Windows 10 (21H2) or later. Installs for the current user; no administrator rights needed.</p>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>DeskLayer for Windows</h2>
+<p>首个 Windows 版本。为 Mac 编写的插件无需修改即可运行：相同的插件 API、相同的布局文件、相同的插件商店。</p>
+<ul>
+<li><b>桌面小组件。</b>插件绘制在壁纸层（图标之下），也可以显示为置顶浮动窗口。</li>
+<li><b>支持全部三种插件模式</b>——canvas、声明式与 webview。</li>
+<li><b>管理器</b>用于摆放、调整尺寸与配置小组件，内置插件商店、逐插件更新与浅色/深色主题。</li>
+<li><b>在应用内用模型创建插件</b>，也可以重写已有插件。</li>
+<li><b>简体中文与日语</b>，跟随 Windows 显示语言。</li>
+</ul>
+<p>需要 64 位 Windows 10（21H2）或更高版本。为当前用户安装，无需管理员权限。</p>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>DeskLayer for Windows</h2>
+<p>初めての Windows 版です。Mac 向けに書かれたプラグインがそのまま動作します。プラグイン API も、レイアウトファイルも、プラグインストアも共通です。</p>
+<ul>
+<li><b>デスクトップウィジェット。</b>プラグインは壁紙レイヤー（アイコンの下）に描画されるほか、常に手前に表示されるフローティングウィンドウにもできます。</li>
+<li><b>3 つのプラグインモードすべてに対応</b>— canvas、宣言的 UI、webview。</li>
+<li><b>マネージャー</b>でウィジェットの配置・サイズ変更・設定ができます。プラグインストア、プラグインごとの更新、ライト／ダークテーマを内蔵。</li>
+<li><b>アプリ内でモデルにプラグインを書かせる</b>ことも、既存のプラグインを書き換えることもできます。</li>
+<li><b>簡体字中国語と日本語</b>に対応し、Windows の表示言語に従います。</li>
+</ul>
+<p>64 ビット版 Windows 10（21H2）以降が必要です。現在のユーザー用にインストールされ、管理者権限は不要です。</p>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/win-2.0.0/DeskLayer-Setup-2.0.0.exe" length="8192" type="application/octet-stream" sparkle:edSignature="8BEkG26U6RlnWsLis/gWA+InGjtCsuqwv+UFaEsZtO3a74H2LE/+Vk/VY7I4tyLJB2XugW8XLvJNWj/ePZpjAw=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/win-1.1.5/DeskLayer-Setup-1.1.5.exe" length="50522421" type="application/octet-stream" sparkle:edSignature="/rd7opYi+mP9bnuVMc4NZGeCGWoF0HJr3Awpkqj8AQHYnKlXVldpG7n+y8aBi6c+YhEZn6vUCwjL2xOZ+2VZAw=="/>
         </item>
     </channel>
 </rss>

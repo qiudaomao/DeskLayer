@@ -17,10 +17,12 @@ namespace DeskLayer.App;
 
 public sealed class UpdateController : IDisposable
 {
-    // Base64 Ed25519 public key (SUPublicEDKey). The matching private key
-    // signs release enclosures in the pipeline; replace with the real key
-    // before shipping. This test key pairs with scripts/win/sign-appcast.
-    public const string PublicKey = "AAnVIiuwEyT2nujRp4Y5a27ccMMpYXw1zrcx9o80N2Q=";
+    // Base64 Ed25519 public key (SUPublicEDKey) for the Windows release
+    // feed. Its private half signs every enclosure in appcast-win.xml and
+    // lives outside this repo — see scripts/win/sign-artifact.sh. Changing
+    // this key orphans every installed copy, which can no longer verify a
+    // download: treat it as permanent.
+    public const string PublicKey = "YE7CYYM3/8sQVQ4C9U4+nGyShyeGzkGWW/6AChLHcF4=";
 
     public const string DefaultFeedUrl =
         "https://raw.githubusercontent.com/qiudaomao/DeskLayer/main/appcast-win.xml";

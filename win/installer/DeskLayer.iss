@@ -6,7 +6,7 @@
 ;          complementary to this Authenticode signature.
 
 #define AppName "DeskLayer"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.5"
 #define AppPublisher "DeskLayer"
 #define AppExeName "DeskLayer.App.exe"
 #define DistDir "..\..\desklayer-dist"
@@ -30,7 +30,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 [Files]
 ; The self-contained single-file publish (app exe + any extracted natives).
-Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#DistDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: recursesubdirs ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
