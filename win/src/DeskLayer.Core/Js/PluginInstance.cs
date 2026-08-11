@@ -358,6 +358,9 @@ public sealed class PluginInstance : IDisposable
 
     public void Dispose()
     {
+        // Close SSH connections before the engine: they outlive a single
+        // ssh() call now, so nothing else would reap them.
+        host?.CloseSessions();
         bindings?.Dispose();
         engine.Dispose();
     }

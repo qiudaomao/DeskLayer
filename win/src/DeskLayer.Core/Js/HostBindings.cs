@@ -39,6 +39,15 @@ public sealed class HostBindings
 
     public IReadOnlySet<string> Permissions { get; set; } = new HashSet<string>();
 
+    /// Live SSH connections, keyed by connection identity, reused across
+    /// ssh() calls. Per plugin instance: a session dies with the item that
+    /// opened it.
+    private readonly Dictionary<string, SshSession> sessions = new();
+    /// Destinations that cannot host a persistent shell (a login shell that
+    /// isn't POSIX, no writable /tmp). Those use one ssh per call, forever.
+    private readonly HashSet<string> noSession = new();
+    private readonly object sessionGate = new();
+
     private IReadOnlyList<ResolvedSsh> sshHosts = Array.Empty<ResolvedSsh>();
     /// Resolved SSH destinations for this item (name → connection details).
     /// Setting also refreshes the JS-visible $ssh.hosts name list — plugins
@@ -212,19 +221,124 @@ public sealed class HostBindings
         var isRaw = rawValue.AsBoolean();
         var remote = isRaw ? argv.FirstOrDefault() ?? "" : string.Join(" ", argv.Select(ShellQuote));
 
-        var sshExe = @"C:\Windows\System32\OpenSSH\ssh.exe";
-        if (!System.IO.File.Exists(sshExe)) sshExe = "ssh"; // fall back to PATH
-        var sshArgs = new List<string>
+        var (sshExe, sshArgs) = SshInvocation(match);
+
+        // A live session answers in a round trip; opening one costs what a
+        // one-shot would have. Only a destination that cannot host a shell
+        // skips this, and it does so once (see SessionFor).
+        _ = Task.Run(() =>
+        {
+            var session = SessionFor(match, sshExe, sshArgs);
+            if (session != null)
+            {
+                var result = session.Run(remote, TimeSpan.FromSeconds(30));
+                switch (result.Outcome)
+                {
+                    case SshSession.Outcome.Ok:
+                        Complete(resolve, new Dictionary<string, object>
+                        {
+                            ["status"] = (double)result.Value.Status,
+                            ["stdout"] = Truncate(result.Value.Stdout),
+                            ["stderr"] = Truncate(result.Value.Stderr),
+                        });
+                        return;
+                    case SshSession.Outcome.TimedOut:
+                        // The watchdog killed the session to stop the command;
+                        // don't leave the corpse in the pool.
+                        DropSession(match);
+                        Complete(reject, "ssh command timed out after 30s");
+                        return;
+                    default:
+                        // The connection dropped. Fall through to a one-shot:
+                        // it reconnects, and if the host really is gone it
+                        // produces the diagnostic the plugin should see.
+                        DropSession(match);
+                        break;
+                }
+            }
+            RunProcess(sshExe, sshArgs.Append(remote), resolve, reject);
+        });
+    }
+
+    /// Everything ssh needs for one destination, shared so a session and a
+    /// one-shot reach the same host the same way — port and key included.
+    private static (string Exe, List<string> Args) SshInvocation(ResolvedSsh match)
+    {
+        var exe = @"C:\Windows\System32\OpenSSH\ssh.exe";
+        if (!System.IO.File.Exists(exe)) exe = "ssh"; // fall back to PATH
+        var args = new List<string>
         {
             "-o", "BatchMode=yes",
             "-o", "StrictHostKeyChecking=accept-new",
             "-o", "ConnectTimeout=10",
             "-p", match.Port.ToString(),
         };
-        if (match.KeyPath is { Length: > 0 } key) { sshArgs.Add("-i"); sshArgs.Add(key); }
-        sshArgs.Add(match.User.Length > 0 ? $"{match.User}@{match.Host}" : match.Host);
-        sshArgs.Add(remote);
-        RunProcess(sshExe, sshArgs, resolve, reject);
+        if (match.KeyPath is { Length: > 0 } key) { args.Add("-i"); args.Add(key); }
+        args.Add(match.User.Length > 0 ? $"{match.User}@{match.Host}" : match.Host);
+        return (exe, args);
+    }
+
+    /// Sessions are keyed by what actually identifies a connection, not by
+    /// the destination's display name: two entries pointing at the same
+    /// account on the same host should share one.
+    private static string SessionKey(ResolvedSsh match) =>
+        $"{match.Host}|{match.Port}|{match.User}|{match.KeyPath}";
+
+    /// The live session for a destination, opening one on first use. Returns
+    /// null for a destination that has proved it cannot host a shell — that
+    /// verdict is remembered, so the cost of discovering it is paid once.
+    private SshSession? SessionFor(ResolvedSsh match, string exe, List<string> args)
+    {
+        var key = SessionKey(match);
+        lock (sessionGate)
+        {
+            if (sessions.TryGetValue(key, out var existing)) return existing;
+            if (noSession.Contains(key)) return null;
+        }
+
+        // Opened outside the lock: a handshake takes as long as a connect, and
+        // holding the pool would stall every other destination.
+        var opened = SshSession.Open(exe, args);
+
+        lock (sessionGate)
+        {
+            if (opened == null)
+            {
+                noSession.Add(key);
+                return null;
+            }
+            // Another call may have opened one meanwhile; keep the first.
+            if (sessions.TryGetValue(key, out var winner))
+            {
+                opened.Close();
+                return winner;
+            }
+            sessions[key] = opened;
+            return opened;
+        }
+    }
+
+    private void DropSession(ResolvedSsh match)
+    {
+        SshSession? session;
+        lock (sessionGate)
+        {
+            sessions.Remove(SessionKey(match), out session);
+        }
+        session?.Dispose();
+    }
+
+    /// Closes every connection this item opened; called when its plugin
+    /// instance goes away, so a removed widget never leaves one behind.
+    public void CloseSessions()
+    {
+        List<SshSession> live;
+        lock (sessionGate)
+        {
+            live = sessions.Values.ToList();
+            sessions.Clear();
+        }
+        foreach (var session in live) session.Dispose();
     }
 
     /// POSIX single-quoting so an argument survives the remote shell (mac parity).

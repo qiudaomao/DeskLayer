@@ -60,6 +60,14 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
         jsContext.evaluateScript("if (typeof $ssh === 'object') { $ssh.hosts = __dl_ssh_hosts; }")
     }
     private let stats = SystemStats()
+    /// Live SSH connections, keyed by connection identity, reused across
+    /// ssh() calls. Per plugin instance: a session dies with the item that
+    /// opened it, so a removed widget never leaves one behind.
+    private var sshSessions: [String: SSHSession] = [:]
+    /// Destinations that can't host a persistent shell (a login shell that
+    /// isn't POSIX, no writable /tmp). Those use one ssh per call, forever.
+    private var sshNoSession: Set<String> = []
+    private let sshPoolLock = NSLock()
     private var isInvalidated = false
     var afterCallback: (@Sendable () -> Void)?
 
@@ -89,6 +97,7 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
 
     func invalidate() {
         isInvalidated = true
+        closeSSHSessions()
         unregisterHooks?()
         registrar = nil
         unregisterHooks = nil
@@ -278,48 +287,44 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
             return
         }
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            // Password auth needs an interactive prompt (fed via SSH_ASKPASS);
-            // everything else runs non-interactively.
-            let usesPassword = !config.usesKey && (config.password?.isEmpty == false)
-            var sshArgs = [
-                "-o", "BatchMode=" + (usesPassword ? "no" : "yes"),
-                "-o", "StrictHostKeyChecking=accept-new",
-                "-o", "ConnectTimeout=10",
-            ]
-            if config.port != 22 { sshArgs += ["-p", String(config.port)] }
-            if config.usesKey, !config.keyPath.isEmpty {
-                sshArgs += ["-i", (config.keyPath as NSString).expandingTildeInPath, "-o", "IdentitiesOnly=yes"]
-            }
-            // A bare host name resolves through ~/.ssh/config (alias, user,
-            // key, port); user@host is used only when a user is given.
-            sshArgs.append(config.user.isEmpty ? config.host : "\(config.user)@\(config.host)")
+            guard let self else { return }
             // ssh joins the remaining words with spaces and the REMOTE shell
             // re-parses them, so an argv array must be shell-quoted to reach
             // the far side intact (ssh(['sh','-c',script]) then behaves like
             // exec). A raw string is passed through for shell interpretation.
-            sshArgs += isRawCommand ? argv : argv.map(Self.shellQuoted)
+            let words = isRawCommand ? argv : argv.map(Self.shellQuoted)
 
+            // A live session answers in a round trip; opening one costs what a
+            // one-shot would have. Only a destination that can't host a shell
+            // skips this, and it does so once (see sshSession(for:)).
+            if let session = self.sshSession(for: config) {
+                switch session.run(words.joined(separator: " "), timeout: 60) {
+                case .ok(let result):
+                    let detail = Self.annotated(stderr: result.stderr, status: result.status)
+                    self.onQueue {
+                        resolve.call(withArguments: [["status": result.status,
+                                                      "stdout": result.stdout,
+                                                      "stderr": detail] as [String: Any]])
+                    }
+                    return
+                case .timedOut:
+                    // The watchdog killed the session to stop the command;
+                    // don't leave the corpse in the pool.
+                    self.dropSSHSession(for: config)
+                    self.onQueue { reject.call(withArguments: ["ssh command timed out after 60s"]) }
+                    return
+                case .dead:
+                    // The connection dropped. Fall through to a one-shot: it
+                    // reconnects, and if the host really is gone it produces
+                    // the diagnostic the plugin should see.
+                    self.dropSSHSession(for: config)
+                }
+            }
+
+            let (sshArgs, environment, askpassURL) = Self.sshInvocation(config: config, words: words)
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             process.arguments = sshArgs
-            var environment = ProcessInfo.processInfo.environment
-
-            // Password auth: feed it via a throwaway SSH_ASKPASS helper so
-            // it never appears on a command line or in the process table.
-            var askpassURL: URL?
-            if !config.usesKey, let password = config.password, !password.isEmpty {
-                let helper = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("dl-askpass-\(UUID().uuidString).sh")
-                let script = "#!/bin/sh\ncat \"\(helper.path).pw\"\n"
-                try? script.write(to: helper, atomically: true, encoding: .utf8)
-                try? password.write(toFile: helper.path + ".pw", atomically: true, encoding: .utf8)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: helper.path)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: helper.path + ".pw")
-                environment["SSH_ASKPASS"] = helper.path
-                environment["SSH_ASKPASS_REQUIRE"] = "force"
-                environment["DISPLAY"] = environment["DISPLAY"] ?? ":0"
-                askpassURL = helper
-            }
             process.environment = environment
 
             let out = Pipe(), err = Pipe()
@@ -329,8 +334,8 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
             do {
                 try process.run()
             } catch {
-                self?.cleanupAskpass(askpassURL)
-                self?.onQueue { reject.call(withArguments: [error.localizedDescription]) }
+                self.cleanupAskpass(askpassURL)
+                self.onQueue { reject.call(withArguments: [error.localizedDescription]) }
                 return
             }
             let timeout = DispatchWorkItem { if process.isRunning { process.terminate() } }
@@ -339,13 +344,113 @@ nonisolated final class HostBindings: NSObject, @unchecked Sendable {
             let stderr = String(decoding: err.fileHandleForReading.readDataToEndOfFile().prefix(1 << 20), as: UTF8.self)
             process.waitUntilExit()
             timeout.cancel()
-            self?.cleanupAskpass(askpassURL)
+            self.cleanupAskpass(askpassURL)
             let status = Int(process.terminationStatus)
             let detail = Self.annotated(stderr: stderr, status: status)
-            self?.onQueue {
+            self.onQueue {
                 resolve.call(withArguments: [["status": status, "stdout": stdout, "stderr": detail] as [String: Any]])
             }
         }
+    }
+
+    /// Everything ssh needs for one destination: the argument list up to (and
+    /// including) the target, the environment, and the throwaway askpass
+    /// helper to delete afterwards. Shared so a session and a one-shot reach
+    /// the same host the same way — auth, port and key resolution included.
+    private static func sshInvocation(config: ResolvedSSH, words: [String])
+        -> (arguments: [String], environment: [String: String], askpass: URL?) {
+        // Password auth needs an interactive prompt (fed via SSH_ASKPASS);
+        // everything else runs non-interactively.
+        let usesPassword = !config.usesKey && (config.password?.isEmpty == false)
+        var arguments = [
+            "-o", "BatchMode=" + (usesPassword ? "no" : "yes"),
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "ConnectTimeout=10",
+        ]
+        if config.port != 22 { arguments += ["-p", String(config.port)] }
+        if config.usesKey, !config.keyPath.isEmpty {
+            arguments += ["-i", (config.keyPath as NSString).expandingTildeInPath, "-o", "IdentitiesOnly=yes"]
+        }
+        // A bare host name resolves through ~/.ssh/config (alias, user,
+        // key, port); user@host is used only when a user is given.
+        arguments.append(config.user.isEmpty ? config.host : "\(config.user)@\(config.host)")
+
+        var environment = ProcessInfo.processInfo.environment
+        // Password auth: feed it via a throwaway SSH_ASKPASS helper so it
+        // never appears on a command line or in the process table.
+        var askpass: URL?
+        if !config.usesKey, let password = config.password, !password.isEmpty {
+            let helper = FileManager.default.temporaryDirectory
+                .appendingPathComponent("dl-askpass-\(UUID().uuidString).sh")
+            let script = "#!/bin/sh\ncat \"\(helper.path).pw\"\n"
+            try? script.write(to: helper, atomically: true, encoding: .utf8)
+            try? password.write(toFile: helper.path + ".pw", atomically: true, encoding: .utf8)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: helper.path)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: helper.path + ".pw")
+            environment["SSH_ASKPASS"] = helper.path
+            environment["SSH_ASKPASS_REQUIRE"] = "force"
+            environment["DISPLAY"] = environment["DISPLAY"] ?? ":0"
+            askpass = helper
+        }
+        return (arguments + words, environment, askpass)
+    }
+
+    /// Sessions are keyed by what actually identifies a connection, not by
+    /// the destination's display name: two entries pointing at the same
+    /// account on the same host should share one.
+    private static func sessionKey(_ config: ResolvedSSH) -> String {
+        "\(config.host)|\(config.port)|\(config.user)|\(config.usesKey)|\(config.keyPath)"
+    }
+
+    /// The live session for a destination, opening one on first use. Returns
+    /// nil for a destination that has proved it can't host a shell — that
+    /// verdict is remembered, so the cost of discovering it is paid once.
+    private func sshSession(for config: ResolvedSSH) -> SSHSession? {
+        let key = Self.sessionKey(config)
+        sshPoolLock.lock()
+        if let existing = sshSessions[key] {
+            sshPoolLock.unlock()
+            return existing
+        }
+        let unsupported = sshNoSession.contains(key)
+        sshPoolLock.unlock()
+        if unsupported { return nil }
+
+        // Opened outside the lock: a handshake takes as long as a connect,
+        // and holding the pool would stall every other destination.
+        let (arguments, environment, askpass) = Self.sshInvocation(config: config, words: [])
+        let opened = SSHSession.open(arguments: arguments, environment: environment)
+        cleanupAskpass(askpass)   // only needed to authenticate, once
+
+        sshPoolLock.lock()
+        defer { sshPoolLock.unlock() }
+        guard let opened else {
+            sshNoSession.insert(key)
+            return nil
+        }
+        // Another call may have opened one meanwhile; keep the first.
+        if let existing = sshSessions[key] {
+            opened.close()
+            return existing
+        }
+        sshSessions[key] = opened
+        return opened
+    }
+
+    private func dropSSHSession(for config: ResolvedSSH) {
+        let key = Self.sessionKey(config)
+        sshPoolLock.lock()
+        let session = sshSessions.removeValue(forKey: key)
+        sshPoolLock.unlock()
+        session?.close()
+    }
+
+    private func closeSSHSessions() {
+        sshPoolLock.lock()
+        let live = Array(sshSessions.values)
+        sshSessions.removeAll()
+        sshPoolLock.unlock()
+        for session in live { session.close() }
     }
 
     /// macOS gates connections to hosts on the same link behind the Local
