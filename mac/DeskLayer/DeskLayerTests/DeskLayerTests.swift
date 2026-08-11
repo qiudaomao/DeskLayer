@@ -432,9 +432,10 @@ struct PluginInstanceTests {
 
     @Test func hookServerFansOutToHandlers() async throws {
         // App-level server delivers one POST to every registered plugin.
-        let server = HookServer()
         let port = UInt16(8000 + Int(ProcessInfo.processInfo.processIdentifier % 900))
-        server.start(port: port)
+        // The listener is handler-driven now: the first addHandler below
+        // brings it up on this port, the last removal takes it down.
+        let server = HookServer(port: port)
         defer { server.stop() }
 
         actor Box { var value = ""; func set(_ v: String) { value = v }; func get() -> String { value } }
