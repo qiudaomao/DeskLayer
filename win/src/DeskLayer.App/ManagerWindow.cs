@@ -196,6 +196,20 @@ public sealed class ManagerWindow : Window
                     File.WriteAllText(dumpMenu, string.Join("\n", lines) + "\n");
                 }));
 
+        // Debug: the inspector column on its own, at full height — the panel
+        // scrolls, so anything below the fold never reaches a window dump.
+        var dumpInspector = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_INSPECTOR");
+        if (!string.IsNullOrEmpty(dumpInspector))
+            Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                new Action(() =>
+                {
+                    if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_ITEM") is { Length: > 0 } sel
+                        && store.Layout.Items.FirstOrDefault(i => i.PluginId == sel) is { } match)
+                        SelectItem(match.Id);
+                    UpdateLayout();
+                    DumpElementToPng(inspector, dumpInspector);
+                }));
+
         var dumpCreate = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_CREATE");
         if (!string.IsNullOrEmpty(dumpCreate))
             Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
@@ -1635,7 +1649,6 @@ public sealed class ManagerWindow : Window
             inspector.Children.Add(new TextBlock { Style = (Style)FindResource("SectionText"), Text = L.T("Properties"), Margin = new Thickness(2, 18, 0, 6) });
             foreach (var property in declared)
             {
-                inspector.Children.Add(Caption(L.T("{0} ({1})", property.Name, L.T(property.ValueType))));
                 var name = property.Name;
                 var valueType = property.ValueType;
                 void CommitValue(PropertyValue value) => commit(i =>
@@ -1644,6 +1657,30 @@ public sealed class ManagerWindow : Window
                         i.PropertyOverrides.ToDictionary(kv => kv.Key, kv => kv.Value)) { [name] = value };
                     return i with { PropertyOverrides = overrides };
                 });
+
+                // A boolean is a toggle, like the mac's Toggle(property.name)
+                // and the Enabled checkbox above: it carries its own label, so
+                // it needs no caption — the control is the type hint.
+                if (valueType is "boolean" or "bool")
+                {
+                    var toggle = new CheckBox
+                    {
+                        Content = name,
+                        IsChecked = property.Value.BoolValue ?? false,
+                        Margin = new Thickness(0, 10, 0, 0),
+                    };
+                    // Wire the handlers only after seeding: assigning
+                    // IsChecked raises Checked, so attaching them first would
+                    // write an override for every true boolean just by
+                    // selecting the item — the mac's isSeeded gate, and the
+                    // rule the colour picker learned the hard way.
+                    toggle.Checked += (_, _) => CommitValue(PropertyValue.Bool(true));
+                    toggle.Unchecked += (_, _) => CommitValue(PropertyValue.Bool(false));
+                    inspector.Children.Add(toggle);
+                    continue;
+                }
+
+                inspector.Children.Add(Caption(L.T("{0} ({1})", property.Name, L.T(property.ValueType))));
 
                 if (valueType == "color")
                 {
