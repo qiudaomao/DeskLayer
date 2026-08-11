@@ -36,6 +36,7 @@ public sealed class ManagerWindow : Window
     private readonly PluginAuthorSession author;
 
     private readonly StackPanel sidebarPanel = new();
+    private readonly ContextMenu plusMenu = new();
     private readonly Canvas overview = new() { ClipToBounds = true };
     private readonly StackPanel inspector = new() { Margin = new Thickness(14) };
 
@@ -180,6 +181,19 @@ public sealed class ManagerWindow : Window
                         if (popup.Child is FrameworkElement card) DumpElementToPng(card, dumpPicker);
                         popup.IsOpen = false;
                     }));
+                }));
+
+        // Debug: the ＋ menu's labels, as text — a ContextMenu is its own
+        // window and never appears in a Manager dump.
+        var dumpMenu = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_MENU");
+        if (!string.IsNullOrEmpty(dumpMenu))
+            Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+                new Action(() =>
+                {
+                    RebuildPlusMenu(plusMenu);
+                    var lines = plusMenu.Items.OfType<MenuItem>()
+                        .Select(i => (i.IsEnabled ? "" : "(disabled) ") + i.Header);
+                    File.WriteAllText(dumpMenu, string.Join("\n", lines) + "\n");
                 }));
 
         var dumpCreate = Environment.GetEnvironmentVariable("DESKLAYER_DUMP_CREATE");
@@ -399,7 +413,8 @@ public sealed class ManagerWindow : Window
 
         // Bottom bar: "+" menu (add / create / stores) and the folder button.
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 4, 8, 6) };
-        var menu = new ContextMenu { Placement = System.Windows.Controls.Primitives.PlacementMode.Top };
+        var menu = plusMenu;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top;
         var plus = IconButton("", L.T("Add a plugin or a plugin store"),
             () => { RebuildPlusMenu(menu); menu.IsOpen = true; });
         menu.PlacementTarget = plus;

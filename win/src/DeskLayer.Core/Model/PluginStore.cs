@@ -75,8 +75,8 @@ public sealed record PresetStore(string Name, string Url, IReadOnlyList<string> 
 
     public static readonly IReadOnlyList<PresetStore> All = new[]
     {
-        new PresetStore("Official Store", $"{Raw}/official/catalog.json", new[] { $"{Cdn}/official/catalog.json" }),
-        new PresetStore("Sample Store", $"{Raw}/samples/catalog.json", new[] { $"{Cdn}/samples/catalog.json" }),
+        new PresetStore(L.T("Official Store"), $"{Raw}/official/catalog.json", new[] { $"{Cdn}/official/catalog.json" }),
+        new PresetStore(L.T("Sample Store"), $"{Raw}/samples/catalog.json", new[] { $"{Cdn}/samples/catalog.json" }),
     };
 }
 

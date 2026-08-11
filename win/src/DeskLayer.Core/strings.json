@@ -307,6 +307,10 @@
     "zh-Hans": "无",
     "ja": "なし"
   },
+  "Official Store": {
+    "zh-Hans": "官方商店",
+    "ja": "公式ストア"
+  },
   "On desktop": {
     "zh-Hans": "桌面实例",
     "ja": "デスクトップ上"
@@ -438,6 +442,10 @@
   "SSH agent": {
     "zh-Hans": "SSH 代理",
     "ja": "SSH エージェント"
+  },
+  "Sample Store": {
+    "zh-Hans": "示例商店",
+    "ja": "サンプルストア"
   },
   "Select an item on the desktop, or a plugin in the sidebar.": {
     "zh-Hans": "请在桌面上选择一个项目，或在侧栏中选择插件。",
