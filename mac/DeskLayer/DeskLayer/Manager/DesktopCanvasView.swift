@@ -24,13 +24,32 @@ struct DesktopCanvasView: View {
     var body: some View {
         VStack(spacing: 0) {
             if screens.controllers.count > 1 {
-                Picker("Display", selection: displayBinding) {
+                // Hand-rolled segmented control, deliberately: this picker
+                // used to be a Picker (NSSegmentedControl / NSPopUpButton in
+                // a platform-view host), and on macOS 26 its constraint
+                // sizing oscillated until AppKit's loop guard crashed the
+                // app at launch — on every machine with 2+ displays.
+                HStack(spacing: 2) {
                     ForEach(Array(screens.controllers.values), id: \.displayUUID) { controller in
-                        Text(controller.screen.localizedName).tag(controller.displayUUID as String?)
+                        let isSelected = selection.displayUUID == controller.displayUUID
+                        Button {
+                            selection.displayUUID = controller.displayUUID
+                        } label: {
+                            Text(controller.screen.localizedName)
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(isSelected ? AnyShapeStyle(.background) : AnyShapeStyle(.clear))
+                                        .shadow(color: .black.opacity(isSelected ? 0.15 : 0), radius: 1, y: 0.5)
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .padding(2)
+                .background(RoundedRectangle(cornerRadius: 7).fill(.quaternary.opacity(0.5)))
                 .padding(8)
             }
             GeometryReader { geometry in

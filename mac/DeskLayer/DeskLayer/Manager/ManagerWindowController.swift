@@ -51,18 +51,28 @@ final class ManagerWindowController: NSWindowController {
         hosting.sizingOptions = []
         window.contentViewController = hosting
 
+        // ONE authority on the minimum size: the window. The root view used
+        // to carry .frame(minWidth:minHeight:) too, and the two disagreed by
+        // exactly the titlebar height once a 900x560 *frame* was restored —
+        // SwiftUI demanded 560pt of content from a window that provides 532,
+        // and the constraint engine oscillated until AppKit's loop guard
+        // killed the app (every launch, on a machine that had saved that
+        // frame). Min first, so the restore below is clamped against it.
+        window.contentMinSize = NSSize(width: 900, height: 560)
+
         // setFrameAutosaveName restores the saved frame if there is one, so
         // only fall back to centring for a first run.
         let hadSavedFrame = UserDefaults.standard
             .string(forKey: "NSWindow Frame \(Self.frameAutosaveName)") != nil
         window.setFrameAutosaveName(Self.frameAutosaveName)
         if !hadSavedFrame { window.center() }
-        // Match ManagerRootView's .frame(minWidth: 900, minHeight: 560): if
-        // AppKit can propose a smaller size, the split view's constraints
-        // push back and the two can oscillate inside one layout pass —
-        // AppKit's loop guard then throws (seen on a fresh install, where
-        // no saved frame exists).
-        window.contentMinSize = NSSize(width: 900, height: 560)
+        // A frame saved by an older (crashing) build can still be under the
+        // minimum; grow it back so no launch starts inside the conflict.
+        let content = window.contentRect(forFrameRect: window.frame).size
+        if content.width < 900 || content.height < 560 {
+            window.setContentSize(NSSize(width: max(content.width, 900),
+                                         height: max(content.height, 560)))
+        }
         window.isReleasedWhenClosed = false
         self.init(window: window)
 

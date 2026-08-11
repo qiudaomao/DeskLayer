@@ -62,7 +62,6 @@ struct ManagerRootView: View {
             InspectorView()
                 .inspectorColumnWidth(min: 240, ideal: 280, max: 400)
         }
-        .frame(minWidth: 900, minHeight: 560)
         .environmentObject(selection)
         .onAppear {
             if selection.displayUUID == nil {
