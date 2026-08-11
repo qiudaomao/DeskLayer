@@ -457,6 +457,7 @@ private struct PluginDetailView: View {
     @EnvironmentObject private var selection: ManagerSelection
     @State private var confirmUninstall = false
     @State private var isRenaming = false
+    @State private var isRewriting = false
     @State private var newName = ""
     @State private var renameError: String?
 
@@ -537,6 +538,16 @@ private struct PluginDetailView: View {
                         .font(.caption2).foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // The model already has this plugin selected, so the sheet
+                // opens with it as the base: one click from reading a plugin
+                // to changing it.
+                Button {
+                    isRewriting = true
+                } label: {
+                    Label("Rewrite with AI…", systemImage: "wand.and.stars")
+                }
+                .buttonStyle(.borderless)
+                .help("Describe a change and let a model rewrite this plugin")
                 Button(role: .destructive) {
                     confirmUninstall = true
                 } label: {
@@ -548,6 +559,9 @@ private struct PluginDetailView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Plugin")
+        .sheet(isPresented: $isRewriting) {
+            CreatePluginSheet { isRewriting = false }
+        }
         .confirmationDialog(
             "Uninstall \(pluginID)?",
             isPresented: $confirmUninstall,

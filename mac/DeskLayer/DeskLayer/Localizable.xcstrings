@@ -833,6 +833,22 @@
         }
       }
     },
+    "Describe a change and let a model rewrite this plugin": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更内容を説明すると、モデルがこのプラグインを書き換えます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述想要的改动，让模型重写这个插件"
+          }
+        }
+      }
+    },
     "Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation.": {
       "localizations": {
         "ja": {
@@ -2365,6 +2381,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "書き換え"
+          }
+        }
+      }
+    },
+    "Rewrite with AI…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI で書き換え…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用 AI 重写…"
           }
         }
       }
