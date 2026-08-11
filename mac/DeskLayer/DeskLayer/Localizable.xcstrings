@@ -321,6 +321,22 @@
         }
       }
     },
+    "Add the Official Store from the ＋ menu below, or drop a .js plugin into the plugins folder.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下の ＋ メニューから公式ストアを追加するか、プラグインフォルダに .js ファイルを置いてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从下方 ＋ 菜单添加官方商店，或将 .js 插件放入插件文件夹。"
+          }
+        }
+      }
+    },
     "Agent": {
       "localizations": {
         "ja": {
@@ -1565,6 +1581,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "没有写出任何插件。"
+          }
+        }
+      }
+    },
+    "No plugins yet": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインはまだありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有插件"
           }
         }
       }

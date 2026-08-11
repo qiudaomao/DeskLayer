@@ -30,6 +30,20 @@ struct PluginLibraryView: View {
         // Native list selection: proper highlight, arrow-key navigation, and
         // it works with VoiceOver/automation (a custom tap gesture doesn't).
         List(selection: pluginSelection) {
+            // A fresh install has no plugins and no stores. Real content
+            // here, not an empty list: it tells a new user where to start —
+            // and an empty sidebar List has been seen driving AppKit's
+            // update-constraints loop guard to a crash at first launch.
+            if registry.plugins.isEmpty && stores.stores.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("No plugins yet")
+                        .font(.headline)
+                    Text("Add the Official Store from the ＋ menu below, or drop a .js plugin into the plugins folder.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 8)
+            }
             // Everything on disk, whichever store it came from — this is the
             // list of plugins you can actually place. Store categories below
             // list what each store offers.

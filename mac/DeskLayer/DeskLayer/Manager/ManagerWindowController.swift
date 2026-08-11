@@ -57,6 +57,12 @@ final class ManagerWindowController: NSWindowController {
             .string(forKey: "NSWindow Frame \(Self.frameAutosaveName)") != nil
         window.setFrameAutosaveName(Self.frameAutosaveName)
         if !hadSavedFrame { window.center() }
+        // Match ManagerRootView's .frame(minWidth: 900, minHeight: 560): if
+        // AppKit can propose a smaller size, the split view's constraints
+        // push back and the two can oscillate inside one layout pass —
+        // AppKit's loop guard then throws (seen on a fresh install, where
+        // no saved frame exists).
+        window.contentMinSize = NSSize(width: 900, height: 560)
         window.isReleasedWhenClosed = false
         self.init(window: window)
 

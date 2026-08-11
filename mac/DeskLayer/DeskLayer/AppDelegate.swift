@@ -80,7 +80,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController(coordinator: coordinator, updateTarget: self) { [weak manager] in
             manager?.show()
         }
-        manager.show()
+        // Next turn, not inside the launch transaction: the window's first
+        // constraint pass otherwise runs while AppKit is mid-launch, which
+        // is where a fresh install crashed in the update-constraints loop.
+        DispatchQueue.main.async { [weak manager] in
+            manager?.show()
+        }
     }
 
     /// Menu action for "Check for Updates…" in both the app menu and the
