@@ -1,0 +1,258 @@
+// "Share to Community…" — publish an installed plugin to the community store
+// (store.byteplayer.app) from the inspector.
+//
+// Sign-in is the store's device-code flow: the dialog opens the forum login
+// in the default browser and polls for the token, so the app needs no URL
+// scheme and no embedded web view. The token is stored once (DPAPI) and
+// reused; publishing then creates a forum showcase topic where people
+// comment and cheer, and the plugin appears in the community catalog.
+
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using DeskLayer.Core;
+using DeskLayer.Core.Community;
+
+namespace DeskLayer.App;
+
+public sealed class PublishDialog : Window
+{
+    private readonly string source;
+    private readonly TextBox name;
+    private readonly TextBox version;
+    private readonly TextBox description;
+    private readonly TextBlock accountText;
+    private readonly Button signIn;
+    private readonly Button publish;
+    private readonly TextBlock status;
+    private readonly Button viewTopic;
+    private readonly string? permissions;
+    private string? topicUrl;
+    private System.Threading.CancellationTokenSource? polling;
+
+    public PublishDialog(bool dark, string pluginId, string pluginSource,
+                         DeskLayer.Core.PluginMetadata.PluginInfo info, IReadOnlyCollection<string>? grantedPermissions)
+    {
+        source = pluginSource;
+        permissions = grantedPermissions is { Count: > 0 } ? string.Join(", ", grantedPermissions.OrderBy(p => p)) : null;
+
+        Title = L.T("Share to Community");
+        Width = 440;
+        SizeToContent = SizeToContent.Height;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Resources = Theme.Load(dark);
+        Background = (Brush)FindResource("WindowBg");
+        ResizeMode = ResizeMode.NoResize;
+
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = L.T("Share to Community"),
+            Style = (Style)FindResource("SectionText"),
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = L.T("Publishes to the community store and opens a forum topic where people can comment and cheer."),
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextSecondary"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 12),
+        });
+
+        // Account row: resolved async after the window shows.
+        accountText = new TextBlock
+        {
+            Text = L.T("Checking sign-in…"),
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextSecondary"),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        signIn = new Button
+        {
+            Content = L.T("Sign in with the forum…"),
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+        signIn.Click += async (_, _) => await SignIn();
+        var accountRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        accountRow.Children.Add(accountText);
+        accountRow.Children.Add(signIn);
+        panel.Children.Add(accountRow);
+
+        TextBlock Caption(string text) => new()
+        {
+            Text = text,
+            FontSize = 10,
+            Foreground = (Brush)FindResource("CaptionText"),
+            Margin = new Thickness(2, 8, 0, 3),
+        };
+
+        panel.Children.Add(Caption(L.T("Name")));
+        name = new TextBox { Text = pluginId };
+        panel.Children.Add(name);
+        panel.Children.Add(Caption(L.T("Version")));
+        version = new TextBox { Text = info.Version ?? "1.0.0" };
+        panel.Children.Add(version);
+        panel.Children.Add(Caption(L.T("Description")));
+        description = new TextBox
+        {
+            Text = info.Description ?? "",
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 56,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+        panel.Children.Add(description);
+        if (permissions != null)
+            panel.Children.Add(new TextBlock
+            {
+                Text = L.T("Declared permissions ({0}) are listed on the store page.", permissions),
+                FontSize = 10,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(2, 6, 0, 0),
+            });
+
+        status = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextSecondary"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 10, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        panel.Children.Add(status);
+
+        viewTopic = new Button
+        {
+            Content = L.T("View Discussion"),
+            Margin = new Thickness(0, 10, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        viewTopic.Click += (_, _) =>
+        {
+            if (topicUrl != null)
+                Process.Start(new ProcessStartInfo(topicUrl) { UseShellExecute = true });
+        };
+        panel.Children.Add(viewTopic);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        var close = new Button { Content = L.T("Close") };
+        close.Click += (_, _) => Close();
+        publish = new Button
+        {
+            Content = L.T("Publish"),
+            Style = (Style)FindResource("AccentButton"),
+            Margin = new Thickness(8, 0, 0, 0),
+            IsEnabled = false,
+        };
+        publish.Click += async (_, _) => await PublishNow();
+        buttons.Children.Add(close);
+        buttons.Children.Add(publish);
+        panel.Children.Add(buttons);
+
+        Content = panel;
+        Loaded += async (_, _) => await RefreshAccount();
+        Closed += (_, _) => polling?.Cancel();
+    }
+
+    private async Task RefreshAccount()
+    {
+        var user = await CommunityClient.Me();
+        if (user != null)
+        {
+            accountText.Text = L.T("Signed in as {0}", user.Username);
+            signIn.Visibility = Visibility.Collapsed;
+            publish.IsEnabled = true;
+        }
+        else
+        {
+            accountText.Text = L.T("Publishing uses your forum account.");
+            signIn.Visibility = Visibility.Visible;
+            publish.IsEnabled = false;
+        }
+    }
+
+    private async Task SignIn()
+    {
+        signIn.IsEnabled = false;
+        Show(L.T("Waiting for the browser sign-in…"));
+        var login = await CommunityClient.BeginLogin();
+        if (login == null)
+        {
+            Show(L.T("Couldn't reach the store."));
+            signIn.IsEnabled = true;
+            return;
+        }
+        Process.Start(new ProcessStartInfo(login.LoginUrl) { UseShellExecute = true });
+
+        polling?.Cancel();
+        polling = new System.Threading.CancellationTokenSource();
+        var cancel = polling.Token;
+        var deadline = DateTime.UtcNow.AddSeconds(login.ExpiresInSeconds);
+        while (!cancel.IsCancellationRequested && DateTime.UtcNow < deadline)
+        {
+            try { await Task.Delay(2000, cancel); } catch (TaskCanceledException) { return; }
+            var poll = await CommunityClient.PollToken(login);
+            if (poll.Pending) continue;
+            if (poll.Token is { } token)
+            {
+                CommunityClient.Token = token;
+                Show(null);
+                signIn.IsEnabled = true;
+                await RefreshAccount();
+                return;
+            }
+            Show(poll.Error ?? L.T("Sign-in expired — try again."));
+            signIn.IsEnabled = true;
+            return;
+        }
+        if (!cancel.IsCancellationRequested)
+        {
+            Show(L.T("Sign-in expired — try again."));
+            signIn.IsEnabled = true;
+        }
+    }
+
+    private async Task PublishNow()
+    {
+        var proposedName = name.Text.Trim();
+        var proposedVersion = version.Text.Trim();
+        if (proposedName.Length == 0 || proposedVersion.Length == 0)
+        {
+            Show(L.T("Name and version are required."));
+            return;
+        }
+        publish.IsEnabled = false;
+        Show(L.T("Publishing…"));
+        var result = await CommunityClient.Publish(new PublishRequest(
+            proposedName, proposedVersion,
+            description.Text.Trim().Length == 0 ? null : description.Text.Trim(),
+            source, permissions));
+        if (result.Error != null)
+        {
+            Show(result.Error);
+            publish.IsEnabled = true;
+            await RefreshAccount();   // a 401 cleared the token; show sign-in again
+            return;
+        }
+        topicUrl = result.TopicUrl;
+        Show(L.T("Published! People can now install it from the Community Store."));
+        viewTopic.Visibility = topicUrl != null ? Visibility.Visible : Visibility.Collapsed;
+        // Publishing the same bytes again would only 409; leave the button off.
+    }
+
+    private void Show(string? text)
+    {
+        status.Text = text ?? "";
+        status.Visibility = text == null ? Visibility.Collapsed : Visibility.Visible;
+    }
+}

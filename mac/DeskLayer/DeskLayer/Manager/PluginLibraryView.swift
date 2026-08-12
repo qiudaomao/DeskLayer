@@ -203,6 +203,16 @@ struct PluginLibraryView: View {
                 Label(plugin.name, systemImage: isInstalled ? "puzzlepiece.extension.fill" : "arrow.down.circle")
                     .lineLimit(1)
                     .foregroundStyle(isInstalled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                if plugin.verified == true {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption2).foregroundStyle(.blue)
+                        .help("Verified by store staff")
+                }
+                if let cheers = plugin.cheers, cheers > 0 {
+                    Label("\(cheers)", systemImage: "hands.clap")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .labelStyle(.titleAndIcon)
+                }
                 Spacer()
                 if isInstalling {
                     ProgressView().controlSize(.small)

@@ -1193,6 +1193,37 @@ struct PluginInstanceTests {
         #expect(entries.first?.catalog?.plugins.map(\.name) == ["Good"])
     }
 
+    @Test func communityCatalogExtrasDecode() {
+        // The community store adds cheers/comments/verified/topicUrl. They
+        // must decode when present and stay nil for ordinary catalogs —
+        // and, per the lossy rule, never break an old-format entry.
+        let body = """
+        {"name": "DeskLayer Community", "website": "https://bbs.byteplayer.app",
+         "plugins": [
+           {"name": "HelloCard", "url": "https://s.example/h.js", "version": "1.0.0",
+            "author": "someone", "cheers": 12, "comments": 3, "verified": true,
+            "topicUrl": "https://bbs.byteplayer.app/t/hellocard/11"},
+           {"name": "Plain", "url": "https://s.example/p.js"}
+        ]}
+        """
+        let catalog = try? JSONDecoder().decode(StoreCatalog.self, from: Data(body.utf8))
+        #expect(catalog?.plugins.count == 2)
+        let rich = catalog?.plugins.first
+        #expect(rich?.cheers == 12)
+        #expect(rich?.comments == 3)
+        #expect(rich?.verified == true)
+        #expect(rich?.topicUrl == "https://bbs.byteplayer.app/t/hellocard/11")
+        let plain = catalog?.plugins.last
+        #expect(plain?.cheers == nil && plain?.verified == nil)
+
+        // Round-trips through the store persistence without loss.
+        let entry = PluginStoreEntry(url: "https://s.example/catalog.json", catalog: catalog)
+        let data = try? JSONEncoder().encode([entry])
+        let back = data.map { PluginStoreRegistry.salvage($0) } ?? []
+        #expect(back.first?.catalog?.plugins.first?.cheers == 12)
+        #expect(back.first?.catalog?.plugins.first?.verified == true)
+    }
+
     @Test func storeCatalogCachesForADay() {
         var entry = PluginStoreEntry(url: "https://example.com/catalog.json")
         entry.catalog = StoreCatalog(name: "S", plugins: [])

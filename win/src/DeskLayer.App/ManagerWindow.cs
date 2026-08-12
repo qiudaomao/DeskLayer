@@ -1887,6 +1887,17 @@ public sealed class ManagerWindow : Window
             rewrite.Click += (_, _) => OpenCreatePlugin();
             inspector.Children.Add(rewrite);
 
+            var share = new Button { Content = L.T("Share to Community…"), Margin = new Thickness(0, 8, 0, 0) };
+            share.Click += (_, _) =>
+            {
+                string pluginSource;
+                try { pluginSource = File.ReadAllText(plugin.SourcePath); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return; }
+                var dialog = new PublishDialog(dark, pluginId, pluginSource, info, permissions) { Owner = this };
+                dialog.ShowDialog();
+            };
+            inspector.Children.Add(share);
+
             // Store plugins keep their catalog name: an update looks the
             // plugin up by name, and a renamed copy would be installed
             // alongside it rather than over it.
@@ -2044,6 +2055,25 @@ public sealed class ManagerWindow : Window
             });
         if (plugin?.Version is { } version) inspector.Children.Add(LabeledRow(L.T("Version"), version));
         if (plugin?.Author is { } author2) inspector.Children.Add(LabeledRow(L.T("Author"), author2));
+
+        // Community-store extras: cheer/comment counts from the forum, the
+        // staff verified badge, and a deep link into the discussion.
+        if (plugin?.Cheers is { } cheers)
+            inspector.Children.Add(LabeledRow(L.T("Community"), L.T("{0} cheers · {1} comments", cheers, plugin.Comments ?? 0)));
+        if (plugin?.Verified == true)
+            inspector.Children.Add(new TextBlock
+            {
+                Text = "✓ " + L.T("Verified by staff"),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x30, 0xD1, 0x58)),
+                FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+        if (plugin?.TopicUrl is { } topic)
+        {
+            var discuss = new Button { Content = L.T("Discuss on the Forum"), Margin = new Thickness(0, 8, 0, 0) };
+            discuss.Click += (_, _) => Process.Start(new ProcessStartInfo(topic) { UseShellExecute = true });
+            inspector.Children.Add(discuss);
+        }
 
         inspector.Children.Add(Divider());
         if (isInstalled)

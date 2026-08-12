@@ -29,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let pluginRegistry = PluginRegistry()
     private let storeRegistry = PluginStoreRegistry()
     private lazy var pluginAuthor = PluginAuthorSession(registry: pluginRegistry)
+    private let community = CommunityAccount()
     private var coordinator: RuntimeCoordinator?
     private var managerWindow: ManagerWindowController?
     private var statusItem: StatusItemController?
@@ -74,7 +75,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             screens: screenManager,
             coordinator: coordinator,
             stores: storeRegistry,
-            author: pluginAuthor
+            author: pluginAuthor,
+            community: community
         )
         managerWindow = manager
         statusItem = StatusItemController(coordinator: coordinator, updateTarget: self) { [weak manager] in

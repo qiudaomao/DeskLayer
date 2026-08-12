@@ -36,6 +36,16 @@ nonisolated struct StorePlugin: Codable, Hashable, Identifiable {
     var mirrors: [String]?
     var version: String?
     var author: String?
+    // Community-store extras; absent from ordinary catalogs and ignored by
+    // builds that predate them.
+    /// Forum likes on the plugin's showcase topic.
+    var cheers: Int?
+    /// Reply count on the showcase topic.
+    var comments: Int?
+    /// Staff reviewed the source and tagged the topic `verified`.
+    var verified: Bool?
+    /// Deep link to the forum topic — where cheering and discussing happen.
+    var topicUrl: String?
 
     var id: String { name }
 
@@ -192,6 +202,10 @@ nonisolated struct PresetStore: Identifiable, Hashable {
         PresetStore(name: String(localized: "Sample Store"),
                     url: "\(raw)/samples/catalog.json",
                     mirrors: ["\(cdn)/samples/catalog.json"]),
+        // Community-published plugins, backed by the forum: one account
+        // covers comments, cheers, and in-app publishing.
+        PresetStore(name: String(localized: "Community Store"),
+                    url: "https://store.byteplayer.app/catalog.json"),
     ]
 }
 

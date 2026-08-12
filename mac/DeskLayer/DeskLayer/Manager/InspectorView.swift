@@ -366,6 +366,28 @@ private struct StorePluginDetailView: View {
                 LabeledContent("From", value: entry?.displayName ?? "—")
                 if let version = plugin?.version { LabeledContent("Version", value: version) }
                 if let author = plugin?.author { LabeledContent("Author", value: author) }
+                if plugin?.verified == true {
+                    // Staff read the source and tagged the forum topic.
+                    Label("Verified by store staff", systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(.blue).font(.caption)
+                }
+                if let cheers = plugin?.cheers, let comments = plugin?.comments {
+                    LabeledContent("Community") {
+                        HStack(spacing: 10) {
+                            Label("\(cheers)", systemImage: "hands.clap")
+                            Label("\(comments)", systemImage: "bubble.left")
+                        }
+                        .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let topic = plugin?.topicUrl, let url = URL(string: topic) {
+                    Button {
+                        NSWorkspace.shared.open(url)
+                    } label: {
+                        Label("Discuss on the Forum", systemImage: "bubble.left.and.bubble.right")
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
 
             Section {
@@ -460,6 +482,7 @@ private struct PluginDetailView: View {
     @State private var isRewriting = false
     @State private var newName = ""
     @State private var renameError: String?
+    @State private var isPublishing = false
 
     var body: some View {
         let meta = registry.metadata(for: pluginID)
@@ -531,6 +554,16 @@ private struct PluginDetailView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(!canRename)
+                if case .user = origin {
+                    // Store-installed plugins are someone else's work; only
+                    // the user's own are offered for publishing.
+                    Button {
+                        isPublishing = true
+                    } label: {
+                        Label("Publish to Community…", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderless)
+                }
                 if case .store(let store) = origin {
                     // Renaming would break the match by name that updates and
                     // "Reinstall from Store" rely on.
@@ -576,6 +609,9 @@ private struct PluginDetailView: View {
             Text(usageCount > 0
                  ? "\(usageCount) item\(usageCount == 1 ? "" : "s") on your desktop use it and will stop rendering."
                  : "The plugin file moves to the Trash.")
+        }
+        .sheet(isPresented: $isPublishing) {
+            PublishPluginSheet(pluginID: pluginID) { isPublishing = false }
         }
         .alert("Rename Plugin", isPresented: $isRenaming) {
             TextField("Name", text: $newName)

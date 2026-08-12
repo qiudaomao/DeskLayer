@@ -24,6 +24,15 @@ public sealed record StorePlugin
     public string? Version { get; init; }
     public string? Author { get; init; }
 
+    // Community-store extras. Absent from ordinary catalogs (the decode is
+    // lossy either way): forum likes on the plugin's showcase topic, its
+    // reply count, the staff-applied verified tag, and a deep link for a
+    // "Discuss" button. Synced from the forum roughly every 30 minutes.
+    public int? Cheers { get; init; }
+    public int? Comments { get; init; }
+    public bool? Verified { get; init; }
+    public string? TopicUrl { get; init; }
+
     /// Every download address to try, primary first.
     public IEnumerable<string> CandidateUrls => new[] { Url }.Concat(Mirrors ?? Array.Empty<string>());
 }
@@ -77,6 +86,9 @@ public sealed record PresetStore(string Name, string Url, IReadOnlyList<string> 
     {
         new PresetStore(L.T("Official Store"), $"{Raw}/official/catalog.json", new[] { $"{Cdn}/official/catalog.json" }),
         new PresetStore(L.T("Sample Store"), $"{Raw}/samples/catalog.json", new[] { $"{Cdn}/samples/catalog.json" }),
+        // User-published plugins with forum comments and cheers behind them
+        // (bbs.byteplayer.app accounts; publishing lives in the inspector).
+        new PresetStore(L.T("Community Store"), Community.CommunityClient.CatalogUrl, Array.Empty<string>()),
     };
 }
 

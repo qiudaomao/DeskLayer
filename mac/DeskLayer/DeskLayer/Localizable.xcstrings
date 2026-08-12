@@ -210,6 +210,22 @@
         }
       }
     },
+    "Account": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账号"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "ja": {
@@ -722,6 +738,38 @@
         }
       }
     },
+    "Community": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミュニティ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "社区"
+          }
+        }
+      }
+    },
+    "Community Store": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミュニティストア"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "社区商店"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "ja": {
@@ -750,6 +798,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法读取生成的插件。"
+          }
+        }
+      }
+    },
+    "Couldn't read the plugin file.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラグインファイルを読み込めませんでした。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取插件文件。"
           }
         }
       }
@@ -818,6 +882,22 @@
         }
       }
     },
+    "Daily publish limit reached — try again tomorrow.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 日の公開上限に達しました。明日もう一度お試しください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已达到每日发布上限——请明天再试。"
+          }
+        }
+      }
+    },
     "Default size": {
       "localizations": {
         "ja": {
@@ -882,6 +962,22 @@
         }
       }
     },
+    "Description": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "説明"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述"
+          }
+        }
+      }
+    },
     "DeskLayer": {
       "localizations": {
         "ja": {
@@ -910,6 +1006,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "桌面"
+          }
+        }
+      }
+    },
+    "Discuss on the Forum": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォーラムで議論"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去论坛讨论"
           }
         }
       }
@@ -1778,6 +1890,22 @@
         }
       }
     },
+    "Open the Forum Topic": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォーラムのトピックを開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开论坛主题帖"
+          }
+        }
+      }
+    },
     "Password": {
       "localizations": {
         "ja": {
@@ -1982,6 +2110,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "属性"
+          }
+        }
+      }
+    },
+    "Publish": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布"
+          }
+        }
+      }
+    },
+    "Publish to Community": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミュニティに公開"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布到社区"
+          }
+        }
+      }
+    },
+    "Publish to Community…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コミュニティに公開…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布到社区…"
+          }
+        }
+      }
+    },
+    "Published %@ %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ を公開しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发布 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Publishing shares %@ in the community store and opens a forum topic under your account, where people can discuss and cheer it.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開すると %@ がコミュニティストアに掲載され、あなたのアカウントでフォーラムにトピックが作成されます。そこで議論や応援（いいね）が行われます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布后，%@ 将上架社区商店，并以你的账号在论坛开设主题帖，大家可以在那里讨论和点赞。"
+          }
+        }
+      }
+    },
+    "Publishing uses your forum account (bbs.byteplayer.app). Signing in opens the forum in your browser — no password ever passes through the app.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開にはフォーラムアカウント（bbs.byteplayer.app）を使います。サインインはブラウザで行われ、パスワードがアプリを通ることはありません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布使用你的论坛账号（bbs.byteplayer.app）。登录会在浏览器中进行——密码不会经过本应用。"
+          }
+        }
+      }
+    },
+    "Publishing…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布中…"
           }
         }
       }
@@ -2642,6 +2882,70 @@
         }
       }
     },
+    "Sign In with the Forum…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フォーラムでサインイン…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用论坛账号登录…"
+          }
+        }
+      }
+    },
+    "Sign Out": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインアウト"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        }
+      }
+    },
+    "Sign in first.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先にサインインしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先登录。"
+          }
+        }
+      }
+    },
+    "Sign-in failed.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインに失敗しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录失败。"
+          }
+        }
+      }
+    },
     "Source": {
       "localizations": {
         "ja": {
@@ -2750,6 +3054,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "接口地址无效。"
+          }
+        }
+      }
+    },
+    "That name is taken, or this version is already published.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "その名前は他の人が使用しているか、このバージョンは公開済みです。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该名称已被他人占用，或此版本已发布过。"
           }
         }
       }
@@ -2882,6 +3202,22 @@
         }
       }
     },
+    "The sign-in expired. Try again.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインの有効期限が切れました。もう一度お試しください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录已过期，请重试。"
+          }
+        }
+      }
+    },
     "The store lists %@.": {
       "localizations": {
         "ja": {
@@ -2894,6 +3230,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "商店中的版本为 %@。"
+          }
+        }
+      }
+    },
+    "The store returned an unexpected reply.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアから予期しない応答が返されました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "商店返回了意外的响应。"
+          }
+        }
+      }
+    },
+    "The store sent an unusable sign-in address.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアから不正なサインインアドレスが返されました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "商店返回的登录地址无效。"
           }
         }
       }
@@ -3138,6 +3506,22 @@
         }
       }
     },
+    "Verified by store staff": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ストアスタッフによる確認済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已通过商店人员审核"
+          }
+        }
+      }
+    },
     "Version": {
       "localizations": {
         "ja": {
@@ -3150,6 +3534,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "版本"
+          }
+        }
+      }
+    },
+    "Waiting for the browser sign-in… Finish signing in on the forum page that just opened.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザでのサインインを待っています… 開いたフォーラムページでサインインを完了してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待浏览器登录……请在刚打开的论坛页面完成登录。"
           }
         }
       }
@@ -3262,6 +3662,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Y（自上）"
+          }
+        }
+      }
+    },
+    "Your session expired — sign in again.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションの有効期限が切れました。もう一度サインインしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话已过期——请重新登录。"
           }
         }
       }

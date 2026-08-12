@@ -107,6 +107,10 @@
     "zh-Hans": "检查更新…",
     "ja": "アップデートを確認…"
   },
+  "Checking sign-in…": {
+    "zh-Hans": "正在检查登录状态…",
+    "ja": "サインイン状態を確認中…"
+  },
   "Checking…": {
     "zh-Hans": "检查中…",
     "ja": "確認中…"
@@ -135,6 +139,18 @@
     "zh-Hans": "关闭",
     "ja": "閉じる"
   },
+  "Community": {
+    "zh-Hans": "社区",
+    "ja": "コミュニティ"
+  },
+  "Community Store": {
+    "zh-Hans": "社区商店",
+    "ja": "コミュニティストア"
+  },
+  "Couldn't reach the store.": {
+    "zh-Hans": "无法连接商店。",
+    "ja": "ストアに接続できませんでした。"
+  },
   "Couldn't read a plugin catalog from that URL.": {
     "zh-Hans": "无法从该网址读取插件目录。",
     "ja": "その URL からプラグインカタログを読み取れませんでした。"
@@ -159,6 +175,10 @@
     "zh-Hans": "生成插件…",
     "ja": "プラグインを作成…"
   },
+  "Declared permissions ({0}) are listed on the store page.": {
+    "zh-Hans": "声明的权限（{0}）会展示在商店页面上。",
+    "ja": "宣言された権限（{0}）はストアページに表示されます。"
+  },
   "Default size": {
     "zh-Hans": "默认尺寸",
     "ja": "デフォルトサイズ"
@@ -167,9 +187,17 @@
     "zh-Hans": "描述你想要的效果。模型会拿到 DeskLayer 的插件 API 并编写 JavaScript；只有通过校验才会安装。",
     "ja": "作りたいものを書いてください。モデルは DeskLayer のプラグイン API を渡されて JavaScript を書きます。検証を通るまでインストールされません。"
   },
+  "Description": {
+    "zh-Hans": "描述",
+    "ja": "説明"
+  },
   "Desktop": {
     "zh-Hans": "桌面",
     "ja": "デスクトップ"
+  },
+  "Discuss on the Forum": {
+    "zh-Hans": "前往论坛讨论",
+    "ja": "フォーラムで議論"
   },
   "Enabled": {
     "zh-Hans": "启用",
@@ -279,6 +307,14 @@
     "zh-Hans": "模型",
     "ja": "モデル"
   },
+  "Name": {
+    "zh-Hans": "名称",
+    "ja": "名前"
+  },
+  "Name and version are required.": {
+    "zh-Hans": "名称与版本为必填。",
+    "ja": "名前とバージョンは必須です。"
+  },
   "No Selection": {
     "zh-Hans": "未选择",
     "ja": "選択なし"
@@ -366,6 +402,26 @@
   "Properties": {
     "zh-Hans": "属性",
     "ja": "プロパティ"
+  },
+  "Publish": {
+    "zh-Hans": "发布",
+    "ja": "公開"
+  },
+  "Published! People can now install it from the Community Store.": {
+    "zh-Hans": "已发布！大家现在可以从社区商店安装它了。",
+    "ja": "公開しました！コミュニティストアからインストールできるようになりました。"
+  },
+  "Publishes to the community store and opens a forum topic where people can comment and cheer.": {
+    "zh-Hans": "发布到社区商店，并创建一个论坛主题，供大家评论与点赞。",
+    "ja": "コミュニティストアに公開し、コメントや応援ができるフォーラムトピックを作成します。"
+  },
+  "Publishing uses your forum account.": {
+    "zh-Hans": "发布需要使用你的论坛账号。",
+    "ja": "公開にはフォーラムアカウントを使用します。"
+  },
+  "Publishing…": {
+    "zh-Hans": "正在发布…",
+    "ja": "公開中…"
   },
   "Reached the turn limit.": {
     "zh-Hans": "已达到轮次上限。",
@@ -463,6 +519,14 @@
     "zh-Hans": "请先设置接口地址和模型。",
     "ja": "先にベース URL とモデルを設定してください。"
   },
+  "Share to Community": {
+    "zh-Hans": "分享到社区",
+    "ja": "コミュニティに公開"
+  },
+  "Share to Community…": {
+    "zh-Hans": "分享到社区…",
+    "ja": "コミュニティに公開…"
+  },
   "Show Installed Plugin": {
     "zh-Hans": "显示已安装的插件",
     "ja": "インストール済みのプラグインを表示"
@@ -478,6 +542,22 @@
   "Show {0}": {
     "zh-Hans": "显示 {0}",
     "ja": "{0} を表示"
+  },
+  "Sign in first.": {
+    "zh-Hans": "请先登录。",
+    "ja": "先にサインインしてください。"
+  },
+  "Sign in with the forum…": {
+    "zh-Hans": "使用论坛账号登录…",
+    "ja": "フォーラムアカウントでサインイン…"
+  },
+  "Sign-in expired — try again.": {
+    "zh-Hans": "登录已超时，请重试。",
+    "ja": "サインインの有効期限が切れました。もう一度お試しください。"
+  },
+  "Signed in as {0}": {
+    "zh-Hans": "已以 {0} 登录",
+    "ja": "{0} としてサインイン中"
   },
   "Start from": {
     "zh-Hans": "基于",
@@ -615,9 +695,21 @@
     "zh-Hans": "正在校验 {0}…",
     "ja": "{0} を検証中…"
   },
+  "Verified by staff": {
+    "zh-Hans": "官方已验证",
+    "ja": "スタッフ確認済み"
+  },
   "Version": {
     "zh-Hans": "版本",
     "ja": "バージョン"
+  },
+  "View Discussion": {
+    "zh-Hans": "查看讨论",
+    "ja": "ディスカッションを表示"
+  },
+  "Waiting for the browser sign-in…": {
+    "zh-Hans": "等待浏览器完成登录…",
+    "ja": "ブラウザでのサインインを待っています…"
   },
   "Wallpaper": {
     "zh-Hans": "桌面壁纸",
@@ -650,6 +742,10 @@
   "Y (from top)": {
     "zh-Hans": "Y（自上）",
     "ja": "Y（上から）"
+  },
+  "Your session expired — sign in again.": {
+    "zh-Hans": "登录已过期，请重新登录。",
+    "ja": "セッションの有効期限が切れました。もう一度サインインしてください。"
   },
   "Z-order": {
     "zh-Hans": "层级",
@@ -706,6 +802,10 @@
   "{0} came from a store, so this is saved as a copy.": {
     "zh-Hans": "{0} 来自插件商店，因此这次会保存为副本。",
     "ja": "{0} はストア由来のため、複製として保存されます。"
+  },
+  "{0} cheers · {1} comments": {
+    "zh-Hans": "{0} 次点赞 · {1} 条评论",
+    "ja": "応援 {0} · コメント {1}"
   },
   "{0} items": {
     "zh-Hans": "{0} 个项目",
