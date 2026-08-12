@@ -18,3 +18,4 @@ build/
 releases/*.dmg
 releases/*.delta
 releases/appcast.xml
+releases/old_updates/

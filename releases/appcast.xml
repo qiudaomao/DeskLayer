@@ -3,6 +3,39 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.1.7</title>
+            <pubDate>Wed, 12 Aug 2026 15:47:34 +0800</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>1.1.7</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>New</h2>
+<ul>
+<li><b>About DeskLayer</b> in the menu bar item, so the running version is always one click away.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>新增</h2>
+<ul>
+<li>菜单栏菜单新增<b>“关于 DeskLayer”</b>，一键即可查看当前运行的版本。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>新機能</h2>
+<ul>
+<li>メニューバーのメニューに<b>「DeskLayer について」</b>を追加。実行中のバージョンをすぐ確認できます。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer-1.1.7.dmg" length="4187459" type="application/octet-stream" sparkle:edSignature="F2d8vGIiBkGwJ41axNABGTmAjE7CkZ64NO2G0FTuGC5cTzq+KszLHKltdOOM70U0u5BjXqgKAvfx98BnW32CAQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-10.delta" sparkle:deltaFrom="10" length="101034" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ilmMlWi0gz2BQrN3pRSGdVfk60pUn1FIT3+DY+gKvF6YQTmr0+MPeIcyQPVKwuAYKam5m0aMg4A+9VOIGB9+AQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-9.delta" sparkle:deltaFrom="9" length="284310" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="mN9SsH7IgiuO/1THJGH8ZXvYwFb8IaMH8fO4ipvlv3F+7hOFqaW/XUe+x1/CsFvOBr5qTg5Hve7A870JxQ6sAg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-8.delta" sparkle:deltaFrom="8" length="300690" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="W2XLA+NXRjVhT2H4ZqzpBjRQItrN+uIqU9IPKLVhvwXouka2vOOuV/f505vhxfjf+eLfTSKndj8DVw5cxNK1Ag=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-7.delta" sparkle:deltaFrom="7" length="325062" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="LlQ1sXOjdJXsVOHHzzKmtDP5m/HTdROO+XzlTTj2t7Xs9GhzjpKZ1Wy56ZsFVnW3qZArXi1emxiaQ3/WwwyPCQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-6.delta" sparkle:deltaFrom="6" length="338318" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ORWlwsUa6xn334FrV82Of9cepc8EPXMdzd8pDGzJcUXQMZNR9M5T4VPTDe4GBmLgAZCAf6osDzRRekV0Z1nhBw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.1.6</title>
             <pubDate>Wed, 12 Aug 2026 14:39:36 +0800</pubDate>
             <sparkle:version>10</sparkle:version>
@@ -90,39 +123,6 @@
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.5/DeskLayer9-6.delta" sparkle:deltaFrom="6" length="256270" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="qMxGNeuo8dsLIjT3qhLjJ3TY7OfKE49dHGwtY8se5Quf2apOCVw0g/3lktdfU8goFpbAFxSMelHWrd9GQxtlAQ=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.5/DeskLayer9-5.delta" sparkle:deltaFrom="5" length="262114" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ER/qD+VelXIl3KPiySxAVEN7X46O2hWiaTABjYdF7xJUKEdfXfnxMAdyozX1hx2ggr6m5mS2BVm2GEdzyOjECw=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.5/DeskLayer9-4.delta" sparkle:deltaFrom="4" length="282914" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="GYUo7ft21WXTs5bMzbsPtEH+USOEXo9DFCdd7phs1AcSpKVAfSoC19SkUXANflZZI1WVM9n+V2XmImxbHtEeCQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.1.4</title>
-            <pubDate>Tue, 11 Aug 2026 10:34:18 +0800</pubDate>
-            <sparkle:version>8</sparkle:version>
-            <sparkle:shortVersionString>1.1.4</sparkle:shortVersionString>
-            <description><![CDATA[
-<h2>Fixed</h2>
-<ul>
-<li><b>Crash at first launch on a brand-new install.</b> The manager window's layout could enter a constraint loop when the plugin library was completely empty. The sidebar now shows a first-run guide instead, and the window's sizing can no longer oscillate.</li>
-</ul>
-            ]]></description>
-            <description xml:lang="zh-Hans"><![CDATA[
-<h2>修复</h2>
-<ul>
-<li><b>全新安装首次启动崩溃。</b>插件库完全为空时，管理器窗口的布局可能进入约束死循环。侧栏现在会显示新手引导，窗口尺寸也不会再震荡。</li>
-</ul>
-            ]]></description>
-            <description xml:lang="ja"><![CDATA[
-<h2>修正</h2>
-<ul>
-<li><b>新規インストール直後の初回起動クラッシュを修正。</b>プラグインライブラリが完全に空の場合、マネージャウィンドウのレイアウトが制約ループに陥ることがありました。サイドバーには初回ガイドが表示され、ウィンドウのサイズが振動することもなくなりました。</li>
-</ul>
-            ]]></description>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer-1.1.4.dmg" length="4152879" type="application/octet-stream" sparkle:edSignature="zWQCzqLB8uEoFCFnP5wU5Vo25eX0EnhUrnuxZPa09O6VVXFPr41Sr1cd6dpuEta36fFuvCZUzjEFCSw06W6QAQ=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer8-7.delta" sparkle:deltaFrom="7" length="212046" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="vH/8C4znXzgO5P3T8P4C/B/3mm5YZWifbGAXWE7WM8a5g/FP81CLEQnE/dy233kghxm4EWB8GD7gvZnLBrHlCQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer8-6.delta" sparkle:deltaFrom="6" length="234878" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="07tY357PAWat9inSUIKJfrWEYQp32qhTs7fAXEDTpLjOowaviV9MjDqfNoA8ohOR8ZwJWNDxW8dafO8X8xoqDQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer8-5.delta" sparkle:deltaFrom="5" length="242098" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="UirrG1KtkNyZqPMO0isH7LdbEX7Z9fi2+/YcR9cxPcp0zL7QRrhjZJUu1Vxwc340jenB7Fc6uIG1e1zFM5LPCw=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer8-4.delta" sparkle:deltaFrom="4" length="267614" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="HglpCDVhpslfK54mg9sTQRxzj0gbCwkYZmm764wnXwuy29tjE+DL/4llLyI2+zTUW1IDk9c0nC/KCMdOWC3MCQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.4/DeskLayer8-3.delta" sparkle:deltaFrom="3" length="475174" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="D8UMsfGBngmkOOezQulRcGvO4J4kTXM3o2pOieIaJRPWl7eMi2QMNd5kUV19TtYbVVQKWLsxljXv8XNK4eawDQ=="/>
             </sparkle:deltas>
         </item>
         <item>

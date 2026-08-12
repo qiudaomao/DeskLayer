@@ -5,45 +5,42 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.1.6</title>
-            <pubDate>Wed, 12 Aug 2026 14:24:43 +0800</pubDate>
-            <sparkle:version>1.1.6</sparkle:version>
-            <sparkle:shortVersionString>1.1.6</sparkle:shortVersionString>
+            <title>1.1.7</title>
+            <pubDate>Wed, 12 Aug 2026 15:46:31 +0800</pubDate>
+            <sparkle:version>1.1.7</sparkle:version>
+            <sparkle:shortVersionString>1.1.7</sparkle:shortVersionString>
             <description><![CDATA[
 <h2>Fixed</h2>
 <ul>
-<li><b>One misbehaving plugin could freeze every widget on the desktop.</b> Plugin code that never returned — a runaway loop, most often from a plugin an AI had just rewritten — held the shared render thread forever, so everything stopped updating at once. Plugin code is now cut off after 2 seconds: only that widget stops, and the log says which one and why.</li>
+<li><b>Updates never installed.</b> Choosing "Install and Relaunch" closed DeskLayer and left the old version in place, so the same update was offered again on the next launch. Two things were wrong: Windows will not replace a running program, and nothing closed DeskLayer first; and the installer was started in its interactive mode, so it waited for a wizard nobody saw. Both are fixed — an update now installs quietly and DeskLayer comes back on its own.</li>
 </ul>
-<h2>Improved</h2>
+<h2>New</h2>
 <ul>
-<li><b>Remote monitoring over SSH is far faster.</b> Each ssh() used to open a new connection, paying the handshake every time — around 300ms per reading on a local network. The connection is now kept open and reused, which takes the same reading to about 11ms.</li>
-<li><b>The tray menu can open the plugins folder</b>, as the Mac's menu bar already could.</li>
+<li><b>About DeskLayer</b> in the tray menu, showing the running version and where your plugins live. The version is written to the log at startup too.</li>
 </ul>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
 <h2>修复</h2>
 <ul>
-<li><b>单个插件出错会导致桌面上所有小组件停止更新。</b>当插件代码无法返回（例如死循环，常见于刚由 AI 重写的插件）时，它会一直占用共享渲染线程，导致所有小组件同时停止刷新。现在插件代码超过 2 秒会被中断：只有该小组件停止，日志会指出是哪一个以及原因。</li>
+<li><b>更新始终无法安装。</b>点击“安装并重启”后，DeskLayer 会关闭，但旧版本仍保留在原处，于是下次启动时又会提示同一个更新。原因有两点：Windows 不允许替换正在运行的程序，而此前没有先关闭 DeskLayer；同时安装程序以交互模式启动，等待一个没人看得到的向导窗口。两处均已修复——更新现在会静默安装，DeskLayer 随后自动重新启动。</li>
 </ul>
-<h2>改进</h2>
+<h2>新增</h2>
 <ul>
-<li><b>通过 SSH 监控远程主机的速度大幅提升。</b>此前每次 ssh() 都会新建连接，每次都要完成握手——在局域网上每次读取约 300 毫秒。现在连接会保持并复用，同样的读取约 11 毫秒。</li>
-<li><b>托盘菜单新增“打开插件文件夹”</b>，与 Mac 菜单栏保持一致。</li>
+<li>托盘菜单新增<b>“关于 DeskLayer”</b>，显示当前运行的版本以及插件所在位置。启动时也会将版本写入日志。</li>
 </ul>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
 <h2>修正</h2>
 <ul>
-<li><b>1 つのプラグインの不具合でデスクトップ上のすべてのウィジェットが停止する問題を修正。</b>戻ってこないプラグインコード（多くは AI が書き換えた直後の無限ループ）が共有レンダースレッドを占有し、すべての更新が同時に止まっていました。プラグインコードは 2 秒で中断されるようになり、停止するのはそのウィジェットだけで、原因はログに記録されます。</li>
+<li><b>アップデートがインストールされない問題を修正。</b>「インストールして再起動」を選ぶと DeskLayer は終了するものの、古いバージョンがそのまま残り、次回起動時に同じアップデートが再び提示されていました。原因は 2 つあります。Windows は実行中のプログラムを置き換えられないのに DeskLayer を終了させていなかったこと、そしてインストーラーが対話モードで起動され、誰にも見えないウィザードを待っていたことです。どちらも修正され、アップデートは静かに適用され、DeskLayer は自動的に再起動します。</li>
 </ul>
-<h2>改善</h2>
+<h2>新機能</h2>
 <ul>
-<li><b>SSH によるリモート監視が大幅に高速化。</b>これまでは ssh() のたびに新しい接続を開き、毎回ハンドシェイクが必要でした（LAN で 1 回あたり約 300ms）。接続を保持して再利用するようになり、同じ取得が約 11ms になりました。</li>
-<li><b>タスクトレイのメニューからプラグインフォルダを開けるようになりました</b>（Mac のメニューバーと同様）。</li>
+<li>タスクトレイのメニューに<b>「DeskLayer について」</b>を追加。実行中のバージョンとプラグインの場所を表示します。起動時にもバージョンをログへ記録します。</li>
 </ul>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.6/DeskLayer-Setup-1.1.6.exe" length="50529664" type="application/octet-stream" sparkle:edSignature="jMVZAhEAq3iny7u89xt/evxuv/sxzra+wChim1fsWUagEV20WkrXD+LG/tfZUX9/kZgygUneYVtv8+KOjadIBA=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer-Setup-1.1.7.exe" length="50536198" type="application/octet-stream" sparkle:edSignature="haHxkefX+bJDd4/UrAWDurs4JAeLzDc+00R8cVMTPslKgTy5glm4APYTih3R/CepWTGTbZxmEn9D6Q7hmNlqCA=="/>
         </item>
     </channel>
 </rss>
