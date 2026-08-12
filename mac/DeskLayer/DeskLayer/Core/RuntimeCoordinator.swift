@@ -56,13 +56,34 @@ final class RuntimeCoordinator: ObservableObject {
         let displayUUID: String
         let target: RenderTarget
         let clickThrough: Bool
+        /// mtime+size of the plugin's source. Part of the identity so an
+        /// edited (or updated) plugin respawns just the items running it,
+        /// while a change elsewhere in the folder — a new file arriving —
+        /// leaves every identity untouched, and nothing restarts.
+        let sourceStamp: String
 
-        init(_ item: LayoutItem) {
+        init(_ item: LayoutItem, sourceStamp: String) {
             pluginID = item.pluginID
             displayUUID = item.displayUUID
             target = item.target
             clickThrough = item.clickThrough
+            self.sourceStamp = sourceStamp
         }
+    }
+
+    /// mtime+size of a plugin's source, or "" when it isn't installed.
+    ///
+    /// Read through FileManager, not URL.resourceValues: a URL caches the
+    /// values it has already fetched, and the descriptor hands back the same
+    /// URL every time — so an edited plugin would keep reporting the size it
+    /// had at launch, and never reload.
+    private func sourceStamp(for pluginID: String) -> String {
+        guard let path = plugins.descriptor(for: pluginID)?.sourceURL.path,
+              let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attributes[.modificationDate] as? Date,
+              let size = attributes[.size] as? Int
+        else { return "" }
+        return "\(modified.timeIntervalSince1970):\(size)"
     }
 
     private var running: [UUID: RunningItem] = [:]
@@ -101,10 +122,13 @@ final class RuntimeCoordinator: ObservableObject {
             .sink { [weak self] in self?.reconcile() }
             .store(in: &cancellables)
         // Hot-reload running items when a plugin file changes (edit, import,
-        // or an applied update).
+        // or an applied update). Reconcile, not rebuild: the source stamp in
+        // SpawnIdentity restarts exactly the items whose own plugin changed,
+        // so copying a new plugin into the folder no longer restarts every
+        // widget on the desktop and throws away its JS state.
         plugins.didChange
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .sink { [weak self] in self?.rebuild() }
+            .sink { [weak self] in self?.reconcile() }
             .store(in: &cancellables)
         power.$policy
             .sink { [weak self] _ in self?.pushPolicies() }
@@ -179,7 +203,7 @@ final class RuntimeCoordinator: ObservableObject {
         }
         let wanted = Dictionary(placeable.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-        for (id, item) in running where wanted[id].map({ SpawnIdentity($0) }) != item.identity {
+        for (id, item) in running where wanted[id].map({ SpawnIdentity($0, sourceStamp: self.sourceStamp(for: $0.pluginID)) }) != item.identity {
             teardown(id)
         }
         for item in placeable {
@@ -381,7 +405,7 @@ final class RuntimeCoordinator: ObservableObject {
                 runtime: .canvas(renderer: renderer, layer: layer),
                 displayUUID: layoutItem.displayUUID,
                 panel: panel,
-                identity: SpawnIdentity(layoutItem)
+                identity: SpawnIdentity(layoutItem, sourceStamp: sourceStamp(for: layoutItem.pluginID))
             )
 
         case .declarative:
@@ -410,7 +434,7 @@ final class RuntimeCoordinator: ObservableObject {
                 runtime: .declarative(host: host),
                 displayUUID: layoutItem.displayUUID,
                 panel: panel,
-                identity: SpawnIdentity(layoutItem)
+                identity: SpawnIdentity(layoutItem, sourceStamp: sourceStamp(for: layoutItem.pluginID))
             )
 
         case .webview:
@@ -432,7 +456,7 @@ final class RuntimeCoordinator: ObservableObject {
                 runtime: .webview(host: host),
                 displayUUID: layoutItem.displayUUID,
                 panel: panel,
-                identity: SpawnIdentity(layoutItem)
+                identity: SpawnIdentity(layoutItem, sourceStamp: sourceStamp(for: layoutItem.pluginID))
             )
         }
         panel?.show()
