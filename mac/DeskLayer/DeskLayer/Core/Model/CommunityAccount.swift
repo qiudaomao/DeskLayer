@@ -22,6 +22,12 @@ nonisolated struct CommunityUser: Codable, Equatable {
     var name: String?
 }
 
+/// A store/forum error carried as text — Discourse messages arrive
+/// human-readable and pre-localized, so the message IS the presentation.
+nonisolated struct StoreError: Error, Equatable {
+    let message: String
+}
+
 /// What a publish attempt produced.
 nonisolated enum PublishResult: Equatable {
     case published(slug: String, version: String, topicUrl: String?)
@@ -152,6 +158,117 @@ final class CommunityAccount: ObservableObject {
         }
     }
 
+    // MARK: - Cheers & comments (relayed to the forum as the signed-in user)
+
+    nonisolated struct PluginComment: Codable, Identifiable, Equatable {
+        var id: Int
+        var author: String
+        var avatarUrl: String?
+        var createdAt: String?
+        var likes: Int?
+        /// Raw markdown source; render best-effort or as plain text.
+        var text: String
+
+        var createdDate: Date? {
+            createdAt.flatMap(StoreDates.parse)
+        }
+    }
+
+    nonisolated struct CommentsPage: Decodable {
+        var comments: [PluginComment]
+        var page: Int?
+        var pages: Int?
+        var total: Int?
+        var topicUrl: String?
+    }
+
+    /// Live single-entry state. With a token, `cheered` says whether this
+    /// user already cheered it.
+    nonisolated struct LiveDetail: Decodable {
+        var cheers: Int?
+        var comments: Int?
+        var verified: Bool?
+        var cheered: Bool?
+    }
+
+    private func request(_ path: String, method: String = "GET", authorized: Bool) -> URLRequest {
+        var request = URLRequest(url: Self.baseURL.appendingPathComponent(path))
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if authorized, let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    /// Forum-side refusals (403 self-like, 422, 429 rate limits) arrive with
+    /// Discourse's own human-readable message — surface it verbatim.
+    private static func errorText(_ data: Data, status: Int) -> String {
+        if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let message = root["error"] as? String { return message }
+        return "HTTP \(status)"
+    }
+
+    func liveDetail(slug: String) async -> LiveDetail? {
+        let request = request("api/store/plugins/\(slug)", authorized: token != nil)
+        guard let (data, response) = try? await session.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(LiveDetail.self, from: data)
+    }
+
+    /// Toggles this user's cheer. Returns the fresh state, or an error text.
+    func cheer(slug: String) async -> Result<(cheered: Bool, cheers: Int), StoreError> {
+        guard token != nil else { return .failure(StoreError(message: String(localized: "Sign in first."))) }
+        struct Reply: Decodable { var cheered: Bool; var cheers: Int }
+        let request = request("api/store/plugins/\(slug)/cheer", method: "POST", authorized: true)
+        do {
+            let (data, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 200, let reply = try? JSONDecoder().decode(Reply.self, from: data) {
+                return .success((reply.cheered, reply.cheers))
+            }
+            if status == 401 { signOut(); return .failure(StoreError(message: String(localized: "Your session expired — sign in again."))) }
+            return .failure(StoreError(message: Self.errorText(data, status: status)))
+        } catch {
+            return .failure(StoreError(message: error.localizedDescription))
+        }
+    }
+
+    func comments(slug: String, page: Int = 1) async -> Result<CommentsPage, StoreError> {
+        var request = request("api/store/plugins/\(slug)/comments", authorized: false)
+        request.url = request.url.flatMap {
+            var c = URLComponents(url: $0, resolvingAgainstBaseURL: false)
+            c?.queryItems = [URLQueryItem(name: "page", value: String(page)),
+                             URLQueryItem(name: "limit", value: "50")]
+            return c?.url
+        }
+        do {
+            let (data, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard status == 200 else { return .failure(StoreError(message: Self.errorText(data, status: status))) }
+            return .success(try JSONDecoder().decode(CommentsPage.self, from: data))
+        } catch {
+            return .failure(StoreError(message: error.localizedDescription))
+        }
+    }
+
+    func postComment(slug: String, body: String) async -> Result<PluginComment, StoreError> {
+        guard token != nil else { return .failure(StoreError(message: String(localized: "Sign in first."))) }
+        var request = request("api/store/plugins/\(slug)/comments", method: "POST", authorized: true)
+        do {
+            request.httpBody = try JSONEncoder().encode(["body": body])
+            let (data, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 201, let comment = try? JSONDecoder().decode(PluginComment.self, from: data) {
+                return .success(comment)
+            }
+            if status == 401 { signOut(); return .failure(StoreError(message: String(localized: "Your session expired — sign in again."))) }
+            return .failure(StoreError(message: Self.errorText(data, status: status)))
+        } catch {
+            return .failure(StoreError(message: error.localizedDescription))
+        }
+    }
+
     // MARK: - Publish
 
     private struct PublishResponse: Decodable {
@@ -163,10 +280,11 @@ final class CommunityAccount: ObservableObject {
 
     /// One-click publish. The backend validates the source, stores it
     /// immutably, and opens (or updates) the plugin's forum showcase topic.
-    /// `previewPng` (≤2MB) becomes the listing's showcase screenshot.
+    /// `previewPng` (≤2MB) becomes the listing's showcase screenshot;
+    /// `thumbnailPng` (≤256KB, ~480px) the gallery grid image.
     func publish(name: String, version: String, description: String,
                  source: String, permissions: [String],
-                 previewPng: Data? = nil) async -> PublishResult {
+                 previewPng: Data? = nil, thumbnailPng: Data? = nil) async -> PublishResult {
         guard let token else { return .failed(String(localized: "Sign in first.")) }
         var request = URLRequest(url: Self.baseURL.appendingPathComponent("api/plugins"))
         request.httpMethod = "POST"
@@ -180,6 +298,7 @@ final class CommunityAccount: ObservableObject {
         if !description.isEmpty { body["description"] = description }
         if !permissions.isEmpty { body["permissions"] = permissions.sorted().joined(separator: ", ") }
         if let previewPng { body["previewPng"] = previewPng.base64EncodedString() }
+        if let thumbnailPng { body["thumbnailPng"] = thumbnailPng.base64EncodedString() }
         do {
             request.httpBody = try JSONEncoder().encode(body)
             let (data, response) = try await session.data(for: request)

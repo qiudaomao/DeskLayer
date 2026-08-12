@@ -1193,6 +1193,41 @@ struct PluginInstanceTests {
         #expect(entries.first?.catalog?.plugins.map(\.name) == ["Good"])
     }
 
+    @Test func galleryAndCommentsDecode() {
+        // The gallery endpoint's shape, as served (thumbnail optional).
+        let page = """
+        {"plugins": [{"name": "HelloCard", "slug": "hellocard",
+          "url": "https://s.example/h.js", "version": "1.0.0", "author": "q",
+          "cheers": 2, "comments": 1, "downloads": 42, "verified": true,
+          "publishedAt": "2026-08-12T16:03:07.763Z",
+          "thumbnail": "https://s.example/thumb.png"}],
+         "page": 1, "pages": 3, "total": 55}
+        """
+        struct Page: Decodable { var plugins: [GalleryPlugin]; var pages: Int }
+        let decoded = try? JSONDecoder().decode(Page.self, from: Data(page.utf8))
+        #expect(decoded?.pages == 3)
+        let plugin = decoded?.plugins.first
+        #expect(plugin?.slug == "hellocard")
+        #expect(plugin?.downloads == 42)
+        #expect(plugin?.thumbnail == "https://s.example/thumb.png")
+        #expect(plugin?.publishedDate != nil)
+        // The install path reuses the catalog shape.
+        #expect(plugin?.asStorePlugin.name == "HelloCard")
+        #expect(plugin?.asStorePlugin.verified == true)
+
+        let comments = """
+        {"comments": [{"id": 13, "author": "q",
+          "createdAt": "2026-08-12T23:24:32.573Z", "likes": 0,
+          "text": "**bold** move"}], "page": 1, "pages": 1, "total": 1,
+         "topicUrl": "https://bbs.example/t/11"}
+        """
+        let list = try? JSONDecoder().decode(CommunityAccount.CommentsPage.self,
+                                             from: Data(comments.utf8))
+        #expect(list?.comments.first?.id == 13)
+        #expect(list?.comments.first?.createdDate != nil)
+        #expect(list?.topicUrl == "https://bbs.example/t/11")
+    }
+
     @Test func communityCatalogExtrasDecode() {
         // The community store adds cheers/comments/verified/topicUrl. They
         // must decode when present and stay nil for ordinary catalogs —

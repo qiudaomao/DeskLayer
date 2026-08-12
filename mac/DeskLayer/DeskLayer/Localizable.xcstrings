@@ -98,6 +98,22 @@
         }
       }
     },
+    "%lld plugins": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個のプラグイン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个插件"
+          }
+        }
+      }
+    },
     "A clock with a sweeping second hand and the date underneath": {
       "localizations": {
         "ja": {
@@ -334,6 +350,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加服务器"
+          }
+        }
+      }
+    },
+    "Add a comment…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コメントを追加…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加评论……"
           }
         }
       }
@@ -638,6 +670,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "检查更新…"
+          }
+        }
+      }
+    },
+    "Cheer and discuss": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "応援・コメントする"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点赞与讨论"
+          }
+        }
+      }
+    },
+    "Cheer this plugin": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプラグインを応援"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为这个插件点赞"
           }
         }
       }
@@ -1394,6 +1458,22 @@
         }
       }
     },
+    "Installing…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装中…"
+          }
+        }
+      }
+    },
     "Its catalog disappears from the library. Installed plugins are untouched.": {
       "localizations": {
         "ja": {
@@ -1474,6 +1554,22 @@
         }
       }
     },
+    "Latest": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新着順"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最新发布"
+          }
+        }
+      }
+    },
     "Launch at Login": {
       "localizations": {
         "ja": {
@@ -1534,6 +1630,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在列出已安装的插件…"
+          }
+        }
+      }
+    },
+    "Loading comments…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コメントを読み込み中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载评论……"
           }
         }
       }
@@ -1618,6 +1730,22 @@
         }
       }
     },
+    "Most Downloaded": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダウンロード順"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按下载量"
+          }
+        }
+      }
+    },
     "Move this plugin to the Trash": {
       "localizations": {
         "ja": {
@@ -1678,6 +1806,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "未选择"
+          }
+        }
+      }
+    },
+    "No comments yet.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コメントはまだありません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有评论。"
           }
         }
       }
@@ -1794,6 +1938,22 @@
         }
       }
     },
+    "Nothing published yet — be the first.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ何も公開されていません。最初の一人になりましょう。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有人发布——来做第一个吧。"
+          }
+        }
+      }
+    },
     "Official Store": {
       "localizations": {
         "ja": {
@@ -1858,6 +2018,22 @@
         }
       }
     },
+    "Only staff-verified plugins": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スタッフ確認済みのプラグインのみ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅显示已通过审核的插件"
+          }
+        }
+      }
+    },
     "Open %@ in your browser": {
       "localizations": {
         "ja": {
@@ -1918,6 +2094,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开论坛主题帖"
+          }
+        }
+      }
+    },
+    "Open the forum topic in the browser": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザでフォーラムのトピックを開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在浏览器中打开论坛主题帖"
           }
         }
       }
@@ -2658,6 +2850,22 @@
         }
       }
     },
+    "Retry": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
     "Reveal in Finder": {
       "localizations": {
         "ja": {
@@ -2738,6 +2946,22 @@
         }
       }
     },
+    "Search": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索"
+          }
+        }
+      }
+    },
     "Select All": {
       "localizations": {
         "ja": {
@@ -2798,6 +3022,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "点按查看详情，或点按安装"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送"
+          }
+        }
+      }
+    },
+    "Sending…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信中…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送中……"
           }
         }
       }
@@ -2942,6 +3198,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "展示截图"
+          }
+        }
+      }
+    },
+    "Sign In to Cheer and Comment…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインインして応援・コメント…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录后即可点赞和评论……"
           }
         }
       }
@@ -3362,6 +3634,22 @@
         }
       }
     },
+    "Top Cheered": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人気順"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按点赞"
+          }
+        }
+      }
+    },
     "Transparent": {
       "localizations": {
         "ja": {
@@ -3570,6 +3858,22 @@
         }
       }
     },
+    "Verified": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已验证"
+          }
+        }
+      }
+    },
     "Verified by store staff": {
       "localizations": {
         "ja": {
@@ -3598,6 +3902,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "版本"
+          }
+        }
+      }
+    },
+    "Waiting for the browser sign-in…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザでのサインインを待っています…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待浏览器登录……"
           }
         }
       }
@@ -3726,6 +4046,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Y（自上）"
+          }
+        }
+      }
+    },
+    "You can't cheer your own plugin.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自分のプラグインには応援できません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不能给自己的插件点赞。"
           }
         }
       }

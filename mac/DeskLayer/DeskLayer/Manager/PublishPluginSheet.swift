@@ -148,6 +148,27 @@ struct PublishPluginSheet: View {
         }
     }
 
+    /// The gallery-grid image: the preview downscaled to ≤480px wide,
+    /// within the store's 256KB thumbnail cap. Grids never load the full
+    /// preview, so a publish without this renders as a placeholder tile.
+    static func thumbnail(from previewPng: Data) -> Data? {
+        guard let source = NSImage(data: previewPng),
+              source.size.width > 0 else { return nil }
+        let scale = min(480 / source.size.width, 1)
+        let size = NSSize(width: floor(source.size.width * scale),
+                          height: floor(source.size.height * scale))
+        let scaled = NSImage(size: size)
+        scaled.lockFocus()
+        source.draw(in: NSRect(origin: .zero, size: size),
+                    from: .zero, operation: .copy, fraction: 1)
+        scaled.unlockFocus()
+        guard let tiff = scaled.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]),
+              png.count <= 256 * 1024 else { return nil }
+        return png
+    }
+
     /// Grabs the latest rendered frame of any placed instance of this plugin
     /// — the same throttled thumbnail the manager's canvas shows. PNG, and
     /// only if it fits the store's 2MB cap.
@@ -176,7 +197,8 @@ struct PublishPluginSheet: View {
                 description: descriptionText.trimmingCharacters(in: .whitespacesAndNewlines),
                 source: source,
                 permissions: Array(registry.declaredPermissions(for: pluginID)),
-                previewPng: previewPng
+                previewPng: previewPng,
+                thumbnailPng: previewPng.flatMap(Self.thumbnail(from:))
             )
             isPublishing = false
         }

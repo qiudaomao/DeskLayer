@@ -44,6 +44,11 @@ struct PluginLibraryView: View {
                 }
                 .padding(.vertical, 8)
             }
+            // Browse everything the community has published — replaces the
+            // canvas with a paged gallery while selected.
+            Label("Community", systemImage: "sparkles.rectangle.stack")
+                .tag("gallery")
+
             // Everything on disk, whichever store it came from — this is the
             // list of plugins you can actually place. Store categories below
             // list what each store offers.
@@ -258,13 +263,18 @@ struct PluginLibraryView: View {
     private var pluginSelection: Binding<String?> {
         Binding(
             get: {
+                if selection.showsGallery { return "gallery" }
                 if let ref = selection.storePlugin { return "store:\(ref.storeID)|\(ref.name)" }
                 if let storeID = selection.storeID { return "storehdr:\(storeID)" }
                 return selection.pluginID
             },
             set: { newValue in
                 guard let newValue else { return }
-                if newValue.hasPrefix("storehdr:") {
+                selection.showsGallery = newValue == "gallery"
+                if newValue == "gallery" {
+                    // The gallery owns the center pane; the inspector keeps
+                    // whatever was selected.
+                } else if newValue.hasPrefix("storehdr:") {
                     selection.storeID = String(newValue.dropFirst("storehdr:".count))
                 } else if newValue.hasPrefix("store:") {
                     let body = newValue.dropFirst("store:".count)

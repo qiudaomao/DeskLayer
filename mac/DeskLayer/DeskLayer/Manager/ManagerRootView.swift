@@ -32,6 +32,9 @@ final class ManagerSelection: ObservableObject {
     @Published var storePlugin: StorePluginRef? {
         didSet { if storePlugin != nil { itemID = nil; pluginID = nil; storeID = nil } }
     }
+    /// The community gallery replaces the desktop canvas while selected in
+    /// the sidebar. Independent of the inspector selections above.
+    @Published var showsGallery = false
     @Published var displayUUID: String?
 }
 
@@ -54,7 +57,11 @@ struct ManagerRootView: View {
             PluginLibraryView()
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220)
         } detail: {
-            DesktopCanvasView()
+            if selection.showsGallery {
+                CommunityGalleryView()
+            } else {
+                DesktopCanvasView()
+            }
         }
         // Attached to the split view (not inside detail) so toggling never
         // re-partitions the columns — the sidebar must not blink.
