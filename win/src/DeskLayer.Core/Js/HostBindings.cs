@@ -65,7 +65,7 @@ public sealed class HostBindings
                 engine.SetValue("__dl_ssh_hosts", value.Select(h => h.Name).ToArray());
                 engine.Execute("if (typeof $ssh === 'object') { $ssh.hosts = Array.from(__dl_ssh_hosts); }");
             }
-            catch (Exception ex) when (ex is JavaScriptException or JintException)
+            catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
             {
                 log($"refreshing $ssh.hosts failed: {ex.Message}");
             }
@@ -116,7 +116,7 @@ public sealed class HostBindings
     private void Complete(JsValue fn, params object?[] args) => enqueueCompletion(() =>
     {
         try { engine.Invoke(fn, args); }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
             log($"host callback threw: {ex.Message}");
             onCallbackError();

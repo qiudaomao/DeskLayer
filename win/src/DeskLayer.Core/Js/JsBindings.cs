@@ -93,7 +93,7 @@ public sealed class JsBindings : IDisposable
         {
             engine.Invoke(fn, args);
         }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
             log($"callback threw: {ex.Message}");
             onCallbackError();

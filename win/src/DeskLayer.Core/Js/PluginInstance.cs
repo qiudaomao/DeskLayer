@@ -57,6 +57,10 @@ public sealed class PluginInstance : IDisposable
     /// Present only for webview-mode plugins.
     public WebViewConfig? WebviewConfig { get; private set; }
 
+    /// How long any single piece of plugin code may run before Jint aborts
+    /// it (mac FrameScheduler.watchdogTimeout parity).
+    public static readonly TimeSpan WatchdogTimeout = TimeSpan.FromSeconds(2);
+
     private readonly Engine engine;
     private JsBindings? bindings;
     private HostBindings? host;
@@ -110,7 +114,14 @@ public sealed class PluginInstance : IDisposable
                                        Action<Engine>? configureEngine = null,
                                        HostBindings.SystemStats? hostStats = null)
     {
-        var engine = new Engine();
+        // Every wallpaper item shares one render thread, so a plugin whose
+        // code never returns would stop the whole desktop, not just itself —
+        // an AI rewrite that produced a runaway loop froze every widget. Jint
+        // aborts execution past this limit and the throw marks the instance
+        // errored, which unschedules that item and leaves the rest running.
+        // The mac reaches the same outcome differently: it gives each plugin
+        // its own queue and flags a wedged one after the same 2s.
+        var engine = new Engine(options => options.TimeoutInterval(WatchdogTimeout));
         try
         {
             var logSink = log ?? (_ => { });
@@ -181,9 +192,9 @@ public sealed class PluginInstance : IDisposable
 
             return instance;
         }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
-            (log ?? (_ => { }))($"[{pluginId}] boot failed: {ex.Message}");
+            (log ?? (_ => { }))($"[{pluginId}] boot failed: {Describe(ex)}");
             engine.Dispose();
             return null;
         }
@@ -293,9 +304,9 @@ public sealed class PluginInstance : IDisposable
             engine.Invoke(renderFunction, canvasBridge);
             return true;
         }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
-            MarkErrored(ex.Message);
+            MarkErrored(Describe(ex));
             return false;
         }
     }
@@ -313,9 +324,9 @@ public sealed class PluginInstance : IDisposable
             engine.SetValue("__dl_lastTree", result);
             return engine.Evaluate("JSON.stringify(__dl_lastTree)").AsString();
         }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
-            MarkErrored(ex.Message);
+            MarkErrored(Describe(ex));
             return null;
         }
     }
@@ -327,9 +338,9 @@ public sealed class PluginInstance : IDisposable
         {
             engine.Invoke(engine.Evaluate("__dl_invokeAction"), id, payloadJson);
         }
-        catch (Exception ex) when (ex is JavaScriptException or JintException)
+        catch (Exception ex) when (ex is JavaScriptException or JintException or TimeoutException)
         {
-            MarkErrored(ex.Message);
+            MarkErrored(Describe(ex));
         }
     }
 
@@ -340,6 +351,12 @@ public sealed class PluginInstance : IDisposable
         if (index >= 0) properties[index] = properties[index].With(value);
         PushPropertiesToJs();
     }
+
+    /// "The operation has timed out." says nothing about which plugin did
+    /// what; name the runaway loop, as the mac watchdog does.
+    private static string Describe(Exception ex) => ex is TimeoutException
+        ? $"watchdog: plugin code still running after {WatchdogTimeout.TotalSeconds:N1}s (runaway loop?)"
+        : ex.Message;
 
     private void MarkErrored(string message)
     {
