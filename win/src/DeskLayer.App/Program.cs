@@ -195,6 +195,18 @@ internal static class Program
         var menu = new ContextMenuStrip();
         menu.Items.Add(L.T("Manager…"), null, (_, _) => OpenManager());
         menu.Items.Add(L.T("Reload"), null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
+        // Where the mac menu bar keeps it: after the actions, before the
+        // settings toggles. Reuses the Manager folder button's string.
+        menu.Items.Add(L.T("Open plugins folder"), null, (_, _) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(PluginRegistry.PluginsDirectory);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                    "explorer.exe", PluginRegistry.PluginsDirectory) { UseShellExecute = true });
+            }
+            catch (Exception ex) { Log($"opening the plugins folder failed: {ex.Message}"); }
+        });
         var startup = new ToolStripMenuItem(L.T("Start with Windows")) { Checked = LoginItem.IsEnabled };
         startup.Click += (_, _) => { LoginItem.SetEnabled(!startup.Checked); startup.Checked = LoginItem.IsEnabled; };
         menu.Items.Add(startup);
@@ -205,6 +217,19 @@ internal static class Program
         });
         menu.Items.Add(L.T("Exit"), null, (_, _) => Application.Exit());
         tray.ContextMenuStrip = menu;
+        // Debug: the tray menu's labels. A NotifyIcon's menu is its own
+        // window — it appears in no screenshot and in no automation tree
+        // until the user opens it, so this is the only way to check it.
+        if (Environment.GetEnvironmentVariable("DESKLAYER_DUMP_TRAY") is { Length: > 0 } trayDump)
+        {
+            try
+            {
+                var labels = menu.Items.OfType<ToolStripItem>()
+                    .Select(item => (item.Enabled ? "" : "(disabled) ") + item.Text);
+                File.WriteAllText(trayDump, string.Join("\n", labels) + "\n");
+            }
+            catch (Exception ex) { Log($"tray dump failed: {ex.Message}"); }
+        }
         tray.DoubleClick += (_, _) => OpenManager();
         // Deferred so it opens once the message loop is pumping — a WPF window
         // shown before Application.Run never renders its first frame.
