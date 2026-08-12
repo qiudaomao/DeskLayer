@@ -90,6 +90,20 @@ public sealed class WallpaperEngine : IDisposable
     private readonly System.Collections.Concurrent.ConcurrentQueue<Action> renderQueue = new();
     public void PostToRender(Action action) => renderQueue.Enqueue(action);
 
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(string PluginId, DateTime Deadline, TaskCompletionSource<byte[]?> Done)> captureQueue = new();
+
+    /// A PNG of the plugin's rendered card, straight from the surface the
+    /// desktop shows — for the community store's preview. Prefers a wallpaper
+    /// item (read back from its D2D surface on the render thread); falls back
+    /// to a floating panel (WPF render on the UI thread). Null when nothing
+    /// renderable is running — webview items have no capturable surface here.
+    public Task<byte[]?> CapturePreviewPng(string pluginId)
+    {
+        var done = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        captureQueue.Enqueue((pluginId, DateTime.UtcNow.AddSeconds(6), done));
+        return done.Task;
+    }
+
     /// UI thread: the wallpaper HWND changed (first attach or Explorer-restart
     /// recreation). The render thread rebinds its swap chain on next tick.
     public void SetHwnd(IntPtr hwnd)
@@ -313,6 +327,42 @@ public sealed class WallpaperEngine : IDisposable
 
                 // UI events destined for Jint (actions, drag writebacks).
                 while (renderQueue.TryDequeue(out var queued)) queued();
+
+                // Preview captures. An item that hasn't produced its first
+                // frame yet (just added from the publish dialog) is retried
+                // next frame until its deadline.
+                for (var pending = captureQueue.Count; pending > 0; pending--)
+                {
+                    if (!captureQueue.TryDequeue(out var capture)) break;
+                    var target = items.FirstOrDefault(i =>
+                        i.Layout.PluginId == capture.PluginId && !i.Instance.IsErrored);
+                    if (target != null)
+                    {
+                        // Declarative pixels still on their way to the GPU
+                        // would read back as last frame (or blank) — wait.
+                        bool settled;
+                        lock (target.Gate) { settled = target.RenderedOnce && target.PendingRaster == null && !target.RasterInFlight; }
+                        if (!settled)
+                        {
+                            if (DateTime.UtcNow < capture.Deadline) captureQueue.Enqueue(capture);
+                            else capture.Done.TrySetResult(null);
+                            continue;
+                        }
+                        capture.Done.TrySetResult(ReadSurfacePng(target, dc));
+                        continue;
+                    }
+                    var floating = floatingItems.FirstOrDefault(f =>
+                        f.Layout.PluginId == capture.PluginId && !f.Disposed);
+                    if (floating != null && PostToUi is { } toUi)
+                    {
+                        var panelRef = floating;
+                        var doneRef = capture.Done;
+                        toUi(() => doneRef.TrySetResult(CapturePanelPng(panelRef)));
+                        continue;
+                    }
+                    if (DateTime.UtcNow < capture.Deadline) captureQueue.Enqueue(capture);
+                    else capture.Done.TrySetResult(null);
+                }
 
                 // Power policy: paused stops all rendering (screen locked /
                 // system suspended); async callbacks still drain so state
@@ -593,6 +643,86 @@ public sealed class WallpaperEngine : IDisposable
     /// Rebuilds a declarative item's target bitmap at a new pixel size and
     /// forces the next render to re-raster (the tree JSON may be unchanged,
     /// but it has to be laid out again at the new size).
+    /// Reads an item's surface back from the GPU and encodes it as PNG.
+    /// Render thread only (uses the loop's device context).
+    private byte[]? ReadSurfacePng(Item item, ID2D1DeviceContext dc)
+    {
+        try
+        {
+            var w = item.PixelWidth;
+            var h = item.PixelHeight;
+            using var staging = dc.CreateBitmap(new System.Drawing.Size(w, h), IntPtr.Zero, 0,
+                new BitmapProperties1(
+                    new Vortice.DCommon.PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
+                    96, 96, BitmapOptions.CpuRead | BitmapOptions.CannotDraw));
+            staging.CopyFromBitmap(item.Surface);
+            var mapped = staging.Map(Vortice.Direct2D1.MapOptions.Read);
+            try
+            {
+                var pixels = new byte[w * h * 4];
+                for (var row = 0; row < h; row++)
+                    System.Runtime.InteropServices.Marshal.Copy(
+                        mapped.Bits + row * mapped.Pitch, pixels, row * w * 4, w * 4);
+                return EncodePng(pixels, w, h);
+            }
+            finally { staging.Unmap(); }
+        }
+        catch (SharpGen.Runtime.SharpGenException ex)
+        {
+            log($"preview capture failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// A floating panel is a live WPF tree — render it at the device scale.
+    /// UI thread only.
+    private byte[]? CapturePanelPng(FloatingItem floating)
+    {
+        try
+        {
+            if (floating.Panel is not { Content: System.Windows.FrameworkElement content }) return null;
+            if (content.ActualWidth < 1 || content.ActualHeight < 1) return null;
+            var scale = dpiScale;
+            var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                (int)Math.Ceiling(content.ActualWidth * scale), (int)Math.Ceiling(content.ActualHeight * scale),
+                96 * scale, 96 * scale, System.Windows.Media.PixelFormats.Pbgra32);
+            rtb.Render(content);
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+            return stream.ToArray();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            log($"panel preview capture failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// Premultiplied BGRA rows → straight-alpha PNG. Any thread.
+    private static byte[] EncodePng(byte[] premultiplied, int width, int height)
+    {
+        // PNG carries straight alpha; leaving the pixels premultiplied would
+        // darken every translucent edge when the store renders them.
+        for (var i = 0; i < premultiplied.Length; i += 4)
+        {
+            var a = premultiplied[i + 3];
+            if (a is 0 or 255) continue;
+            premultiplied[i] = (byte)Math.Min(255, premultiplied[i] * 255 / a);
+            premultiplied[i + 1] = (byte)Math.Min(255, premultiplied[i + 1] * 255 / a);
+            premultiplied[i + 2] = (byte)Math.Min(255, premultiplied[i + 2] * 255 / a);
+        }
+        var source = System.Windows.Media.Imaging.BitmapSource.Create(
+            width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
+            premultiplied, width * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(source));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
+    }
+
     private void ResizeSurface(Item item, int width, int height, ID2D1DeviceContext dc)
     {
         try

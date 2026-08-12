@@ -39,9 +39,17 @@
     "zh-Hans": "添加插件或插件商店",
     "ja": "プラグインまたはプラグインストアを追加"
   },
+  "Add an instance to your desktop to capture a preview.": {
+    "zh-Hans": "请先在桌面上添加一个实例，以便截取预览图。",
+    "ja": "プレビューを撮るには、まずデスクトップにインスタンスを追加してください。"
+  },
   "Add to Desktop": {
     "zh-Hans": "添加到桌面",
     "ja": "デスクトップに追加"
+  },
+  "Add to Desktop & Capture": {
+    "zh-Hans": "添加到桌面并截取",
+    "ja": "デスクトップに追加してキャプチャ"
   },
   "Add {0}": {
     "zh-Hans": "添加 {0}",
@@ -95,6 +103,14 @@
     "zh-Hans": "功能",
     "ja": "機能"
   },
+  "Capture Again": {
+    "zh-Hans": "重新截取",
+    "ja": "再キャプチャ"
+  },
+  "Capturing…": {
+    "zh-Hans": "正在截取…",
+    "ja": "キャプチャ中…"
+  },
   "Catalog URL": {
     "zh-Hans": "目录地址",
     "ja": "カタログ URL"
@@ -146,6 +162,10 @@
   "Community Store": {
     "zh-Hans": "社区商店",
     "ja": "コミュニティストア"
+  },
+  "Couldn't capture this plugin — it will publish without a preview.": {
+    "zh-Hans": "无法截取该插件——将不带预览图发布。",
+    "ja": "このプラグインをキャプチャできませんでした。プレビューなしで公開されます。"
   },
   "Couldn't reach the store.": {
     "zh-Hans": "无法连接商店。",
@@ -399,6 +419,10 @@
     "zh-Hans": "端口",
     "ja": "ポート"
   },
+  "Preview": {
+    "zh-Hans": "预览",
+    "ja": "プレビュー"
+  },
   "Properties": {
     "zh-Hans": "属性",
     "ja": "プロパティ"
@@ -622,6 +646,10 @@
   "This build is missing the plugin API documentation.": {
     "zh-Hans": "此版本缺少插件 API 文档。",
     "ja": "このビルドにはプラグイン API のドキュメントが含まれていません。"
+  },
+  "This is what the store page will show.": {
+    "zh-Hans": "商店页面将展示这张图。",
+    "ja": "ストアページにはこの画像が表示されます。"
   },
   "This plugin declares a fixed size (resizable: false).": {
     "zh-Hans": "此插件声明了固定尺寸（resizable: false）。",

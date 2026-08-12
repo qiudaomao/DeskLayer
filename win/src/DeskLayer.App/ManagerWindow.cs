@@ -55,10 +55,16 @@ public sealed class ManagerWindow : Window
     private readonly bool dark = Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_DARK") is { } d ? d == "1" : PreferDark;
     private readonly Action? reopenToggled;
 
+    /// Captures a running plugin's rendered card as PNG (wired to the
+    /// engine by Program); null when the engine isn't available.
+    private readonly Func<string, Task<byte[]?>>? capturePreview;
+
     public ManagerWindow(LayoutStore store, PluginRegistry registry,
                          PluginStoreRegistry storeRegistry, PluginUpdater updater,
-                         System.Drawing.Rectangle screenBounds, Action? reopenToggled = null)
+                         System.Drawing.Rectangle screenBounds, Action? reopenToggled = null,
+                         Func<string, Task<byte[]?>>? capturePreview = null)
     {
+        this.capturePreview = capturePreview;
         this.store = store;
         this.registry = registry;
         this.storeRegistry = storeRegistry;
@@ -1893,7 +1899,10 @@ public sealed class ManagerWindow : Window
                 string pluginSource;
                 try { pluginSource = File.ReadAllText(plugin.SourcePath); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return; }
-                var dialog = new PublishDialog(dark, pluginId, pluginSource, info, permissions) { Owner = this };
+                var dialog = new PublishDialog(dark, pluginId, pluginSource, info, permissions,
+                    capturePreview: () => capturePreview?.Invoke(pluginId) ?? Task.FromResult<byte[]?>(null),
+                    hasRunningInstance: () => store.Layout.Items.Any(i => i.PluginId == pluginId && i.IsEnabled),
+                    addInstanceToDesktop: () => AddToDesktop(pluginId)) { Owner = this };
                 dialog.ShowDialog();
             };
             inspector.Children.Add(share);

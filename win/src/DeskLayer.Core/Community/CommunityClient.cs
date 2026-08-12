@@ -42,7 +42,10 @@ public sealed record PublishRequest(
     string Source,
     string? Permissions,
     string? PreviewUrl = null,
-    string? SourceRepo = null);
+    string? SourceRepo = null,
+    /// PNG bytes, base64 — the store hosts it per version and points the
+    /// catalog's preview at it. Wins over PreviewUrl when both are sent.
+    string? PreviewPngBase64 = null);
 
 public sealed record PublishResult(
     string? Slug,
@@ -190,6 +193,7 @@ public static class CommunityClient
                     source = request.Source,
                     permissions = request.Permissions,
                     previewUrl = request.PreviewUrl,
+                    previewPng = request.PreviewPngBase64,
                     sourceRepo = request.SourceRepo,
                 }, Json), Encoding.UTF8, "application/json"),
             };

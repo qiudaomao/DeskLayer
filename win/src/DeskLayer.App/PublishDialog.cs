@@ -30,10 +30,22 @@ public sealed class PublishDialog : Window
     private readonly string? permissions;
     private string? topicUrl;
     private System.Threading.CancellationTokenSource? polling;
+    private readonly Func<Task<byte[]?>> capture;
+    private readonly Func<bool> hasInstance;
+    private readonly Action addInstance;
+    private readonly Image previewImage;
+    private readonly TextBlock previewStatus;
+    private readonly Button retake;
+    private readonly Button addAndCapture;
+    private byte[]? previewBytes;
 
     public PublishDialog(bool dark, string pluginId, string pluginSource,
-                         DeskLayer.Core.PluginMetadata.PluginInfo info, IReadOnlyCollection<string>? grantedPermissions)
+                         DeskLayer.Core.PluginMetadata.PluginInfo info, IReadOnlyCollection<string>? grantedPermissions,
+                         Func<Task<byte[]?>> capturePreview, Func<bool> hasRunningInstance, Action addInstanceToDesktop)
     {
+        capture = capturePreview;
+        hasInstance = hasRunningInstance;
+        addInstance = addInstanceToDesktop;
         source = pluginSource;
         permissions = grantedPermissions is { Count: > 0 } ? string.Join(", ", grantedPermissions.OrderBy(p => p)) : null;
 
@@ -116,6 +128,39 @@ public sealed class PublishDialog : Window
                 Margin = new Thickness(2, 6, 0, 0),
             });
 
+        panel.Children.Add(Caption(L.T("Preview")));
+        previewImage = new Image
+        {
+            MaxHeight = 150,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Stretch = System.Windows.Media.Stretch.Uniform,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        panel.Children.Add(previewImage);
+        previewStatus = new TextBlock
+        {
+            Text = "",
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextSecondary"),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        panel.Children.Add(previewStatus);
+        var previewButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        retake = new Button { Content = L.T("Capture Again"), Visibility = Visibility.Collapsed };
+        retake.Click += async (_, _) => await Capture();
+        addAndCapture = new Button { Content = L.T("Add to Desktop & Capture"), Visibility = Visibility.Collapsed };
+        addAndCapture.Click += async (_, _) =>
+        {
+            addAndCapture.IsEnabled = false;
+            addInstance();
+            await Capture();
+            addAndCapture.IsEnabled = true;
+        };
+        previewButtons.Children.Add(retake);
+        previewButtons.Children.Add(addAndCapture);
+        panel.Children.Add(previewButtons);
+
         status = new TextBlock
         {
             FontSize = 11,
@@ -160,7 +205,17 @@ public sealed class PublishDialog : Window
         panel.Children.Add(buttons);
 
         Content = panel;
-        Loaded += async (_, _) => await RefreshAccount();
+        Loaded += async (_, _) =>
+        {
+            var account = RefreshAccount();
+            if (hasInstance()) await Capture();
+            else
+            {
+                previewStatus.Text = L.T("Add an instance to your desktop to capture a preview.");
+                addAndCapture.Visibility = Visibility.Visible;
+            }
+            await account;
+        };
         Closed += (_, _) => polling?.Cancel();
     }
 
@@ -236,7 +291,9 @@ public sealed class PublishDialog : Window
         var result = await CommunityClient.Publish(new PublishRequest(
             proposedName, proposedVersion,
             description.Text.Trim().Length == 0 ? null : description.Text.Trim(),
-            source, permissions));
+            source, permissions,
+            PreviewPngBase64: previewBytes is { Length: > 0 and <= 2 * 1024 * 1024 }
+                ? Convert.ToBase64String(previewBytes) : null));
         if (result.Error != null)
         {
             Show(result.Error);
@@ -248,6 +305,41 @@ public sealed class PublishDialog : Window
         Show(L.T("Published! People can now install it from the Community Store."));
         viewTopic.Visibility = topicUrl != null ? Visibility.Visible : Visibility.Collapsed;
         // Publishing the same bytes again would only 409; leave the button off.
+    }
+
+    /// Captures the running card via the engine (which waits for a fresh
+    /// frame) and shows the result. The publish payload uses the same bytes.
+    private async Task Capture()
+    {
+        retake.Visibility = Visibility.Collapsed;
+        previewStatus.Text = L.T("Capturing…");
+        var bytes = await capture();
+        if (bytes is { Length: > 0 })
+        {
+            previewBytes = bytes;
+            var image = new System.Windows.Media.Imaging.BitmapImage();
+            using (var stream = new System.IO.MemoryStream(bytes))
+            {
+                image.BeginInit();
+                image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                image.StreamSource = stream;
+                image.EndInit();
+            }
+            image.Freeze();
+            previewImage.Source = image;
+            previewImage.Visibility = Visibility.Visible;
+            previewStatus.Text = L.T("This is what the store page will show.");
+            addAndCapture.Visibility = Visibility.Collapsed;
+            retake.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            previewStatus.Text = hasInstance()
+                ? L.T("Couldn't capture this plugin — it will publish without a preview.")
+                : L.T("Add an instance to your desktop to capture a preview.");
+            if (!hasInstance()) addAndCapture.Visibility = Visibility.Visible;
+            else retake.Visibility = Visibility.Visible;
+        }
     }
 
     private void Show(string? text)

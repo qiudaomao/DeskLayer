@@ -176,7 +176,8 @@ internal static class Program
             try
             {
                 manager = new ManagerWindow(store, registry, storeRegistry, pluginUpdater, screen,
-                    reopenToggled: () => { manager = null; OpenManager(); });
+                    reopenToggled: () => { manager = null; OpenManager(); },
+                    capturePreview: engine.CapturePreviewPng);
                 // A modeless WPF window on a WinForms message loop gets no
                 // keyboard input (typing dead, paste-by-mouse fine) unless
                 // keyboard interop is enabled for it.

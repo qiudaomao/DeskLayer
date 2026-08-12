@@ -1762,6 +1762,22 @@
         }
       }
     },
+    "No screenshot: add %@ to the desktop and it will be captured from the running plugin.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットなし：%@ をデスクトップに追加すると、実行中のプラグインから自動的にキャプチャされます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无截图：将 %@ 添加到桌面后，会自动从运行中的插件截取。"
+          }
+        }
+      }
+    },
     "No update URL declared": {
       "localizations": {
         "ja": {
@@ -2290,6 +2306,22 @@
         }
       }
     },
+    "Recapture": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再キャプチャ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新截取"
+          }
+        }
+      }
+    },
     "Redo": {
       "localizations": {
         "ja": {
@@ -2366,6 +2398,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "从商店重新安装"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
           }
         }
       }
@@ -2878,6 +2926,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示为"
+          }
+        }
+      }
+    },
+    "Showcase screenshot": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ショーケース用スクリーンショット"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展示截图"
           }
         }
       }

@@ -15,11 +15,15 @@ struct PublishPluginSheet: View {
     let onClose: () -> Void
     @EnvironmentObject private var account: CommunityAccount
     @EnvironmentObject private var registry: PluginRegistry
+    @EnvironmentObject private var coordinator: RuntimeCoordinator
+    @EnvironmentObject private var store: LayoutStore
 
     @State private var version = ""
     @State private var descriptionText = ""
     @State private var isPublishing = false
     @State private var result: PublishResult?
+    /// Showcase screenshot, captured from a running instance of the plugin.
+    @State private var previewPng: Data?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -49,6 +53,28 @@ struct PublishPluginSheet: View {
                     // Shown up front because the listing will show it too.
                     LabeledContent("Permissions", value: permissions.sorted().joined(separator: ", "))
                         .font(.caption)
+                }
+
+                if let previewPng, let image = NSImage(data: previewPng) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Showcase screenshot").font(.caption).foregroundStyle(.secondary)
+                        Image(nsImage: image)
+                            .resizable().scaledToFit()
+                            .frame(maxHeight: 110)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.quaternary))
+                        HStack(spacing: 12) {
+                            Button("Recapture") { capturePreview() }
+                            Button("Remove") { self.previewPng = nil }
+                        }
+                        .buttonStyle(.borderless).font(.caption)
+                    }
+                } else {
+                    // A listing with a screenshot reads far better; nudge,
+                    // don't block.
+                    Text("No screenshot: add \(pluginID) to the desktop and it will be captured from the running plugin.")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             } else if account.isLoggingIn {
                 HStack(spacing: 8) {
@@ -118,7 +144,21 @@ struct PublishPluginSheet: View {
             let meta = registry.metadata(for: pluginID)
             version = meta.version ?? "1.0.0"
             descriptionText = meta.summary ?? ""
+            capturePreview()
         }
+    }
+
+    /// Grabs the latest rendered frame of any placed instance of this plugin
+    /// — the same throttled thumbnail the manager's canvas shows. PNG, and
+    /// only if it fits the store's 2MB cap.
+    private func capturePreview() {
+        let itemIDs = store.layout.items.filter { $0.pluginID == pluginID }.map(\.id)
+        guard let image = itemIDs.compactMap({ coordinator.thumbnails[$0] })
+            .max(by: { $0.width * $0.height < $1.width * $1.height }) else { return }
+        let rep = NSBitmapImageRep(cgImage: image)
+        guard let png = rep.representation(using: .png, properties: [:]),
+              png.count <= 2 * 1024 * 1024 else { return }
+        previewPng = png
     }
 
     private func publish() {
@@ -135,7 +175,8 @@ struct PublishPluginSheet: View {
                 version: version.trimmingCharacters(in: .whitespaces),
                 description: descriptionText.trimmingCharacters(in: .whitespacesAndNewlines),
                 source: source,
-                permissions: Array(registry.declaredPermissions(for: pluginID))
+                permissions: Array(registry.declaredPermissions(for: pluginID)),
+                previewPng: previewPng
             )
             isPublishing = false
         }

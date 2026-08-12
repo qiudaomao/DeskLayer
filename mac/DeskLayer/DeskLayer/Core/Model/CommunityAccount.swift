@@ -163,8 +163,10 @@ final class CommunityAccount: ObservableObject {
 
     /// One-click publish. The backend validates the source, stores it
     /// immutably, and opens (or updates) the plugin's forum showcase topic.
+    /// `previewPng` (≤2MB) becomes the listing's showcase screenshot.
     func publish(name: String, version: String, description: String,
-                 source: String, permissions: [String]) async -> PublishResult {
+                 source: String, permissions: [String],
+                 previewPng: Data? = nil) async -> PublishResult {
         guard let token else { return .failed(String(localized: "Sign in first.")) }
         var request = URLRequest(url: Self.baseURL.appendingPathComponent("api/plugins"))
         request.httpMethod = "POST"
@@ -177,6 +179,7 @@ final class CommunityAccount: ObservableObject {
         ]
         if !description.isEmpty { body["description"] = description }
         if !permissions.isEmpty { body["permissions"] = permissions.sorted().joined(separator: ", ") }
+        if let previewPng { body["previewPng"] = previewPng.base64EncodedString() }
         do {
             request.httpBody = try JSONEncoder().encode(body)
             let (data, response) = try await session.data(for: request)
