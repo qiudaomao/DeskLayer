@@ -6,7 +6,7 @@
 ;          complementary to this Authenticode signature.
 
 #define AppName "DeskLayer"
-#define AppVersion "1.1.5"
+#define AppVersion "1.1.6"
 #define AppPublisher "DeskLayer"
 #define AppExeName "DeskLayer.App.exe"
 #define DistDir "..\..\desklayer-dist"

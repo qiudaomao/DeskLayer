@@ -5,48 +5,45 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.1.5</title>
-            <pubDate>Tue, 11 Aug 2026 17:36:46 +0800</pubDate>
-            <sparkle:version>1.1.5</sparkle:version>
-            <sparkle:shortVersionString>1.1.5</sparkle:shortVersionString>
+            <title>1.1.6</title>
+            <pubDate>Wed, 12 Aug 2026 14:24:43 +0800</pubDate>
+            <sparkle:version>1.1.6</sparkle:version>
+            <sparkle:shortVersionString>1.1.6</sparkle:shortVersionString>
             <description><![CDATA[
-<h2>DeskLayer for Windows</h2>
-<p>The first Windows release. Plugins written for the Mac run unmodified: the same plugin API, the same layout file, the same plugin store.</p>
+<h2>Fixed</h2>
 <ul>
-<li><b>Widgets on the desktop.</b> Plugins draw onto the wallpaper layer, behind your icons, or float in always-on-top windows.</li>
-<li><b>All three plugin modes</b> — canvas, declarative and webview.</li>
-<li><b>Manager</b> for placing, sizing and configuring widgets, with a plugin store, per-plugin updates, and light/dark themes.</li>
-<li><b>Write a plugin with a model</b> from inside the app, or rewrite one you already have.</li>
-<li><b>Simplified Chinese and Japanese</b>, following your Windows display language.</li>
+<li><b>One misbehaving plugin could freeze every widget on the desktop.</b> Plugin code that never returned — a runaway loop, most often from a plugin an AI had just rewritten — held the shared render thread forever, so everything stopped updating at once. Plugin code is now cut off after 2 seconds: only that widget stops, and the log says which one and why.</li>
 </ul>
-<p>Requires 64-bit Windows 10 (21H2) or later. Installs for the current user; no administrator rights needed.</p>
+<h2>Improved</h2>
+<ul>
+<li><b>Remote monitoring over SSH is far faster.</b> Each ssh() used to open a new connection, paying the handshake every time — around 300ms per reading on a local network. The connection is now kept open and reused, which takes the same reading to about 11ms.</li>
+<li><b>The tray menu can open the plugins folder</b>, as the Mac's menu bar already could.</li>
+</ul>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
-<h2>DeskLayer for Windows</h2>
-<p>首个 Windows 版本。为 Mac 编写的插件无需修改即可运行：相同的插件 API、相同的布局文件、相同的插件商店。</p>
+<h2>修复</h2>
 <ul>
-<li><b>桌面小组件。</b>插件绘制在壁纸层（图标之下），也可以显示为置顶浮动窗口。</li>
-<li><b>支持全部三种插件模式</b>——canvas、声明式与 webview。</li>
-<li><b>管理器</b>用于摆放、调整尺寸与配置小组件，内置插件商店、逐插件更新与浅色/深色主题。</li>
-<li><b>在应用内用模型创建插件</b>，也可以重写已有插件。</li>
-<li><b>简体中文与日语</b>，跟随 Windows 显示语言。</li>
+<li><b>单个插件出错会导致桌面上所有小组件停止更新。</b>当插件代码无法返回（例如死循环，常见于刚由 AI 重写的插件）时，它会一直占用共享渲染线程，导致所有小组件同时停止刷新。现在插件代码超过 2 秒会被中断：只有该小组件停止，日志会指出是哪一个以及原因。</li>
 </ul>
-<p>需要 64 位 Windows 10（21H2）或更高版本。为当前用户安装，无需管理员权限。</p>
+<h2>改进</h2>
+<ul>
+<li><b>通过 SSH 监控远程主机的速度大幅提升。</b>此前每次 ssh() 都会新建连接，每次都要完成握手——在局域网上每次读取约 300 毫秒。现在连接会保持并复用，同样的读取约 11 毫秒。</li>
+<li><b>托盘菜单新增“打开插件文件夹”</b>，与 Mac 菜单栏保持一致。</li>
+</ul>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
-<h2>DeskLayer for Windows</h2>
-<p>初めての Windows 版です。Mac 向けに書かれたプラグインがそのまま動作します。プラグイン API も、レイアウトファイルも、プラグインストアも共通です。</p>
+<h2>修正</h2>
 <ul>
-<li><b>デスクトップウィジェット。</b>プラグインは壁紙レイヤー（アイコンの下）に描画されるほか、常に手前に表示されるフローティングウィンドウにもできます。</li>
-<li><b>3 つのプラグインモードすべてに対応</b>— canvas、宣言的 UI、webview。</li>
-<li><b>マネージャー</b>でウィジェットの配置・サイズ変更・設定ができます。プラグインストア、プラグインごとの更新、ライト／ダークテーマを内蔵。</li>
-<li><b>アプリ内でモデルにプラグインを書かせる</b>ことも、既存のプラグインを書き換えることもできます。</li>
-<li><b>簡体字中国語と日本語</b>に対応し、Windows の表示言語に従います。</li>
+<li><b>1 つのプラグインの不具合でデスクトップ上のすべてのウィジェットが停止する問題を修正。</b>戻ってこないプラグインコード（多くは AI が書き換えた直後の無限ループ）が共有レンダースレッドを占有し、すべての更新が同時に止まっていました。プラグインコードは 2 秒で中断されるようになり、停止するのはそのウィジェットだけで、原因はログに記録されます。</li>
 </ul>
-<p>64 ビット版 Windows 10（21H2）以降が必要です。現在のユーザー用にインストールされ、管理者権限は不要です。</p>
+<h2>改善</h2>
+<ul>
+<li><b>SSH によるリモート監視が大幅に高速化。</b>これまでは ssh() のたびに新しい接続を開き、毎回ハンドシェイクが必要でした（LAN で 1 回あたり約 300ms）。接続を保持して再利用するようになり、同じ取得が約 11ms になりました。</li>
+<li><b>タスクトレイのメニューからプラグインフォルダを開けるようになりました</b>（Mac のメニューバーと同様）。</li>
+</ul>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/win-1.1.5/DeskLayer-Setup-1.1.5.exe" length="50522421" type="application/octet-stream" sparkle:edSignature="/rd7opYi+mP9bnuVMc4NZGeCGWoF0HJr3Awpkqj8AQHYnKlXVldpG7n+y8aBi6c+YhEZn6vUCwjL2xOZ+2VZAw=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.6/DeskLayer-Setup-1.1.6.exe" length="50529664" type="application/octet-stream" sparkle:edSignature="jMVZAhEAq3iny7u89xt/evxuv/sxzra+wChim1fsWUagEV20WkrXD+LG/tfZUX9/kZgygUneYVtv8+KOjadIBA=="/>
         </item>
     </channel>
 </rss>
