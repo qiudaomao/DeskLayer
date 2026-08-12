@@ -6,7 +6,7 @@
 ;          complementary to this Authenticode signature.
 
 #define AppName "DeskLayer"
-#define AppVersion "1.1.6"
+#define AppVersion "1.1.7"
 #define AppPublisher "DeskLayer"
 #define AppExeName "DeskLayer.App.exe"
 #define DistDir "..\..\desklayer-dist"
@@ -27,6 +27,13 @@ PrivilegesRequired=lowest
 OutputBaseFilename=DeskLayer-Setup-{#AppVersion}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; An update runs this while DeskLayer is still running, and Windows will not
+; replace a running exe: Setup used to abort with exit code 5 and leave the
+; old version installed, so the updater offered the same version forever.
+; Restart Manager alone can't close a tray app with no visible window, hence
+; the explicit stop in PrepareToInstall below.
+CloseApplications=force
+RestartApplications=no
 
 [Files]
 ; The self-contained single-file publish (app exe + any extracted natives).
@@ -55,3 +62,22 @@ Filename: "{cmd}"; Parameters: "/c taskkill /im {#AppExeName} /f"; Flags: runhid
 
 ; User plugins and layout live in %APPDATA%\DeskLayer and are intentionally
 ; left in place on uninstall.
+
+[Code]
+// Stop a running DeskLayer before any file is replaced. Asked politely
+// first: a forced kill skips the wallpaper restore, which would leave the
+// desktop showing our last frame until the new copy starts drawing.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  // WM_CLOSE first, so the app can put the real wallpaper back.
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/im DeskLayer.App.exe',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(2500);
+  // Anything still alive is holding the file we are about to overwrite.
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/im DeskLayer.App.exe /f',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1000);
+end;

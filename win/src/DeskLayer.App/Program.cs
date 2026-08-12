@@ -190,11 +190,23 @@ internal static class Program
             }
         }
 
-        using var updater = new UpdateController();
+        // DESKLAYER_FEED_URL points the updater at a test feed, so the whole
+        // download → install → relaunch path can be rehearsed before a
+        // release goes out. Unset in normal use.
+        var feedOverride = Environment.GetEnvironmentVariable("DESKLAYER_FEED_URL");
+        using var updater = new UpdateController(
+            string.IsNullOrWhiteSpace(feedOverride) ? null : feedOverride, log: Log);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add(L.T("Manager…"), null, (_, _) => OpenManager());
         menu.Items.Add(L.T("Reload"), null, (_, _) => { registry.Rescan(); engine.RequestRebuild(); });
+        menu.Items.Add(L.T("About DeskLayer"), null, (_, _) =>
+        {
+            MessageBox.Show(
+                $"DeskLayer {UpdateController.DisplayVersion}\n\n" +
+                L.T("Plugins live in {0}", PluginRegistry.PluginsDirectory),
+                L.T("About DeskLayer"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        });
         // Where the mac menu bar keeps it: after the actions, before the
         // settings toggles. Reuses the Manager folder button's string.
         menu.Items.Add(L.T("Open plugins folder"), null, (_, _) =>
@@ -256,7 +268,8 @@ internal static class Program
             exitTimer.Start();
         }
 
-        Log($"started — screen {screen.Width}x{screen.Height}, {registry.Plugins.Count} plugins, {store.Layout.Items.Count} items");
+        Log($"started — DeskLayer {UpdateController.DisplayVersion}, screen {screen.Width}x{screen.Height}, "
+            + $"{registry.Plugins.Count} plugins, {store.Layout.Items.Count} items");
         Application.Run();
         // Exit in order: stop the render thread (stops presenting to the
         // wallpaper HWND), destroy our window, THEN repaint the real wallpaper.

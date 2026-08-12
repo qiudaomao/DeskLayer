@@ -54,6 +54,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(update)
         }
         menu.addItem(.separator())
+        let about = NSMenuItem(title: String(localized: "About DeskLayer"), action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
         menu.addItem(NSMenuItem(title: String(localized: "Quit DeskLayer"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
@@ -63,6 +66,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             ? String(localized: "Resume Rendering")
             : String(localized: "Pause Rendering")
         loginMenuItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+    }
+
+    /// The standard panel, which reads name, version and copyright straight
+    /// from the bundle — nothing to keep in sync with the release. A status
+    /// item app has no app menu, so this is the only place to find it.
+    @objc private func showAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc private func toggleLaunchAtLogin() {

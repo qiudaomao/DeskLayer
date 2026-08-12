@@ -15,6 +15,10 @@
     "zh-Hans": "API 密钥",
     "ja": "API キー"
   },
+  "About DeskLayer": {
+    "zh-Hans": "关于 DeskLayer",
+    "ja": "DeskLayer について"
+  },
   "Add": {
     "zh-Hans": "添加",
     "ja": "追加"
@@ -346,6 +350,10 @@
   "Plugins from {0} keep their name so updates can find them.": {
     "zh-Hans": "来自 {0} 的插件会保留名称，以便更新时能找到它们。",
     "ja": "{0} のプラグインは、アップデートで見つけられるよう名称を保持します。"
+  },
+  "Plugins live in {0}": {
+    "zh-Hans": "插件位于 {0}",
+    "ja": "プラグインの場所：{0}"
   },
   "Plugins target a server by name: ssh(cmd, \"{0}\").": {
     "zh-Hans": "插件通过名称指定服务器：ssh(cmd, \"{0}\")。",
