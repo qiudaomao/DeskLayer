@@ -160,6 +160,13 @@ public sealed class ManagerWindow : Window
                     else if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_STORE") is { Length: > 0 } storeSel
                              && storeRegistry.Stores.FirstOrDefault(s => s.DisplayName == storeSel) is { } entry)
                         SelectStore(entry.Url);
+                    // "<store display name>::<plugin name>" opens a store
+                    // plugin's inspector — the only way to reach the community
+                    // cheer/verified/discuss UI without clicking the sidebar.
+                    else if (Environment.GetEnvironmentVariable("DESKLAYER_SELECT_STORE_PLUGIN") is { Length: > 0 } spSel
+                             && spSel.Split("::") is { Length: 2 } parts
+                             && storeRegistry.Stores.FirstOrDefault(s => s.DisplayName == parts[0]) is { } spEntry)
+                        SelectStorePlugin(spEntry.Url, parts[1]);
                     UpdateLayout();
                     DumpToPng(dump);
                     if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_DUMP_AFTER"), out var seconds) && seconds > 0)

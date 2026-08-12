@@ -293,7 +293,9 @@ public sealed class PublishDialog : Window
             description.Text.Trim().Length == 0 ? null : description.Text.Trim(),
             source, permissions,
             PreviewPngBase64: previewBytes is { Length: > 0 and <= 2 * 1024 * 1024 }
-                ? Convert.ToBase64String(previewBytes) : null));
+                ? Convert.ToBase64String(previewBytes) : null,
+            ThumbnailPngBase64: previewBytes is { Length: > 0 } && Thumbnail(previewBytes) is { } thumb
+                ? Convert.ToBase64String(thumb) : null));
         if (result.Error != null)
         {
             Show(result.Error);
@@ -339,6 +341,42 @@ public sealed class PublishDialog : Window
                 : L.T("Add an instance to your desktop to capture a preview.");
             if (!hasInstance()) addAndCapture.Visibility = Visibility.Visible;
             else retake.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// A ~480px-wide PNG of the preview for the gallery grid. Null if the
+    /// source can't be decoded; the store falls back to a placeholder.
+    private static byte[]? Thumbnail(byte[] pngBytes)
+    {
+        try
+        {
+            var source = new System.Windows.Media.Imaging.BitmapImage();
+            using (var input = new System.IO.MemoryStream(pngBytes))
+            {
+                source.BeginInit();
+                source.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                source.StreamSource = input;
+                source.EndInit();
+            }
+            const double maxWidth = 480;
+            if (source.PixelWidth <= maxWidth)
+            {
+                // Already small enough — the preview bytes are the thumbnail.
+                return pngBytes.Length <= 256 * 1024 ? pngBytes : null;
+            }
+            var scale = maxWidth / source.PixelWidth;
+            var scaled = new System.Windows.Media.Imaging.TransformedBitmap(
+                source, new System.Windows.Media.ScaleTransform(scale, scale));
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(scaled));
+            using var output = new System.IO.MemoryStream();
+            encoder.Save(output);
+            var bytes = output.ToArray();
+            return bytes.Length <= 256 * 1024 ? bytes : null;
+        }
+        catch (Exception ex) when (ex is NotSupportedException or ArgumentException or System.IO.IOException)
+        {
+            return null;
         }
     }
 
