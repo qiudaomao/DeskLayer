@@ -32,9 +32,15 @@ struct CommunityGalleryView: View {
         .navigationTitle("Community")
         .onAppear {
             if gallery.plugins.isEmpty { gallery.load() }
-            // Stale-only: keeps the (hidden) community store's catalog fresh
-            // so installed plugins' update checks see new releases.
-            Task { await stores.refreshAll(force: false) }
+            Task {
+                // Registering here too (not only at install) heals plugins
+                // installed before the store was registered: their recorded
+                // origin already matches this catalog's name. Then a
+                // stale-only refresh keeps every catalog current, so update
+                // checks see new releases.
+                _ = await stores.ensureCommunityStore()
+                await stores.refreshAll(force: false)
+            }
         }
     }
 
