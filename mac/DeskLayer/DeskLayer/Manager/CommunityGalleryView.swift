@@ -97,6 +97,17 @@ struct CommunityGalleryView: View {
                 Text("\(gallery.total) plugins")
                     .font(.caption).foregroundStyle(.tertiary)
             }
+            // Reload the page and the registered catalogs — the Windows
+            // pane's refresh button, same position (top-right).
+            Button {
+                gallery.load(page: gallery.page)
+                Task { await stores.refreshAll(force: true) }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help("Refresh")
         }
         .padding(10)
     }
