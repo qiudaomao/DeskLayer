@@ -3,6 +3,42 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.2.2</title>
+            <pubDate>Thu, 13 Aug 2026 13:24:55 +0800</pubDate>
+            <sparkle:version>15</sparkle:version>
+            <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>Polish</h2>
+<ul>
+<li><b>Add to Desktop</b> now leads an installed plugin's inspector, so you can place it straight from its details.</li>
+<li>The resize summary ("keeps aspect", "auto height", …) is now translated.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>细节优化</h2>
+<ul>
+<li>已安装插件的详情面板现在以<b>“添加到桌面”</b>为首要操作，可直接从详情放置到桌面。</li>
+<li>尺寸调整说明（“保持比例”“自动高度”等）现已翻译。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>細かな改善</h2>
+<ul>
+<li>インストール済みプラグインの詳細に<b>「デスクトップに追加」</b>が最初のアクションとして表示され、詳細から直接配置できます。</li>
+<li>サイズ変更の要約（「縦横比を維持」「高さ自動」など）を翻訳しました。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer-1.2.2.dmg" length="4479300" type="application/octet-stream" sparkle:edSignature="3Ee15u5mNRpR/c9MeKQLF62H0NMzh+4WJxci3jWuHZJcTx6ssaLS26gA7G/TRvDthvL2mFJk3aBHjvFq4VmlCg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer15-14.delta" sparkle:deltaFrom="14" length="225850" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="FTVqEqtvEeWlUgcKsjzx7tOthV4YXO2vfm7pnZeh0mvco4k5K/xVpLSxmpCRcKo1k8E18Cmv6xlXc7fTPxOSCw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer15-13.delta" sparkle:deltaFrom="13" length="234762" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="LsmkHtMk0m13GRnybo4lHs10rjN92MR9dEX+JSthB45fGFcUJC3qui4fOpzSwPr8sczgIm8uIpPULzO/xGZtAw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer15-11.delta" sparkle:deltaFrom="11" length="542014" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="GmzUXt0xx8bwlmqK/D+qtHWxIR+A9nd0UPkNsmSEWQl13hQom81SS+lvgK5g1KP0hEieHV9Q/VncBPL2rgLNBA=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer15-10.delta" sparkle:deltaFrom="10" length="544042" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="SopvJsqUslMfG7oMBRzO2tmbUsctwsuurJUOg2Rq+eAYb49N+OLozH6k9vdAiDEluGHcQI+kuK4wlQNNrtolAw=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer15-9.delta" sparkle:deltaFrom="9" length="607342" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="HGHSEMmjrtrjEkEdpGbMv0HIFaVnUNfSbadKnTBBKmBy3syk7C8Ru3VWXVcMqCgqSrW7iFvZ+z1TqmXrHrHLCw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.2.1</title>
             <pubDate>Thu, 13 Aug 2026 10:35:57 +0800</pubDate>
             <sparkle:version>14</sparkle:version>
@@ -81,39 +117,6 @@
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-10.delta" sparkle:deltaFrom="10" length="527634" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="IZaOzxABtyQ0wdoPoOYMukDtDOtPEI27K/cNvGjPa6pnhfMxLT1Mx7YNpu2x3nYuranrjctMobByE+Ixv3B2Dw=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-9.delta" sparkle:deltaFrom="9" length="591246" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="aAMXEPpEMFRa+5ZqPIzRPlIhowizoY3/ZXCq9S47Jum8hJRxYImJNXIjRb/3as8V6S0dr7NC2z4J8RZ5UjF2Cw=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-8.delta" sparkle:deltaFrom="8" length="598530" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="LvFlgxdEUmhzYg6iPARzAj6oJB4xVnZHZBUEHG6Ji4XekTkYFc0E+3HRczGg+pumkg3N2kxkUPE5kx3hAs6MAA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.1.7</title>
-            <pubDate>Wed, 12 Aug 2026 15:47:34 +0800</pubDate>
-            <sparkle:version>11</sparkle:version>
-            <sparkle:shortVersionString>1.1.7</sparkle:shortVersionString>
-            <description><![CDATA[
-<h2>New</h2>
-<ul>
-<li><b>About DeskLayer</b> in the menu bar item, so the running version is always one click away.</li>
-</ul>
-            ]]></description>
-            <description xml:lang="zh-Hans"><![CDATA[
-<h2>新增</h2>
-<ul>
-<li>菜单栏菜单新增<b>“关于 DeskLayer”</b>，一键即可查看当前运行的版本。</li>
-</ul>
-            ]]></description>
-            <description xml:lang="ja"><![CDATA[
-<h2>新機能</h2>
-<ul>
-<li>メニューバーのメニューに<b>「DeskLayer について」</b>を追加。実行中のバージョンをすぐ確認できます。</li>
-</ul>
-            ]]></description>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer-1.1.7.dmg" length="4187459" type="application/octet-stream" sparkle:edSignature="F2d8vGIiBkGwJ41axNABGTmAjE7CkZ64NO2G0FTuGC5cTzq+KszLHKltdOOM70U0u5BjXqgKAvfx98BnW32CAQ=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-10.delta" sparkle:deltaFrom="10" length="101034" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ilmMlWi0gz2BQrN3pRSGdVfk60pUn1FIT3+DY+gKvF6YQTmr0+MPeIcyQPVKwuAYKam5m0aMg4A+9VOIGB9+AQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-9.delta" sparkle:deltaFrom="9" length="284310" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="mN9SsH7IgiuO/1THJGH8ZXvYwFb8IaMH8fO4ipvlv3F+7hOFqaW/XUe+x1/CsFvOBr5qTg5Hve7A870JxQ6sAg=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-8.delta" sparkle:deltaFrom="8" length="300690" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="W2XLA+NXRjVhT2H4ZqzpBjRQItrN+uIqU9IPKLVhvwXouka2vOOuV/f505vhxfjf+eLfTSKndj8DVw5cxNK1Ag=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-7.delta" sparkle:deltaFrom="7" length="325062" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="LlQ1sXOjdJXsVOHHzzKmtDP5m/HTdROO+XzlTTj2t7Xs9GhzjpKZ1Wy56ZsFVnW3qZArXi1emxiaQ3/WwwyPCQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer11-6.delta" sparkle:deltaFrom="6" length="338318" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ORWlwsUa6xn334FrV82Of9cepc8EPXMdzd8pDGzJcUXQMZNR9M5T4VPTDe4GBmLgAZCAf6osDzRRekV0Z1nhBw=="/>
             </sparkle:deltas>
         </item>
         <item>

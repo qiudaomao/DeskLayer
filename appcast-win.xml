@@ -5,39 +5,30 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.2.1</title>
-            <pubDate>Thu, 13 Aug 2026 10:33:50 +0800</pubDate>
-            <sparkle:version>1.2.1</sparkle:version>
-            <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+            <title>1.2.2</title>
+            <pubDate>Thu, 13 Aug 2026 13:24:11 +0800</pubDate>
+            <sparkle:version>1.2.2</sparkle:version>
+            <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
             <description><![CDATA[
-<h2>Community fixes</h2>
+<h2>Polish</h2>
 <ul>
-<li><b>Sign-in is more patient.</b> A first-time sign-in — where you register on the forum and confirm your email — no longer times out; DeskLayer waits the full ten minutes and keeps trying.</li>
-<li><b>Sign in and refresh from the Community pane.</b> The pane now shows your account (or a Sign in button) and has a refresh button, so you don't have to go through Share to Community to sign in.</li>
-<li><b>Your name on what you publish.</b> Plugins you publish while signed in are attributed to your forum account everywhere — the store page and the plugin's own details.</li>
-<li>Removed the now-redundant "Community Store" entry from the ＋ menu (the Community pane is the place to browse).</li>
+<li>The Manager now follows your Windows light/dark setting; the manual theme button is gone, so it no longer overlaps the Community pane's refresh button.</li>
 </ul>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
-<h2>社区功能修复</h2>
+<h2>细节优化</h2>
 <ul>
-<li><b>登录更有耐心。</b>首次登录（在论坛注册并确认邮箱）不再超时；DeskLayer 会等待整整十分钟并持续重试。</li>
-<li><b>可在社区面板中登录和刷新。</b>面板现在会显示你的账号（或“登录”按钮），并新增刷新按钮，无需再通过“分享到社区”来登录。</li>
-<li><b>发布内容署你的名字。</b>登录后发布的插件会在各处以你的论坛账号署名——商店页面与插件详情。</li>
-<li>移除了 ＋ 菜单中已冗余的“社区商店”入口（浏览请使用社区面板）。</li>
+<li>管理器现在会跟随 Windows 的浅色/深色设置；已移除手动主题按钮，不再与社区面板的刷新按钮重叠。</li>
 </ul>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
-<h2>コミュニティ機能の修正</h2>
+<h2>細かな改善</h2>
 <ul>
-<li><b>サインインがより粘り強く。</b>初回サインイン（フォーラム登録とメール確認）でタイムアウトしなくなりました。DeskLayer は 10 分間待ち、再試行を続けます。</li>
-<li><b>コミュニティペインからサインイン・更新。</b>ペインにアカウント（またはサインインボタン）と更新ボタンが表示され、「コミュニティに公開」を経由せずサインインできます。</li>
-<li><b>公開物にあなたの名前。</b>サインイン中に公開したプラグインは、ストアページでもプラグイン詳細でも、あなたのフォーラムアカウントの名義になります。</li>
-<li>＋ メニューから不要になった「コミュニティストア」項目を削除しました（閲覧はコミュニティペインで）。</li>
+<li>マネージャーが Windows のライト／ダーク設定に追従するようになりました。手動のテーマボタンは廃止され、コミュニティペインの更新ボタンと重ならなくなりました。</li>
 </ul>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer-Setup-1.2.1.exe" length="50557696" type="application/octet-stream" sparkle:edSignature="h23+U2/iDtnGtG3IkNUzuPAz+Ix2K3ols4x2G+lFIBvtKtT/IDMBWezUINYsM+0OfimpmazVgBgc8lXctJwACA=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.2/DeskLayer-Setup-1.2.2.exe" length="50552858" type="application/octet-stream" sparkle:edSignature="rmYQroG4rE4as/btSC4J35/Z8mPgVFEJvZ3gkY/Lu/4Ug5kyU5HAXSpPGsG6yCqDl2ak7mMef5lV2EVlaJz/Ag=="/>
         </item>
     </channel>
 </rss>
