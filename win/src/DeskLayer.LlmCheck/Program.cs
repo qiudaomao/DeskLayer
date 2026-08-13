@@ -102,6 +102,18 @@ Directory.CreateDirectory(PluginRegistry.PluginsDirectory);
 var installedPath = Path.Combine(PluginRegistry.PluginsDirectory, pluginName + ".js");
 File.Delete(installedPath);
 
+// Restore the user's real state even when the run throws — the session
+// writes canned test settings into the real llm.json, and leaving those
+// behind would silently repoint the user's LLM endpoint (the same class of
+// test-clobbers-real-state bug the mac suite just fixed). A hard kill can
+// still skip this; an exception no longer does.
+using var restore = new Restore(() =>
+{
+    File.Delete(installedPath);
+    if (savedSettings != null) File.WriteAllText(settingsPath, savedSettings);
+    else File.Delete(settingsPath);
+});
+
 using var registry = new PluginRegistry(watch: false);
 var stores = new PluginStoreRegistry(Console.WriteLine);
 var session = new PluginAuthorSession(registry, stores, Console.WriteLine);
@@ -124,7 +136,9 @@ var ok = session.InstalledPluginId == pluginName && File.Exists(installedPath);
 Console.WriteLine($"error: {session.Error ?? "none"}");
 Console.WriteLine($"installed: {session.InstalledPluginId ?? "none"}, file exists: {File.Exists(installedPath)}");
 Console.WriteLine(ok ? "LLM CHECK PASSED" : "LLM CHECK FAILED");
-File.Delete(installedPath);
-if (savedSettings != null) File.WriteAllText(settingsPath, savedSettings);
-else File.Delete(settingsPath);
 return ok ? 0 : 1;
+
+sealed class Restore(Action run) : IDisposable
+{
+    public void Dispose() { try { run(); } catch (IOException) { } }
+}
