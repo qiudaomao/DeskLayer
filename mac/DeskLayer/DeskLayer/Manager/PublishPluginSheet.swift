@@ -150,6 +150,27 @@ struct PublishPluginSheet: View {
         }
     }
 
+    /// Stamps the signed-in forum username into the source's declared
+    /// author, so the downloaded/inspected copy agrees with the store's
+    /// attribution instead of showing a template's "DeskLayer". Exactly one
+    /// existing author literal is replaced; zero or several means the shape
+    /// is unclear, and guessing would corrupt someone's source — no-op.
+    /// (Same rule as the Windows port's StampAuthor.)
+    static func stampAuthor(in source: String, username: String) -> String {
+        let trimmed = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return source }
+        let pattern = #"(author\s*:\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
+        let range = NSRange(source.startIndex..., in: source)
+        let matches = regex.matches(in: source, range: range)
+        guard matches.count == 1, let match = matches.first,
+              let literal = Range(match.range(at: 2), in: source) else { return source }
+        let escaped = trimmed
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return source.replacingCharacters(in: literal, with: "\"\(escaped)\"")
+    }
+
     /// The gallery-grid image: the preview downscaled to ≤480px wide,
     /// within the store's 256KB thumbnail cap. Grids never load the full
     /// preview, so a publish without this renders as a placeholder tile.
@@ -201,9 +222,14 @@ struct PublishPluginSheet: View {
 
     private func publish() {
         guard let descriptor = registry.descriptor(for: pluginID),
-              let source = try? String(contentsOf: descriptor.sourceURL, encoding: .utf8) else {
+              var source = try? String(contentsOf: descriptor.sourceURL, encoding: .utf8) else {
             result = .failed(String(localized: "Couldn't read the plugin file."))
             return
+        }
+        // The published copy carries the publisher's name; the local file
+        // stays as written.
+        if let username = account.user?.username {
+            source = Self.stampAuthor(in: source, username: username)
         }
         isPublishing = true
         result = nil

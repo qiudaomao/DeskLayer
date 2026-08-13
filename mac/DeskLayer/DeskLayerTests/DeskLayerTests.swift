@@ -1195,6 +1195,29 @@ struct PluginInstanceTests {
     }
 
     @MainActor
+    @Test func publishStampsTheSignedInAuthor() {
+        // The template ships author: "DeskLayer"; the published copy should
+        // carry the publisher instead, so the store listing and the
+        // downloaded source agree.
+        let single = #"plugin.export = { author: "DeskLayer", render };"#
+        #expect(PublishPluginSheet.stampAuthor(in: single, username: "qiudaomao")
+                == #"plugin.export = { author: "qiudaomao", render };"#)
+        // Single-quoted literals too.
+        #expect(PublishPluginSheet.stampAuthor(in: "author: 'Old Name',", username: "q")
+                == #"author: "q","#)
+        // Quotes in a username never break the literal.
+        #expect(PublishPluginSheet.stampAuthor(in: single, username: #"a"b"#)
+                == #"plugin.export = { author: "a\"b", render };"#)
+
+        // Unclear shapes are left alone rather than guessed at.
+        let none = "plugin.export = { render };"
+        #expect(PublishPluginSheet.stampAuthor(in: none, username: "q") == none)
+        let two = #"author: "A"; other = { author: "B" }"#
+        #expect(PublishPluginSheet.stampAuthor(in: two, username: "q") == two)
+        #expect(PublishPluginSheet.stampAuthor(in: single, username: "  ") == single)
+    }
+
+    @MainActor
     @Test func publishThumbnailIsPixelExact() {
         // Render a 720x520 PNG (the shape a Retina-captured preview has),
         // then check the thumbnail is measured in PIXELS: NSImage.lockFocus
