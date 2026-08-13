@@ -518,7 +518,7 @@ public sealed class ManagerWindow : Window
         showingGallery = true;
         centerHost.Content = new CommunityGalleryView(dark, this, InstallFromGallery,
             name => registry.Plugin(name) != null,
-            refreshStoreCatalogs: force => _ = storeRegistry.RefreshAll(force));
+            refreshStoreCatalogs: force => _ = RegisterCommunityAndRefresh(force));
         RefreshSidebar();   // repaint the entry as selected
     }
 
@@ -530,6 +530,17 @@ public sealed class ManagerWindow : Window
         showingGallery = false;
         centerHost.Content = overviewCard;
         RefreshOverview();
+    }
+
+    /// Opening the pane also registers the hidden community store, so
+    /// installs made before the store was auto-registered heal on a visit
+    /// (mac 0ba8d4f parity) — their recorded origin already matches.
+    private async Task RegisterCommunityAndRefresh(bool force)
+    {
+        var communityUrl = DeskLayer.Core.Community.CommunityClient.CatalogUrl;
+        if (storeRegistry.Stores.All(s => s.Url != communityUrl))
+            await storeRegistry.AddStore(communityUrl);
+        await storeRegistry.RefreshAll(force);
     }
 
     /// Installs a gallery plugin by adapting it to the store install path.
