@@ -5,42 +5,39 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.1.7</title>
-            <pubDate>Wed, 12 Aug 2026 15:46:31 +0800</pubDate>
-            <sparkle:version>1.1.7</sparkle:version>
-            <sparkle:shortVersionString>1.1.7</sparkle:shortVersionString>
+            <title>1.2.0</title>
+            <pubDate>Thu, 13 Aug 2026 08:40:02 +0800</pubDate>
+            <sparkle:version>1.2.0</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
             <description><![CDATA[
-<h2>Fixed</h2>
+<h2>The DeskLayer Community</h2>
 <ul>
-<li><b>Updates never installed.</b> Choosing "Install and Relaunch" closed DeskLayer and left the old version in place, so the same update was offered again on the next launch. Two things were wrong: Windows will not replace a running program, and nothing closed DeskLayer first; and the installer was started in its interactive mode, so it waited for a wizard nobody saw. Both are fixed — an update now installs quietly and DeskLayer comes back on its own.</li>
+<li><b>Community pane</b> — browse every published plugin in a paged grid, sorted by cheers, downloads, or newest, with search and a verified-only filter. Each plugin opens a page with its preview, comments, and a one-click Install.</li>
+<li><b>Cheer and comment in-app.</b> Sign in with your forum account to like a plugin and join its discussion without leaving DeskLayer — every cheer and comment is a real post on the forum.</li>
+<li><b>Share to Community…</b> on your own plugins: publish with a real preview captured from the running plugin — just the plugin, never your desktop.</li>
 </ul>
-<h2>New</h2>
-<ul>
-<li><b>About DeskLayer</b> in the tray menu, showing the running version and where your plugins live. The version is written to the log at startup too.</li>
-</ul>
+<p>Browsing and installing need no account. Requires 64-bit Windows 10 (21H2) or later; existing installs from 1.1.7+ update silently.</p>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
-<h2>修复</h2>
+<h2>DeskLayer 社区</h2>
 <ul>
-<li><b>更新始终无法安装。</b>点击“安装并重启”后，DeskLayer 会关闭，但旧版本仍保留在原处，于是下次启动时又会提示同一个更新。原因有两点：Windows 不允许替换正在运行的程序，而此前没有先关闭 DeskLayer；同时安装程序以交互模式启动，等待一个没人看得到的向导窗口。两处均已修复——更新现在会静默安装，DeskLayer 随后自动重新启动。</li>
+<li><b>社区面板</b>——在分页网格中浏览所有已发布的插件，可按点赞、下载或最新排序，并支持搜索与“仅已验证”筛选。点开任意插件即可查看预览图、评论，并一键安装。</li>
+<li><b>在应用内点赞和评论。</b>用论坛账号登录后，无需离开 DeskLayer 即可为插件点赞并参与讨论——每次点赞和评论都是论坛上的真实内容。</li>
+<li>自己的插件支持<b>“分享到社区…”</b>：发布时会截取运行中插件的真实预览图——只含插件本身，绝不包含你的桌面。</li>
 </ul>
-<h2>新增</h2>
-<ul>
-<li>托盘菜单新增<b>“关于 DeskLayer”</b>，显示当前运行的版本以及插件所在位置。启动时也会将版本写入日志。</li>
-</ul>
+<p>浏览与安装无需账号。需要 64 位 Windows 10（21H2）或更高版本；1.1.7 及以上的现有安装会静默更新。</p>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
-<h2>修正</h2>
+<h2>DeskLayer コミュニティ</h2>
 <ul>
-<li><b>アップデートがインストールされない問題を修正。</b>「インストールして再起動」を選ぶと DeskLayer は終了するものの、古いバージョンがそのまま残り、次回起動時に同じアップデートが再び提示されていました。原因は 2 つあります。Windows は実行中のプログラムを置き換えられないのに DeskLayer を終了させていなかったこと、そしてインストーラーが対話モードで起動され、誰にも見えないウィザードを待っていたことです。どちらも修正され、アップデートは静かに適用され、DeskLayer は自動的に再起動します。</li>
+<li><b>コミュニティペイン</b> — 公開されたすべてのプラグインをページ送りのグリッドで閲覧できます。応援・ダウンロード・新着で並べ替え、検索と「確認済みのみ」フィルターにも対応。各プラグインを開くと、プレビュー・コメント・ワンクリックのインストールが表示されます。</li>
+<li><b>アプリ内で応援・コメント。</b>フォーラムアカウントでサインインすれば、DeskLayer を離れずにプラグインを応援し議論に参加できます。応援もコメントもフォーラム上の実際の投稿です。</li>
+<li>自作プラグインの<b>「コミュニティに公開…」</b>：実行中のプラグインから本物のプレビューをキャプチャして公開します — プラグインだけで、デスクトップは含まれません。</li>
 </ul>
-<h2>新機能</h2>
-<ul>
-<li>タスクトレイのメニューに<b>「DeskLayer について」</b>を追加。実行中のバージョンとプラグインの場所を表示します。起動時にもバージョンをログへ記録します。</li>
-</ul>
+<p>閲覧とインストールにアカウントは不要です。64 ビット版 Windows 10（21H2）以降が必要です。1.1.7 以降の既存インストールは自動で更新されます。</p>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.1.7/DeskLayer-Setup-1.1.7.exe" length="50536198" type="application/octet-stream" sparkle:edSignature="haHxkefX+bJDd4/UrAWDurs4JAeLzDc+00R8cVMTPslKgTy5glm4APYTih3R/CepWTGTbZxmEn9D6Q7hmNlqCA=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer-Setup-1.2.0.exe" length="50557130" type="application/octet-stream" sparkle:edSignature="AT1uac8ekYi01mSJD5vvhCLz9eJt4JR1d0nOvj9fwbKOlBnAVSR7Y4dSSf+DqM/j86EBFCesiR3lBCI3VJxxCQ=="/>
         </item>
     </channel>
 </rss>
