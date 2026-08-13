@@ -124,6 +124,10 @@ final class CommunityAccount: ObservableObject {
 
             // Poll until the browser side finishes. The deadline mirrors the
             // server's own device-code expiry.
+            // A first-time user may spend many minutes in the browser
+            // (forum signup, email confirmation) — poll for the code's whole
+            // lifetime, and let a dropped poll be a dropped poll: only a
+            // server verdict or a cancel ends the flow, never a network blip.
             let deadline = Date().addingTimeInterval(TimeInterval(device.expiresInSeconds ?? 600))
             while Date() < deadline {
                 try Task.checkCancellation()
@@ -132,10 +136,10 @@ final class CommunityAccount: ObservableObject {
                 poll.httpMethod = "POST"
                 poll.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 poll.httpBody = try JSONEncoder().encode(["deviceCode": device.deviceCode])
-                let (body, response) = try await session.data(for: poll)
+                guard let (body, response) = try? await session.data(for: poll) else { continue }
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 if status == 202 { continue }
-                let decoded = try JSONDecoder().decode(TokenResponse.self, from: body)
+                guard let decoded = try? JSONDecoder().decode(TokenResponse.self, from: body) else { continue }
                 if status == 200, let token = decoded.token, let user = decoded.user {
                     self.token = token
                     self.user = user

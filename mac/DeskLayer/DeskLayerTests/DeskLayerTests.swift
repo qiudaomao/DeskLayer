@@ -3,6 +3,7 @@
 //  DeskLayerTests
 //
 
+import AppKit
 import Testing
 import CoreGraphics
 import DeskLayerKit
@@ -1191,6 +1192,35 @@ struct PluginInstanceTests {
         let entries = PluginStoreRegistry.salvage(Data(catalog.utf8))
         #expect(entries.count == 1)
         #expect(entries.first?.catalog?.plugins.map(\.name) == ["Good"])
+    }
+
+    @MainActor
+    @Test func publishThumbnailIsPixelExact() {
+        // Render a 720x520 PNG (the shape a Retina-captured preview has),
+        // then check the thumbnail is measured in PIXELS: NSImage.lockFocus
+        // used to draw at the screen's 2x scale, produce 960px, blow the
+        // 256KB cap, and silently drop the thumbnail from the publish.
+        let width = 720, height = 520
+        let context = CGContext(data: nil, width: width, height: height,
+                                bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        for x in stride(from: 0, to: width, by: 8) {
+            context.setFillColor(CGColor(red: Double(x) / Double(width), green: 0.4, blue: 0.6, alpha: 1))
+            context.fill(CGRect(x: x, y: 0, width: 8, height: height))
+        }
+        let cg = context.makeImage()!
+        let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])!
+
+        let thumb = PublishPluginSheet.thumbnail(from: png)
+        #expect(thumb != nil)
+        if let thumb, let rep = NSBitmapImageRep(data: thumb) {
+            #expect(rep.pixelsWide == 480)
+            #expect(rep.pixelsHigh == 346)
+            #expect(thumb.count <= 256 * 1024)
+        }
+        // Garbage in, nil out — never a corrupt upload.
+        #expect(PublishPluginSheet.thumbnail(from: Data("not a png".utf8)) == nil)
     }
 
     @Test func galleryAndCommentsDecode() {

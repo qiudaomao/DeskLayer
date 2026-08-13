@@ -3938,6 +3938,22 @@
         }
       }
     },
+    "Waiting for the browser sign-in… Finish signing in on the forum page that just opened. First time? Registering and confirming your email can take a few minutes — this will wait.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザでのサインインを待っています… 開いたフォーラムページでサインインを完了してください。初めての方は、登録とメール確認に数分かかることがありますが、このままお待ちします。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待浏览器登录……请在刚打开的论坛页面完成登录。首次使用？注册和邮箱确认可能需要几分钟——应用会一直等待。"
+          }
+        }
+      }
+    },
     "Wallpaper": {
       "localizations": {
         "ja": {

@@ -409,6 +409,8 @@ private struct GalleryDetailSheet: View {
                     ProgressView().controlSize(.small)
                     Text("Waiting for the browser sign-in…")
                         .font(.caption).foregroundStyle(.secondary)
+                    Button("Cancel") { account.cancelSignIn() }
+                        .buttonStyle(.borderless).font(.caption)
                 }
             } else {
                 Button {
@@ -421,10 +423,7 @@ private struct GalleryDetailSheet: View {
 
             HStack {
                 Spacer()
-                Button("Close") {
-                    account.cancelSignIn()
-                    onClose()
-                }
+                Button("Close", action: onClose)
             }
         }
         .padding(16)

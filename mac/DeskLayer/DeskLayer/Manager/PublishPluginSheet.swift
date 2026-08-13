@@ -79,9 +79,11 @@ struct PublishPluginSheet: View {
             } else if account.isLoggingIn {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Waiting for the browser sign-in… Finish signing in on the forum page that just opened.")
+                    Text("Waiting for the browser sign-in… Finish signing in on the forum page that just opened. First time? Registering and confirming your email can take a few minutes — this will wait.")
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Button("Cancel") { account.cancelSignIn() }
+                        .buttonStyle(.borderless).font(.caption)
                 }
             } else {
                 Text("Publishing uses your forum account (bbs.byteplayer.app). Signing in opens the forum in your browser — no password ever passes through the app.")
@@ -124,10 +126,10 @@ struct PublishPluginSheet: View {
 
             HStack {
                 Spacer()
-                Button("Close") {
-                    account.cancelSignIn()
-                    onClose()
-                }
+                // Close leaves an in-flight sign-in polling: a first-time
+                // user may still be registering in the browser, and the
+                // token should land whenever they finish.
+                Button("Close", action: onClose)
                 if account.isSignedIn, case .published = result {
                     // Done; Close is the only sensible action left.
                 } else if account.isSignedIn {
@@ -151,22 +153,37 @@ struct PublishPluginSheet: View {
     /// The gallery-grid image: the preview downscaled to ≤480px wide,
     /// within the store's 256KB thumbnail cap. Grids never load the full
     /// preview, so a publish without this renders as a placeholder tile.
+    ///
+    /// Drawn into a CGContext of exact pixel dimensions — NSImage.lockFocus
+    /// renders at the screen's backing scale, which on Retina silently
+    /// doubled the pixels, blew the size cap, and dropped the thumbnail.
     static func thumbnail(from previewPng: Data) -> Data? {
-        guard let source = NSImage(data: previewPng),
-              source.size.width > 0 else { return nil }
-        let scale = min(480 / source.size.width, 1)
-        let size = NSSize(width: floor(source.size.width * scale),
-                          height: floor(source.size.height * scale))
-        let scaled = NSImage(size: size)
-        scaled.lockFocus()
-        source.draw(in: NSRect(origin: .zero, size: size),
-                    from: .zero, operation: .copy, fraction: 1)
-        scaled.unlockFocus()
-        guard let tiff = scaled.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]),
-              png.count <= 256 * 1024 else { return nil }
-        return png
+        guard let source = CGImageSourceCreateWithData(previewPng as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+              image.width > 0, image.height > 0 else { return nil }
+        // 480 wide normally; one narrower retry if a busy image still
+        // overflows the cap as PNG.
+        for maxWidth in [480.0, 320.0] {
+            let scale = min(maxWidth / Double(image.width), 1)
+            let width = Int((Double(image.width) * scale).rounded(.down))
+            let height = Int((Double(image.height) * scale).rounded(.down))
+            guard width > 0, height > 0,
+                  let context = CGContext(
+                      data: nil, width: width, height: height,
+                      bitsPerComponent: 8, bytesPerRow: 0,
+                      space: CGColorSpaceCreateDeviceRGB(),
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  ) else { return nil }
+            context.interpolationQuality = .high
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            guard let scaled = context.makeImage() else { return nil }
+            let rep = NSBitmapImageRep(cgImage: scaled)
+            if let png = rep.representation(using: .png, properties: [:]),
+               png.count <= 256 * 1024 {
+                return png
+            }
+        }
+        return nil
     }
 
     /// Grabs the latest rendered frame of any placed instance of this plugin
