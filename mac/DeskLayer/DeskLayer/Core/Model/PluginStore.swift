@@ -221,6 +221,15 @@ final class PluginStoreRegistry: ObservableObject {
     @Published private(set) var isRefreshing = false
 
     private let log = Logger(subsystem: "com.qiudaomao.DeskLayer", category: "stores")
+    /// Set once load() has run. A save before that point has nothing
+    /// trustworthy in memory and is refused outright.
+    private var hasLoaded = false
+    /// URLs the user explicitly removed this session — the ONLY entries a
+    /// save may drop relative to what's on disk. Anything else found on disk
+    /// but missing from memory is merged back, so a raced or partial load
+    /// degrades to a reorder instead of a data loss (a 1.2.3 launch race
+    /// silently replaced users' store lists with just the community entry).
+    private var removedURLs: Set<String> = []
     private static let storesKey = "DeskLayer.pluginStores"
     /// pluginID → store display name, so installed plugins stay grouped
     /// under the store they came from.
@@ -247,6 +256,8 @@ final class PluginStoreRegistry: ObservableObject {
     // MARK: - Persistence
 
     func load() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
         guard let data = UserDefaults.standard.data(forKey: Self.storesKey) else { return }
         let salvaged = Self.salvage(data)
         if !salvaged.isEmpty {
@@ -279,6 +290,23 @@ final class PluginStoreRegistry: ObservableObject {
     /// removed the last store. Every other path holding [] got there by not
     /// loading — writing would destroy the only copy.
     private func save(allowEmpty: Bool = false) {
+        guard hasLoaded else {
+            log.error("refusing to save the store list before load()")
+            return
+        }
+        // Merge, never drop: entries on disk that memory never saw (raced
+        // load, another instance's write) are kept unless the user removed
+        // them in this session.
+        if let existing = UserDefaults.standard.data(forKey: Self.storesKey) {
+            let inMemory = Set(stores.map(\.url))
+            let orphans = Self.salvage(existing).filter {
+                !inMemory.contains($0.url) && !removedURLs.contains($0.url)
+            }
+            if !orphans.isEmpty {
+                stores.append(contentsOf: orphans)
+                log.error("save merged \(orphans.count) stored store(s) memory never loaded")
+            }
+        }
         if stores.isEmpty, !allowEmpty,
            let existing = UserDefaults.standard.data(forKey: Self.storesKey),
            Self.entryCount(in: existing) > 0 {
@@ -305,6 +333,7 @@ final class PluginStoreRegistry: ObservableObject {
 
     @discardableResult
     func addStore(urlString: String, mirrors: [String] = [], hidden: Bool = false) async -> Bool {
+        load()
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), url.scheme != nil else { return false }
         guard !stores.contains(where: { $0.url == trimmed }) else { return true }
@@ -327,6 +356,7 @@ final class PluginStoreRegistry: ObservableObject {
     /// stays in the Community pane. Returns the store's display name for
     /// recording as the install origin (nil when unreachable).
     func ensureCommunityStore() async -> String? {
+        load()
         if let existing = stores.first(where: { $0.url == Self.communityCatalogURL }) {
             return existing.displayName
         }
@@ -335,6 +365,8 @@ final class PluginStoreRegistry: ObservableObject {
     }
 
     func removeStore(_ id: String) {
+        load()
+        removedURLs.insert(id)
         stores.removeAll { $0.id == id }
         save(allowEmpty: true)
     }
@@ -342,6 +374,7 @@ final class PluginStoreRegistry: ObservableObject {
     /// `force` is the Refresh button; the launch path passes false so a
     /// catalog fetched within the cache window is left alone.
     func refreshAll(force: Bool = true) async {
+        load()
         isRefreshing = true
         for index in stores.indices where index < stores.count {
             guard force || !stores[index].isFresh() else { continue }

@@ -865,7 +865,9 @@ struct PluginInstanceTests {
         let added = await registry.addStore(urlString: missing,
                                             mirrors: [catalogURL.absoluteString])
         #expect(added)
-        let entry = try #require(registry.stores.first)
+        // The registry loads whatever this machine already has — find our
+        // own entry rather than assuming an empty start.
+        let entry = try #require(registry.stores.first { $0.url == missing })
         #expect(entry.catalog?.name == "Mirror Store")
         #expect(entry.catalog?.website == "https://example.com/store")
         // The address that worked is remembered and tried first next time.
@@ -1161,6 +1163,68 @@ struct PluginInstanceTests {
         #expect(decoded?.maxTurns == 12)
     }
 
+    @MainActor
+    @Test func addingAStoreNeverDropsTheOnesOnDisk() async throws {
+        // The 1.2.3 data loss: a mutating path ran against a not-yet-loaded
+        // (or transiently empty-loaded) list and its save replaced the
+        // user's stores with the single new entry. Saves must merge with
+        // what's on disk; only an explicit removal may drop an entry.
+        let key = "DeskLayer.pluginStores"
+        // Surgical cleanup, not blob-restore: tests run in parallel against
+        // the same real defaults key, and restoring a stale snapshot would
+        // erase a concurrent test's (or the machine's) entries.
+        let testURLs = ["https://official.example/catalog.json",
+                        "https://other.example/catalog.json"]
+        func scrub() {
+            guard let data = UserDefaults.standard.data(forKey: key) else { return }
+            let kept = PluginStoreRegistry.salvage(data).filter {
+                !testURLs.contains($0.url) && !$0.url.hasPrefix("file:///")
+            }
+            if let out = try? JSONEncoder().encode(kept) {
+                UserDefaults.standard.set(out, forKey: key)
+            }
+        }
+        defer { scrub() }
+
+        // Disk gains two stores the registry has never loaded (merged into
+        // whatever is already there, so the machine's real list is safe).
+        let existing = UserDefaults.standard.data(forKey: key)
+            .map { PluginStoreRegistry.salvage($0) } ?? []
+        let disk = existing + [PluginStoreEntry(url: testURLs[0],
+                                     catalog: StoreCatalog(name: "Official", plugins: [])),
+                    PluginStoreEntry(url: testURLs[1],
+                                     catalog: StoreCatalog(name: "Other", plugins: []))]
+        UserDefaults.standard.set(try JSONEncoder().encode(disk), forKey: key)
+
+        // A local file catalog stands in for the community store: same
+        // addStore path, no network.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-storeadd-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let catalogURL = dir.appendingPathComponent("catalog.json")
+        try #"{"name": "Community", "plugins": []}"#
+            .write(to: catalogURL, atomically: true, encoding: .utf8)
+
+        let registry = PluginStoreRegistry()
+        // Deliberately NO explicit load() — the mutating path must self-load.
+        let added = await registry.addStore(urlString: catalogURL.absoluteString, hidden: true)
+        #expect(added)
+
+        let saved = PluginStoreRegistry.salvage(UserDefaults.standard.data(forKey: key) ?? Data())
+        let urls = Set(saved.map(\.url))
+        #expect(urls.contains("https://official.example/catalog.json"))
+        #expect(urls.contains("https://other.example/catalog.json"))
+        #expect(urls.contains(catalogURL.absoluteString))
+        #expect(saved.first { $0.url == catalogURL.absoluteString }?.isHidden == true)
+
+        // Explicit removal is still the one sanctioned way to drop an entry.
+        registry.removeStore("https://other.example/catalog.json")
+        let afterRemove = PluginStoreRegistry.salvage(UserDefaults.standard.data(forKey: key) ?? Data())
+        #expect(!afterRemove.map(\.url).contains("https://other.example/catalog.json"))
+        #expect(afterRemove.map(\.url).contains("https://official.example/catalog.json"))
+    }
+
     @Test func storePersistenceSurvivesDamage() {
         // The failure that ate a user's store list: one entry a build can't
         // decode used to fail the whole array, load() silently kept [], and
@@ -1377,7 +1441,7 @@ struct PluginInstanceTests {
         let registry = await PluginStoreRegistry()
         let added = await registry.addStore(urlString: catalogURL.absoluteString)
         #expect(added)
-        let entry = await registry.stores.first
+        let entry = await registry.stores.first { $0.url == catalogURL.absoluteString }
         #expect(entry?.catalog?.name == "Demo Store")
         #expect(entry?.catalog?.plugins.first?.description == "Says hello.")
         #expect(entry?.catalog?.plugins.first?.preview == "https://example.com/p.png")
@@ -1396,8 +1460,10 @@ struct PluginInstanceTests {
         let bad = await registry.addStore(urlString: dir.appendingPathComponent("nope.json").absoluteString)
         #expect(bad == false)
 
-        // Cleanup the recorded origin so other runs start clean.
+        // Cleanup: the recorded origin and our store entry, so other runs
+        // (and this machine's real store list) start clean.
         forgetStoreOrigin("Greeting")
+        await registry.removeStore(catalogURL.absoluteString)
     }
 
     @Test func pluginOriginClassification() {
