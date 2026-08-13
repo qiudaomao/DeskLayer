@@ -30,7 +30,12 @@ struct CommunityGalleryView: View {
             footer
         }
         .navigationTitle("Community")
-        .onAppear { if gallery.plugins.isEmpty { gallery.load() } }
+        .onAppear {
+            if gallery.plugins.isEmpty { gallery.load() }
+            // Stale-only: keeps the (hidden) community store's catalog fresh
+            // so installed plugins' update checks see new releases.
+            Task { await stores.refreshAll(force: false) }
+        }
     }
 
     private var header: some View {
@@ -251,10 +256,11 @@ private struct GalleryTile: View {
         isInstalling = true
         installError = nil
         Task {
-            // Same path as installing from an added store, so the plugin is
-            // recorded as store-owned (updates find it; rewrites become
-            // copies). The origin name matches the community catalog's.
-            let error = await stores.install(plugin.asStorePlugin, from: "DeskLayer Community",
+            // Register the community store (hidden) before installing: a
+            // community plugin has no updateURL — the registered catalog is
+            // the only thing its update check can compare against.
+            let storeName = await stores.ensureCommunityStore() ?? "DeskLayer Community"
+            let error = await stores.install(plugin.asStorePlugin, from: storeName,
                                              into: PluginRegistry.directoryURL)
             installError = error
             registry.rescan()
@@ -481,7 +487,8 @@ private struct GalleryDetailSheet: View {
     private func install() {
         isInstalling = true
         Task {
-            let error = await stores.install(plugin.asStorePlugin, from: "DeskLayer Community",
+            let storeName = await stores.ensureCommunityStore() ?? "DeskLayer Community"
+            let error = await stores.install(plugin.asStorePlugin, from: storeName,
                                              into: PluginRegistry.directoryURL)
             if let error { socialError = error }
             registry.rescan()

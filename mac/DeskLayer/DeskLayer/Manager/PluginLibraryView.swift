@@ -62,7 +62,7 @@ struct PluginLibraryView: View {
                     groupLabel(PluginOrigin.user.title, count: registry.plugins.count)
                 }
             }
-            ForEach(stores.stores) { entry in
+            ForEach(stores.stores.filter { !$0.isHidden }) { entry in
                 StoreSection(
                     entry: entry,
                     installed: registry.plugins,

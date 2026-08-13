@@ -1246,6 +1246,29 @@ struct PluginInstanceTests {
         #expect(PublishPluginSheet.thumbnail(from: Data("not a png".utf8)) == nil)
     }
 
+    @Test func hiddenStoreEntrySurvivesOldFormatAndFiltersFromSidebar() {
+        // The community store registers hidden: update checks see its
+        // catalog, the sidebar's store categories don't list it. Entries
+        // written before the flag existed must still decode (as visible).
+        let old = #"[{"url": "https://a.example/catalog.json"}]"#
+        let decoded = PluginStoreRegistry.salvage(Data(old.utf8))
+        #expect(decoded.first?.isHidden == false)
+
+        let entry = PluginStoreEntry(url: PluginStoreRegistry.communityCatalogURL,
+                                     catalog: StoreCatalog(name: "DeskLayer Community", plugins: []),
+                                     isHidden: true)
+        let data = try? JSONEncoder().encode([entry])
+        let back = data.map { PluginStoreRegistry.salvage($0) } ?? []
+        #expect(back.first?.isHidden == true)
+        // What the sidebar shows and what the update path scans differ by
+        // exactly this filter.
+        #expect(back.filter { !$0.isHidden }.isEmpty)
+        #expect(back.count == 1)
+        // And the recorded origin ("DeskLayer Community") matches the hidden
+        // entry's display name, which is how storeSource finds the catalog.
+        #expect(back.first?.displayName == "DeskLayer Community")
+    }
+
     @Test func galleryAndCommentsDecode() {
         // The gallery endpoint's shape, as served (thumbnail optional).
         let page = """

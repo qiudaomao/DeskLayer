@@ -121,6 +121,10 @@ nonisolated struct PluginStoreEntry: Codable, Hashable, Identifiable {
     /// The address that last worked — tried first next time, so a user behind
     /// a network that blocks the primary host stops paying for the timeout.
     var lastGoodURL: String?
+    /// Registered for update checks but absent from the sidebar's store
+    /// categories — how the community store is wired: browsing happens in
+    /// the Community pane, updates through the ordinary catalog machinery.
+    var isHidden: Bool = false
 
     var id: String { url }
 
@@ -141,17 +145,19 @@ nonisolated struct PluginStoreEntry: Codable, Hashable, Identifiable {
     static let cacheLifetime: TimeInterval = 24 * 60 * 60
 
     private enum CodingKeys: String, CodingKey {
-        case url, catalog, lastError, fetchedAt, mirrors, lastGoodURL
+        case url, catalog, lastError, fetchedAt, mirrors, lastGoodURL, isHidden
     }
 
     init(url: String, catalog: StoreCatalog? = nil, lastError: String? = nil,
-         fetchedAt: Date? = nil, mirrors: [String] = [], lastGoodURL: String? = nil) {
+         fetchedAt: Date? = nil, mirrors: [String] = [], lastGoodURL: String? = nil,
+         isHidden: Bool = false) {
         self.url = url
         self.catalog = catalog
         self.lastError = lastError
         self.fetchedAt = fetchedAt
         self.mirrors = mirrors
         self.lastGoodURL = lastGoodURL
+        self.isHidden = isHidden
     }
 
     /// Every field but the URL is optional on the way in. Synthesized
@@ -166,6 +172,7 @@ nonisolated struct PluginStoreEntry: Codable, Hashable, Identifiable {
         fetchedAt = try c.decodeIfPresent(Date.self, forKey: .fetchedAt)
         mirrors = try c.decodeIfPresent([String].self, forKey: .mirrors) ?? []
         lastGoodURL = try c.decodeIfPresent(String.self, forKey: .lastGoodURL)
+        isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
     }
 
     func isFresh(now: Date = Date()) -> Bool {
@@ -297,16 +304,34 @@ final class PluginStoreRegistry: ObservableObject {
     // MARK: - Stores
 
     @discardableResult
-    func addStore(urlString: String, mirrors: [String] = []) async -> Bool {
+    func addStore(urlString: String, mirrors: [String] = [], hidden: Bool = false) async -> Bool {
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), url.scheme != nil else { return false }
         guard !stores.contains(where: { $0.url == trimmed }) else { return true }
-        let entry = await fetched(PluginStoreEntry(url: trimmed, mirrors: mirrors))
+        let entry = await fetched(PluginStoreEntry(url: trimmed, mirrors: mirrors, isHidden: hidden))
         // Only keep a store whose catalog actually parsed.
         guard entry.catalog != nil else { return false }
         stores.append(entry)
         save()
         return true
+    }
+
+    // MARK: - Community store (registered by gallery installs)
+
+    nonisolated static let communityCatalogURL = "https://store.byteplayer.app/catalog.json"
+
+    /// The community store must exist as a registered store for a
+    /// gallery-installed plugin to ever see an update: community files are
+    /// immutable per version (no updateURL), so the per-plugin update path
+    /// compares against registered catalogs. Registered hidden — browsing
+    /// stays in the Community pane. Returns the store's display name for
+    /// recording as the install origin (nil when unreachable).
+    func ensureCommunityStore() async -> String? {
+        if let existing = stores.first(where: { $0.url == Self.communityCatalogURL }) {
+            return existing.displayName
+        }
+        guard await addStore(urlString: Self.communityCatalogURL, hidden: true) else { return nil }
+        return stores.first(where: { $0.url == Self.communityCatalogURL })?.displayName
     }
 
     func removeStore(_ id: String) {
