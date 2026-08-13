@@ -27,6 +27,9 @@ public sealed class CommunityGalleryView : Grid
 
     private readonly WrapPanel tiles = new() { Margin = new Thickness(4) };
     private readonly TextBox search = new() { Width = 200 };
+    private TextBlock accountText = null!;
+    private Button signIn = null!;
+    private CommunityLogin.Session? loginSession;
     private readonly TextBlock pageLabel = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
     private readonly Button prev;
     private readonly Button next;
@@ -61,12 +64,33 @@ public sealed class CommunityGalleryView : Grid
 
         // --- header: title, sort chips, verified chip, search ---
         var header = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-        header.Children.Add(new TextBlock
+
+        // Title row: heading on the left, account + refresh on the right.
+        var titleRow = new DockPanel { Margin = new Thickness(2, 0, 0, 8) };
+        var accountRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        accountText = new TextBlock
+        {
+            Foreground = (Brush)FindResource("TextSecondary"),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        signIn = new Button { Content = L.T("Sign in…"), Padding = new Thickness(10, 4, 10, 4), Visibility = Visibility.Collapsed };
+        signIn.Click += (_, _) => StartSignIn();
+        var refresh = new Button { Content = "⟳", Padding = new Thickness(9, 4, 9, 4), Margin = new Thickness(8, 0, 0, 0), ToolTip = L.T("Refresh") };
+        refresh.Click += (_, _) => Load(page);
+        accountRow.Children.Add(accountText);
+        accountRow.Children.Add(signIn);
+        accountRow.Children.Add(refresh);
+        DockPanel.SetDock(accountRow, Dock.Right);
+        titleRow.Children.Add(accountRow);
+        titleRow.Children.Add(new TextBlock
         {
             Text = L.T("Community"),
             Style = (Style)FindResource("SectionText"),
-            Margin = new Thickness(2, 0, 0, 8),
+            VerticalAlignment = VerticalAlignment.Center,
         });
+        header.Children.Add(titleRow);
         var controls = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var (value, label) in new[]
         {
@@ -131,7 +155,38 @@ public sealed class CommunityGalleryView : Grid
         Children.Add(paging);
 
         UpdateChips();
-        Loaded += (_, _) => { if (tiles.Children.Count == 0) Load(1); };
+        Loaded += async (_, _) =>
+        {
+            if (tiles.Children.Count == 0) Load(1);
+            await RefreshAccount();
+        };
+        Unloaded += (_, _) => loginSession?.Cancel();
+    }
+
+    /// Shows who's signed in, or offers sign-in. Called on load and after a
+    /// sign-in completes.
+    private async Task RefreshAccount()
+    {
+        var user = await CommunityClient.Me();
+        if (user != null)
+        {
+            accountText.Text = L.T("Signed in as {0}", user.Username);
+            signIn.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            accountText.Text = "";
+            signIn.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void StartSignIn()
+    {
+        signIn.IsEnabled = false;
+        loginSession?.Cancel();   // never race two poll loops
+        loginSession = CommunityLogin.Begin(
+            status => Dispatcher.Invoke(() => { if (status != null) accountText.Text = status; }),
+            _ => Dispatcher.Invoke(async () => { signIn.IsEnabled = true; await RefreshAccount(); }));
     }
 
     private Button Chip(string label, Action? onClick)

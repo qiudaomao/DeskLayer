@@ -586,9 +586,12 @@ public sealed class ManagerWindow : Window
                 }
         }
 
-        // One category per store, mac StoreSection-style.
+        // One category per store, mac StoreSection-style. The community store
+        // is browsed through the dedicated Community pane, so it isn't also
+        // listed here as a category (avoids two ways in for the same thing).
         foreach (var entry in storeRegistry.Stores)
         {
+            if (entry.Url == DeskLayer.Core.Community.CommunityClient.CatalogUrl) continue;
             var url = entry.Url;
             var key = "store:" + url;
             var refresh = IconButton("", L.T("Refresh {0}", entry.DisplayName),

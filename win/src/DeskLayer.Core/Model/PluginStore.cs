@@ -86,9 +86,6 @@ public sealed record PresetStore(string Name, string Url, IReadOnlyList<string> 
     {
         new PresetStore(L.T("Official Store"), $"{Raw}/official/catalog.json", new[] { $"{Cdn}/official/catalog.json" }),
         new PresetStore(L.T("Sample Store"), $"{Raw}/samples/catalog.json", new[] { $"{Cdn}/samples/catalog.json" }),
-        // User-published plugins with forum comments and cheers behind them
-        // (bbs.byteplayer.app accounts; publishing lives in the inspector).
-        new PresetStore(L.T("Community Store"), Community.CommunityClient.CatalogUrl, Array.Empty<string>()),
     };
 }
 

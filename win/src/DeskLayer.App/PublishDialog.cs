@@ -29,7 +29,7 @@ public sealed class PublishDialog : Window
     private readonly Button viewTopic;
     private readonly string? permissions;
     private string? topicUrl;
-    private System.Threading.CancellationTokenSource? polling;
+    private CommunityLogin.Session? loginSession;
     private readonly Func<Task<byte[]?>> capture;
     private readonly Func<bool> hasInstance;
     private readonly Action addInstance;
@@ -88,7 +88,7 @@ public sealed class PublishDialog : Window
             Visibility = Visibility.Collapsed,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        signIn.Click += async (_, _) => await SignIn();
+        signIn.Click += (_, _) => SignIn();
         var accountRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
         accountRow.Children.Add(accountText);
         accountRow.Children.Add(signIn);
@@ -216,7 +216,7 @@ public sealed class PublishDialog : Window
             }
             await account;
         };
-        Closed += (_, _) => polling?.Cancel();
+        Closed += (_, _) => loginSession?.Cancel();
     }
 
     private async Task RefreshAccount()
@@ -236,45 +236,13 @@ public sealed class PublishDialog : Window
         }
     }
 
-    private async Task SignIn()
+    private void SignIn()
     {
         signIn.IsEnabled = false;
-        Show(L.T("Waiting for the browser sign-in…"));
-        var login = await CommunityClient.BeginLogin();
-        if (login == null)
-        {
-            Show(L.T("Couldn't reach the store."));
-            signIn.IsEnabled = true;
-            return;
-        }
-        Process.Start(new ProcessStartInfo(login.LoginUrl) { UseShellExecute = true });
-
-        polling?.Cancel();
-        polling = new System.Threading.CancellationTokenSource();
-        var cancel = polling.Token;
-        var deadline = DateTime.UtcNow.AddSeconds(login.ExpiresInSeconds);
-        while (!cancel.IsCancellationRequested && DateTime.UtcNow < deadline)
-        {
-            try { await Task.Delay(2000, cancel); } catch (TaskCanceledException) { return; }
-            var poll = await CommunityClient.PollToken(login);
-            if (poll.Pending) continue;
-            if (poll.Token is { } token)
-            {
-                CommunityClient.Token = token;
-                Show(null);
-                signIn.IsEnabled = true;
-                await RefreshAccount();
-                return;
-            }
-            Show(poll.Error ?? L.T("Sign-in expired — try again."));
-            signIn.IsEnabled = true;
-            return;
-        }
-        if (!cancel.IsCancellationRequested)
-        {
-            Show(L.T("Sign-in expired — try again."));
-            signIn.IsEnabled = true;
-        }
+        loginSession?.Cancel();   // never race two poll loops
+        loginSession = CommunityLogin.Begin(
+            status => Dispatcher.Invoke(() => Show(status)),
+            _ => Dispatcher.Invoke(async () => { signIn.IsEnabled = true; await RefreshAccount(); }));
     }
 
     private async Task PublishNow()

@@ -183,6 +183,10 @@
     "zh-Hans": "无法加载评论。",
     "ja": "コメントを読み込めませんでした。"
   },
+  "Couldn't open the browser.": {
+    "zh-Hans": "无法打开浏览器。",
+    "ja": "ブラウザを開けませんでした。"
+  },
   "Couldn't reach the community store.": {
     "zh-Hans": "无法连接社区商店。",
     "ja": "コミュニティストアに接続できませんでした。"
@@ -638,6 +642,10 @@
   "Sign in with the forum…": {
     "zh-Hans": "使用论坛账号登录…",
     "ja": "フォーラムアカウントでサインイン…"
+  },
+  "Sign in…": {
+    "zh-Hans": "登录…",
+    "ja": "サインイン…"
   },
   "Sign-in expired — try again.": {
     "zh-Hans": "登录已超时，请重试。",

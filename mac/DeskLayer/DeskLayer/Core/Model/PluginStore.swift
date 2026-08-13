@@ -202,10 +202,9 @@ nonisolated struct PresetStore: Identifiable, Hashable {
         PresetStore(name: String(localized: "Sample Store"),
                     url: "\(raw)/samples/catalog.json",
                     mirrors: ["\(cdn)/samples/catalog.json"]),
-        // Community-published plugins, backed by the forum: one account
-        // covers comments, cheers, and in-app publishing.
-        PresetStore(name: String(localized: "Community Store"),
-                    url: "https://store.byteplayer.app/catalog.json"),
+        // No community preset: the sidebar's Community pane browses, installs,
+        // cheers and comments directly, so "add the community store" would be
+        // a redundant second door. Anyone who added it earlier keeps it.
     ]
 }
 
