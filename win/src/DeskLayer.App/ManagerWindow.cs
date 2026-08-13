@@ -107,27 +107,12 @@ public sealed class ManagerWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         }), 2));
 
-        // Theme toggle, floated over the center card's top-right corner.
-        var themeToggle = new Button
-        {
-            Content = dark ? "☀" : "☾",
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 24, 330, 0),
-            Padding = new Thickness(8, 4, 8, 4),
-            ToolTip = dark ? L.T("Switch to light theme") : L.T("Switch to dark theme"),
-        };
-        themeToggle.Click += (_, _) =>
-        {
-            PreferDark = !dark;
-            var reopen = reopenToggled;
-            Close();
-            reopen?.Invoke();
-        };
-        var root = new Grid();
-        root.Children.Add(grid);
-        root.Children.Add(themeToggle);
-        Content = root;
+        // No manual theme toggle: the Manager follows the Windows light/dark
+        // setting (Theme.SystemPrefersDark, read on open). It used to float a
+        // toggle over the centre card's top-right corner, which collided with
+        // the Community pane's refresh button — and an app that tracks the
+        // system theme doesn't need it.
+        Content = grid;
 
         store.OnChange += RefreshFromStore;
         registry.DidChange += RegistryChanged;
