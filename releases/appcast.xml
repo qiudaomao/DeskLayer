@@ -3,6 +3,51 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.2.3</title>
+            <pubDate>Thu, 13 Aug 2026 17:22:11 +0800</pubDate>
+            <sparkle:version>16</sparkle:version>
+            <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>Fixed</h2>
+<ul>
+<li><b>Community plugins can update again.</b> Plugins installed from the Community view now carry a proper update source; new versions are offered as they're published. Plugins installed before this fix heal the next time you open the Community view.</li>
+</ul>
+<h2>Improved</h2>
+<ul>
+<li><b>Your name on what you publish</b> — plugins published while signed in are attributed to your forum account in the plugin's own details, not just the store page.</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>修复</h2>
+<ul>
+<li><b>社区插件可以再次更新。</b>从社区视图安装的插件现在具有正确的更新来源；新版本发布后会提供更新。此前安装的插件会在下次打开社区视图时自动修复。</li>
+</ul>
+<h2>改进</h2>
+<ul>
+<li><b>发布内容署你的名字</b>——登录后发布的插件，其详情中也会以你的论坛账号署名，而不仅是商店页面。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>修正</h2>
+<ul>
+<li><b>コミュニティプラグインが再び更新できるようになりました。</b>コミュニティビューからインストールしたプラグインは正しい更新元を持ち、新バージョンの公開時に更新が提供されます。修正前のものは、次にコミュニティビューを開いたときに自動的に修復されます。</li>
+</ul>
+<h2>改善</h2>
+<ul>
+<li><b>公開物にあなたの名前</b> — サインイン中に公開したプラグインは、ストアページだけでなくプラグイン自体の詳細でも、あなたのフォーラムアカウントの名義になります。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer-1.2.3.dmg" length="4483731" type="application/octet-stream" sparkle:edSignature="UibK5A+zKn6lqcmvmjTSabIVITeoEJrVxKVcyyZChEs7AxflL1jAx4h+pJLY3aorgwjT6i/YYkxXsCGJlb3fAg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer16-15.delta" sparkle:deltaFrom="15" length="206814" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="2biy+FY04N+rXBSxcJaV6Q31j4vjVa1gQCv5Lej8ppQOTv6pWrNws4dMnQkObX2eO9VwjyuSBTWhj+YlsICYBQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer16-14.delta" sparkle:deltaFrom="14" length="265166" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="/sRSrV6RjxCWwba4ETmkzLlluzXZlKCUnHxfZZTXulaobnKqVvshPC4hYdzu4GT+3HOBAGJQ6Pd12aGfhBI/Dg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer16-13.delta" sparkle:deltaFrom="13" length="263182" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="KTUJmIUWG8bwaklwSAMP6WYjHs/yDVSZ70b43svFDH7vZOZfho2iPioohq1YE04fXt9H++zCz91+Z3dezrWFCg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer16-11.delta" sparkle:deltaFrom="11" length="550190" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3FQKr7kAConnkZ+nTJLL1WVRzRd4cWD5N1tfJdbR1FDy53Fx0ppDjGE8HvA4SlPv0KzZvJ6RIUSRnGrTOtcuDQ=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer16-10.delta" sparkle:deltaFrom="10" length="553470" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ZEIl8eHPJsQKbTGK31hWwr9+u0Yg3kTThh9j1ZaH5j6IKX9O+nzlbCukMjbozZSmOJFBrJ0kXaRwt833AvW5AQ=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.2.2</title>
             <pubDate>Thu, 13 Aug 2026 13:24:55 +0800</pubDate>
             <sparkle:version>15</sparkle:version>
@@ -75,48 +120,6 @@
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-10.delta" sparkle:deltaFrom="10" length="529962" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="JtiraSEssrcZV4TCQ2c2CaB+C0UOZwYbXZC+I3Vsbqpdxgqks+FlCOA7CPV8nq1JRELnHdqNKKiZWiQ68ST+Dg=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-9.delta" sparkle:deltaFrom="9" length="593546" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="CfwhvhF+j7zX7aYPw5sgTR6xdlAFpKXEMdEdLQYcIAzhJ0RHrTTmO4YKW5ItfAA976nWoU3F+GK9gFpnKFuXBg=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-8.delta" sparkle:deltaFrom="8" length="600134" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Gakf0H8+d5LjCF66vwA+0sc+hiLkIbH0w+CXc5G6ckTOBLrbhCbzlRPDpkq5xg7A2mGu8kNA9k9Ho6cGZsA3DA=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.2.0</title>
-            <pubDate>Thu, 13 Aug 2026 09:42:32 +0800</pubDate>
-            <sparkle:version>13</sparkle:version>
-            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
-            <description><![CDATA[
-<h2>The DeskLayer Community</h2>
-<ul>
-<li><b>Community</b> in the sidebar — browse every published plugin in a paged gallery, sorted by cheers, downloads, or newest, with search and a verified-only filter.</li>
-<li><b>Cheer and comment in-app.</b> Sign in with your forum account to like a plugin and join its discussion without leaving DeskLayer; every cheer and comment is a real post on the forum.</li>
-<li><b>Share to Community…</b> publishes with a real preview captured from the running plugin — just the plugin, never your desktop.</li>
-</ul>
-<p>Browsing and installing need no account.</p>
-            ]]></description>
-            <description xml:lang="zh-Hans"><![CDATA[
-<h2>DeskLayer 社区</h2>
-<ul>
-<li>边栏新增<b>“社区”</b>——在分页图库中浏览所有已发布的插件，可按点赞、下载或最新排序，并支持搜索与“仅已验证”筛选。</li>
-<li><b>在应用内点赞和评论。</b>用论坛账号登录后，无需离开 DeskLayer 即可为插件点赞并参与讨论；每次点赞和评论都是论坛上的真实内容。</li>
-<li><b>“分享到社区…”</b>发布时会截取运行中插件的真实预览图——只含插件本身，绝不包含你的桌面。</li>
-</ul>
-<p>浏览与安装无需账号。</p>
-            ]]></description>
-            <description xml:lang="ja"><![CDATA[
-<h2>DeskLayer コミュニティ</h2>
-<ul>
-<li>サイドバーに<b>「コミュニティ」</b>を追加 — 公開されたすべてのプラグインをページ送りのギャラリーで閲覧できます。応援・ダウンロード・新着で並べ替え、検索と「確認済みのみ」フィルターにも対応。</li>
-<li><b>アプリ内で応援・コメント。</b>フォーラムアカウントでサインインすれば、DeskLayer を離れずにプラグインを応援し議論に参加できます。応援もコメントもフォーラム上の実際の投稿です。</li>
-<li><b>「コミュニティに公開…」</b>は実行中のプラグインから本物のプレビューをキャプチャして公開します — プラグインだけで、デスクトップは含まれません。</li>
-</ul>
-<p>閲覧とインストールにアカウントは不要です。</p>
-            ]]></description>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer-1.2.0.dmg" length="4476092" type="application/octet-stream" sparkle:edSignature="dY/asEnpoGJyAyCgcbnlT1lSJWZ6yMZsk+8mF6QmaTGmw25iaKBs1L+slnHB70xi56pMU+CSChZ4sqkOcsElDg=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-12.delta" sparkle:deltaFrom="12" length="417906" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="08UG55bbsXliAEuP8Q5gXiQmIYQVKqX6kl1hh6he3P8D4r78Rb0jGfAJvAs1D2BOv31YLxodXGXuhR1y5ng6DQ=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-11.delta" sparkle:deltaFrom="11" length="524658" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="tBvg6mKG49EXXRMKRD6t9p2ozXzV7I7b0GRpwfD1nH6Qdg0kk6300+/FWw/3tXXiYDo4zsNJiRJAW449jYZQBw=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-10.delta" sparkle:deltaFrom="10" length="527634" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="IZaOzxABtyQ0wdoPoOYMukDtDOtPEI27K/cNvGjPa6pnhfMxLT1Mx7YNpu2x3nYuranrjctMobByE+Ixv3B2Dw=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-9.delta" sparkle:deltaFrom="9" length="591246" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="aAMXEPpEMFRa+5ZqPIzRPlIhowizoY3/ZXCq9S47Jum8hJRxYImJNXIjRb/3as8V6S0dr7NC2z4J8RZ5UjF2Cw=="/>
-                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-8.delta" sparkle:deltaFrom="8" length="598530" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="LvFlgxdEUmhzYg6iPARzAj6oJB4xVnZHZBUEHG6Ji4XekTkYFc0E+3HRczGg+pumkg3N2kxkUPE5kx3hAs6MAA=="/>
             </sparkle:deltas>
         </item>
         <item>
