@@ -260,6 +260,29 @@ internal static class Program
             catch (Exception ex) { Log($"update loop failed to start: {ex.Message}"); }
         }
 
+        // Debug: DESKLAYER_DUMP_PREVIEW=<pluginId>:<path> exercises the real
+        // CapturePreviewPng (GPU readback / panel render) and writes the PNG,
+        // so the preview can be inspected without signing in and publishing.
+        if (Environment.GetEnvironmentVariable("DESKLAYER_DUMP_PREVIEW") is { Length: > 0 } previewSpec
+            && previewSpec.IndexOf(':') is > 0 and var colon)
+        {
+            var pid = previewSpec[..colon];
+            var previewPath = previewSpec[(colon + 1)..];
+            var previewTimer = new System.Windows.Forms.Timer { Interval = 6000 };
+            previewTimer.Tick += async (_, _) =>
+            {
+                previewTimer.Stop();
+                try
+                {
+                    var png = await engine.CapturePreviewPng(pid);
+                    if (png != null) { File.WriteAllBytes(previewPath, png); Log($"preview dump: {png.Length} bytes -> {previewPath}"); }
+                    else Log($"preview dump: nothing renderable for {pid}");
+                }
+                catch (Exception ex) { Log($"preview dump failed: {ex}"); }
+            };
+            previewTimer.Start();
+        }
+
         // Test hook: graceful auto-exit after N seconds (verifies the
         // wallpaper-restore path without a UI click).
         if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_EXIT_AFTER"), out var exitAfter) && exitAfter > 0)

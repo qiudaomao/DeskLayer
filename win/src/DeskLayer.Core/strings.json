@@ -155,6 +155,18 @@
     "zh-Hans": "关闭",
     "ja": "閉じる"
   },
+  "Commenting as {0}": {
+    "zh-Hans": "以 {0} 评论",
+    "ja": "{0} としてコメント"
+  },
+  "Comments": {
+    "zh-Hans": "评论",
+    "ja": "コメント"
+  },
+  "Comments are limited to 4000 characters.": {
+    "zh-Hans": "评论最多 4000 字。",
+    "ja": "コメントは4000文字までです。"
+  },
   "Community": {
     "zh-Hans": "社区",
     "ja": "コミュニティ"
@@ -166,6 +178,14 @@
   "Couldn't capture this plugin — it will publish without a preview.": {
     "zh-Hans": "无法截取该插件——将不带预览图发布。",
     "ja": "このプラグインをキャプチャできませんでした。プレビューなしで公開されます。"
+  },
+  "Couldn't load comments.": {
+    "zh-Hans": "无法加载评论。",
+    "ja": "コメントを読み込めませんでした。"
+  },
+  "Couldn't reach the community store.": {
+    "zh-Hans": "无法连接社区商店。",
+    "ja": "コミュニティストアに接続できませんでした。"
   },
   "Couldn't reach the store.": {
     "zh-Hans": "无法连接商店。",
@@ -303,6 +323,10 @@
     "zh-Hans": "已将上一版本保留为 {0}.js.bak",
     "ja": "以前のバージョンを {0}.js.bak として保存しました"
   },
+  "Latest": {
+    "zh-Hans": "最新",
+    "ja": "新着順"
+  },
   "Limits": {
     "zh-Hans": "尺寸限制",
     "ja": "サイズ制限"
@@ -327,6 +351,10 @@
     "zh-Hans": "模型",
     "ja": "モデル"
   },
+  "Most Downloaded": {
+    "zh-Hans": "下载最多",
+    "ja": "ダウンロードが多い順"
+  },
   "Name": {
     "zh-Hans": "名称",
     "ja": "名前"
@@ -335,9 +363,17 @@
     "zh-Hans": "名称与版本为必填。",
     "ja": "名前とバージョンは必須です。"
   },
+  "Next": {
+    "zh-Hans": "下一页",
+    "ja": "次へ"
+  },
   "No Selection": {
     "zh-Hans": "未选择",
     "ja": "選択なし"
+  },
+  "No comments yet — be the first.": {
+    "zh-Hans": "还没有评论——来抢沙发。",
+    "ja": "まだコメントはありません。最初のひとりになりましょう。"
   },
   "No hosts found in ~/.ssh/config.": {
     "zh-Hans": "在 ~/.ssh/config 中未找到主机。",
@@ -350,6 +386,10 @@
   "No plugin was written.": {
     "zh-Hans": "没有写出任何插件。",
     "ja": "プラグインは書き出されませんでした。"
+  },
+  "No plugins match.": {
+    "zh-Hans": "没有匹配的插件。",
+    "ja": "一致するプラグインはありません。"
   },
   "No plugins yet.\nUse + below to add a store.": {
     "zh-Hans": "还没有插件。\n用下方的 + 添加插件商店。",
@@ -379,9 +419,17 @@
     "zh-Hans": "开启：点击穿透到下层窗口。关闭：窗口接收鼠标事件，可拖动。",
     "ja": "オン：クリックは下のウインドウに透過します。オフ：ウインドウがマウス操作を受け取り、ドラッグできます。"
   },
+  "Open in Forum": {
+    "zh-Hans": "在论坛中打开",
+    "ja": "フォーラムで開く"
+  },
   "Open plugins folder": {
     "zh-Hans": "打开插件文件夹",
     "ja": "プラグインフォルダを開く"
+  },
+  "Page {0} of {1}": {
+    "zh-Hans": "第 {0} / {1} 页",
+    "ja": "{0} / {1} ページ"
   },
   "Permissions": {
     "zh-Hans": "权限",
@@ -422,6 +470,10 @@
   "Preview": {
     "zh-Hans": "预览",
     "ja": "プレビュー"
+  },
+  "Previous": {
+    "zh-Hans": "上一页",
+    "ja": "前へ"
   },
   "Properties": {
     "zh-Hans": "属性",
@@ -539,6 +591,10 @@
     "zh-Hans": "请在桌面上选择一个项目，或在侧栏中选择插件。",
     "ja": "デスクトップの項目、またはサイドバーのプラグインを選択してください。"
   },
+  "Send": {
+    "zh-Hans": "发送",
+    "ja": "送信"
+  },
   "Set the base URL and model first.": {
     "zh-Hans": "请先设置接口地址和模型。",
     "ja": "先にベース URL とモデルを設定してください。"
@@ -570,6 +626,14 @@
   "Sign in first.": {
     "zh-Hans": "请先登录。",
     "ja": "先にサインインしてください。"
+  },
+  "Sign in from Share to Community… to cheer.": {
+    "zh-Hans": "请从“分享到社区…”登录后再点赞。",
+    "ja": "応援するには「コミュニティに公開…」からサインインしてください。"
+  },
+  "Sign in from Share to Community… to comment.": {
+    "zh-Hans": "请从“分享到社区…”登录后再评论。",
+    "ja": "コメントするには「コミュニティに公開…」からサインインしてください。"
   },
   "Sign in with the forum…": {
     "zh-Hans": "使用论坛账号登录…",
@@ -627,6 +691,10 @@
     "zh-Hans": "文件也会一并重命名，桌面上的项目会自动跟随。",
     "ja": "ファイル名も変わります。デスクトップ上の項目もそのまま追従します。"
   },
+  "The forum is unreachable right now — try again shortly.": {
+    "zh-Hans": "暂时无法连接论坛，请稍后再试。",
+    "ja": "現在フォーラムに接続できません。しばらくしてからお試しください。"
+  },
   "The generated plugin isn't valid.": {
     "zh-Hans": "生成的插件校验未通过。",
     "ja": "生成されたプラグインは有効ではありません。"
@@ -654,6 +722,14 @@
   "This plugin declares a fixed size (resizable: false).": {
     "zh-Hans": "此插件声明了固定尺寸（resizable: false）。",
     "ja": "このプラグインは固定サイズを宣言しています（resizable: false）。"
+  },
+  "This plugin has no discussion topic yet.": {
+    "zh-Hans": "该插件还没有讨论主题。",
+    "ja": "このプラグインにはまだ議論トピックがありません。"
+  },
+  "Top Cheered": {
+    "zh-Hans": "最受欢迎",
+    "ja": "応援が多い順"
   },
   "Type a model name instead": {
     "zh-Hans": "手动输入模型名称",
@@ -727,6 +803,10 @@
     "zh-Hans": "官方已验证",
     "ja": "スタッフ確認済み"
   },
+  "Verified only": {
+    "zh-Hans": "仅已验证",
+    "ja": "確認済みのみ"
+  },
   "Version": {
     "zh-Hans": "版本",
     "ja": "バージョン"
@@ -759,6 +839,10 @@
     "zh-Hans": "宽度跟随插件内容。",
     "ja": "幅はプラグインの内容に追従します。"
   },
+  "Write something first.": {
+    "zh-Hans": "请先输入内容。",
+    "ja": "先に内容を入力してください。"
+  },
   "Writing {0}…": {
     "zh-Hans": "正在写入 {0}…",
     "ja": "{0} を書き込み中…"
@@ -770,6 +854,10 @@
   "Y (from top)": {
     "zh-Hans": "Y（自上）",
     "ja": "Y（上から）"
+  },
+  "You can't cheer your own plugin.": {
+    "zh-Hans": "不能给自己的插件点赞。",
+    "ja": "自分のプラグインには応援できません。"
   },
   "Your session expired — sign in again.": {
     "zh-Hans": "登录已过期，请重新登录。",
@@ -790,6 +878,10 @@
   "auto-sizes": {
     "zh-Hans": "自动调整大小",
     "ja": "自動サイズ"
+  },
+  "by {0}": {
+    "zh-Hans": "作者：{0}",
+    "ja": "作者：{0}"
   },
   "fixed size": {
     "zh-Hans": "固定尺寸",

@@ -38,6 +38,11 @@ public sealed class ManagerWindow : Window
     private readonly StackPanel sidebarPanel = new();
     private readonly ContextMenu plusMenu = new();
     private readonly Canvas overview = new() { ClipToBounds = true };
+    /// The centre column swaps between the desktop overview and the community
+    /// gallery; this holds whichever is showing.
+    private readonly ContentControl centerHost = new();
+    private UIElement? overviewCard;
+    private bool showingGallery;
     private readonly StackPanel inspector = new() { Margin = new Thickness(14) };
 
     // One selection across the whole window; the inspector shows whichever
@@ -93,7 +98,9 @@ public sealed class ManagerWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
         grid.Children.Add(Place(BuildSidebar(), 0));
-        grid.Children.Add(Place(BuildOverview(), 1));
+        overviewCard = BuildOverview();
+        centerHost.Content = overviewCard;
+        grid.Children.Add(Place(centerHost, 1));
         grid.Children.Add(Place(Card(new ScrollViewer
         {
             Content = inspector,
@@ -167,6 +174,8 @@ public sealed class ManagerWindow : Window
                              && spSel.Split("::") is { Length: 2 } parts
                              && storeRegistry.Stores.FirstOrDefault(s => s.DisplayName == parts[0]) is { } spEntry)
                         SelectStorePlugin(spEntry.Url, parts[1]);
+                    else if (Environment.GetEnvironmentVariable("DESKLAYER_SHOW_GALLERY") == "1")
+                        ShowGallery();
                     UpdateLayout();
                     DumpToPng(dump);
                     if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_DUMP_AFTER"), out var seconds) && seconds > 0)
@@ -314,6 +323,7 @@ public sealed class ManagerWindow : Window
 
     private void SelectItem(Guid id)
     {
+        ExitGallery();
         selectedItemId = id;
         selectedPluginId = null;
         selectedStoreUrl = null;
@@ -325,6 +335,7 @@ public sealed class ManagerWindow : Window
 
     private void SelectPlugin(string id)
     {
+        ExitGallery();
         selectedItemId = null;
         selectedPluginId = id;
         selectedStoreUrl = null;
@@ -336,6 +347,7 @@ public sealed class ManagerWindow : Window
 
     private void SelectStore(string url)
     {
+        ExitGallery();
         selectedItemId = null;
         selectedPluginId = null;
         selectedStoreUrl = url;
@@ -346,6 +358,7 @@ public sealed class ManagerWindow : Window
 
     private void SelectStorePlugin(string storeUrl, string name)
     {
+        ExitGallery();
         selectedItemId = null;
         selectedPluginId = null;
         selectedStoreUrl = null;
@@ -493,9 +506,68 @@ public sealed class ManagerWindow : Window
         menu.Items.Add(addStore);
     }
 
+    /// The sidebar row that opens the community gallery in the centre column.
+    private UIElement CommunityEntry()
+    {
+        var row = new Border
+        {
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 0, 0, 6),
+            Background = showingGallery ? (Brush)FindResource("Accent") : Brushes.Transparent,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Child = new TextBlock
+            {
+                Text = "✦  " + L.T("Community"),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = showingGallery ? Brushes.White : (Brush)FindResource("TextPrimary"),
+            },
+        };
+        row.MouseLeftButtonUp += (_, _) => ShowGallery();
+        return row;
+    }
+
+    private void ShowGallery()
+    {
+        if (showingGallery) return;
+        showingGallery = true;
+        centerHost.Content = new CommunityGalleryView(dark, this, InstallFromGallery, name => registry.Plugin(name) != null);
+        RefreshSidebar();   // repaint the entry as selected
+    }
+
+    /// Leaves the gallery, restoring the desktop overview (called when the
+    /// user selects anything in the library).
+    private void ExitGallery()
+    {
+        if (!showingGallery) return;
+        showingGallery = false;
+        centerHost.Content = overviewCard;
+        RefreshOverview();
+    }
+
+    /// Installs a gallery plugin by adapting it to the store install path.
+    private async Task<string?> InstallFromGallery(DeskLayer.Core.Community.GalleryPlugin plugin)
+    {
+        var storePlugin = new StorePlugin
+        {
+            Name = plugin.Name,
+            Description = plugin.Description,
+            Url = plugin.Url,
+            Version = plugin.Version,
+            Author = plugin.Author,
+        };
+        var error = await storeRegistry.Install(storePlugin, L.T("Community"), PluginRegistry.PluginsDirectory);
+        registry.Rescan();
+        return error;
+    }
+
     private void RefreshSidebar()
     {
         sidebarPanel.Children.Clear();
+
+        // Community — browse everything published; swaps the centre column
+        // for the gallery (mac parity: a sidebar entry, not a store category).
+        sidebarPanel.Children.Add(CommunityEntry());
 
         // Installed — everything on disk, whichever store it came from.
         if (registry.Plugins.Count > 0)
