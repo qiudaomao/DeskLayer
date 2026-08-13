@@ -43,10 +43,14 @@ public sealed class CommunityGalleryView : Grid
     private System.Windows.Threading.DispatcherTimer? searchDebounce;
     private int loadToken;
 
+    private readonly Action<bool> refreshStores;
+
     public CommunityGalleryView(bool dark, Window owner,
                                 Func<GalleryPlugin, Task<string?>> install,
-                                Func<string, bool> isInstalled)
+                                Func<string, bool> isInstalled,
+                                Action<bool>? refreshStoreCatalogs = null)
     {
+        refreshStores = force => refreshStoreCatalogs?.Invoke(force);
         this.dark = dark;
         this.owner = owner;
         this.install = install;
@@ -78,7 +82,7 @@ public sealed class CommunityGalleryView : Grid
         signIn = new Button { Content = L.T("Sign in…"), Padding = new Thickness(10, 4, 10, 4), Visibility = Visibility.Collapsed };
         signIn.Click += (_, _) => StartSignIn();
         var refresh = new Button { Content = "⟳", Padding = new Thickness(9, 4, 9, 4), Margin = new Thickness(8, 0, 0, 0), ToolTip = L.T("Refresh") };
-        refresh.Click += (_, _) => Load(page);
+        refresh.Click += (_, _) => { Load(page); refreshStores(true); };
         accountRow.Children.Add(accountText);
         accountRow.Children.Add(signIn);
         accountRow.Children.Add(refresh);
@@ -158,6 +162,10 @@ public sealed class CommunityGalleryView : Grid
         Loaded += async (_, _) =>
         {
             if (tiles.Children.Count == 0) Load(1);
+            // Keep the registered community catalog fresh too — the
+            // inspector's update check compares against it (stale-only, so
+            // this is free when the 24h cache still holds).
+            refreshStores(false);
             await RefreshAccount();
         };
         Unloaded += (_, _) => loginSession?.Cancel();
@@ -245,7 +253,6 @@ public sealed class CommunityGalleryView : Grid
         var card = new Border
         {
             Width = 220,
-            Margin = new Thickness(6),
             CornerRadius = new CornerRadius(8),
             Background = (Brush)FindResource("CardBg"),
             BorderBrush = (Brush)FindResource("CardBorder"),
@@ -309,8 +316,27 @@ public sealed class CommunityGalleryView : Grid
         stack.Children.Add(body);
         card.Child = stack;
 
-        card.MouseLeftButtonUp += (_, _) => OpenDetail(plugin);
-        return card;
+        // A real Button, presented as the card: reachable by keyboard, screen
+        // readers, and UI automation — a Border with a mouse handler is none
+        // of those. The template IS the card, so nothing changes visually.
+        // The template must be complete before it is assigned: WPF seals a
+        // template on assignment, and mutating VisualTree afterwards throws.
+        var template = new ControlTemplate(typeof(Button))
+        {
+            VisualTree = new FrameworkElementFactory(typeof(ContentPresenter)),
+        };
+        var tile = new Button
+        {
+            Margin = new Thickness(6),
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Template = template,
+            Content = card,
+        };
+        System.Windows.Automation.AutomationProperties.SetName(tile, plugin.Name);
+        tile.Click += (_, _) => OpenDetail(plugin);
+        return tile;
     }
 
     /// Loads a remote image without blocking, cached, tolerant of failure

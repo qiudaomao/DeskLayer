@@ -516,7 +516,9 @@ public sealed class ManagerWindow : Window
     {
         if (showingGallery) return;
         showingGallery = true;
-        centerHost.Content = new CommunityGalleryView(dark, this, InstallFromGallery, name => registry.Plugin(name) != null);
+        centerHost.Content = new CommunityGalleryView(dark, this, InstallFromGallery,
+            name => registry.Plugin(name) != null,
+            refreshStoreCatalogs: force => _ = storeRegistry.RefreshAll(force));
         RefreshSidebar();   // repaint the entry as selected
     }
 
@@ -531,8 +533,20 @@ public sealed class ManagerWindow : Window
     }
 
     /// Installs a gallery plugin by adapting it to the store install path.
+    ///
+    /// The community store entry is registered first (hidden from the sidebar
+    /// — browsing lives in the pane) and the recorded origin is that entry's
+    /// display name. Both matter for updates: StoreSourceFor finds a plugin's
+    /// update source by scanning registered stores' catalogs and matching the
+    /// origin, so a gallery install without the entry had no update path at
+    /// all ("No update URL declared").
     private async Task<string?> InstallFromGallery(DeskLayer.Core.Community.GalleryPlugin plugin)
     {
+        var communityUrl = DeskLayer.Core.Community.CommunityClient.CatalogUrl;
+        if (storeRegistry.Stores.All(s => s.Url != communityUrl))
+            await storeRegistry.AddStore(communityUrl);
+        var entry = storeRegistry.Stores.FirstOrDefault(s => s.Url == communityUrl);
+
         var storePlugin = new StorePlugin
         {
             Name = plugin.Name,
@@ -541,7 +555,8 @@ public sealed class ManagerWindow : Window
             Version = plugin.Version,
             Author = plugin.Author,
         };
-        var error = await storeRegistry.Install(storePlugin, L.T("Community"), PluginRegistry.PluginsDirectory);
+        var error = await storeRegistry.Install(storePlugin,
+            entry?.DisplayName ?? "DeskLayer Community", PluginRegistry.PluginsDirectory);
         registry.Rescan();
         return error;
     }
