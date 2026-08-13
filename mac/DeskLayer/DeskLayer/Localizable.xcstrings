@@ -402,6 +402,22 @@
         }
       }
     },
+    "Add to Desktop": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップに追加"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加到桌面"
+          }
+        }
+      }
+    },
     "Agent": {
       "localizations": {
         "ja": {
@@ -4130,6 +4146,54 @@
         }
       }
     },
+    "auto height": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高さ自動"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动高度"
+          }
+        }
+      }
+    },
+    "auto width": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "幅自動"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动宽度"
+          }
+        }
+      }
+    },
+    "auto-sizes": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動サイズ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动调整大小"
+          }
+        }
+      }
+    },
     "failed to start (see log)": {
       "localizations": {
         "ja": {
@@ -4146,6 +4210,38 @@
         }
       }
     },
+    "fixed size": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定サイズ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定尺寸"
+          }
+        }
+      }
+    },
+    "free": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自由"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自由"
+          }
+        }
+      }
+    },
     "https://example.com/plugins.json": {
       "localizations": {
         "ja": {
@@ -4158,6 +4254,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "https://example.com/plugins.json"
+          }
+        }
+      }
+    },
+    "keeps aspect": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦横比を維持"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持比例"
           }
         }
       }

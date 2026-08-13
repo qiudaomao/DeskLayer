@@ -476,6 +476,7 @@ private struct PluginDetailView: View {
     let pluginID: String
     @EnvironmentObject private var registry: PluginRegistry
     @EnvironmentObject private var store: LayoutStore
+    @EnvironmentObject private var screens: ScreenManager
     @EnvironmentObject private var selection: ManagerSelection
     @State private var confirmUninstall = false
     @State private var isRenaming = false
@@ -533,6 +534,22 @@ private struct PluginDetailView: View {
                     LabeledContent(property.name, value: property.value.stringValue)
                         .font(.caption)
                 }
+            }
+
+            // Place a copy on the desktop — the primary action, so it leads
+            // (matches the Windows inspector's "Add to Desktop" button).
+            Section {
+                Button {
+                    PluginLibraryView.addToDesktop(
+                        pluginID, store: store, registry: registry,
+                        screens: screens, selection: selection
+                    )
+                } label: {
+                    Label("Add to Desktop", systemImage: "plus.rectangle.on.rectangle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selection.displayUUID == nil)
             }
 
             Section("Source") {
@@ -642,11 +659,11 @@ private struct PluginDetailView: View {
     }
 
     private func resizeSummary(_ meta: PluginMetadata) -> String {
-        guard meta.resizable else { return "fixed size" }
-        var parts = [meta.keepsAspect ? "keeps aspect" : "free"]
-        if meta.autoSizeWidth && meta.autoSizeHeight { parts.append("auto-sizes") }
-        else if meta.autoSizeHeight { parts.append("auto height") }
-        else if meta.autoSizeWidth { parts.append("auto width") }
+        guard meta.resizable else { return String(localized: "fixed size") }
+        var parts = [meta.keepsAspect ? String(localized: "keeps aspect") : String(localized: "free")]
+        if meta.autoSizeWidth && meta.autoSizeHeight { parts.append(String(localized: "auto-sizes")) }
+        else if meta.autoSizeHeight { parts.append(String(localized: "auto height")) }
+        else if meta.autoSizeWidth { parts.append(String(localized: "auto width")) }
         return parts.joined(separator: ", ")
     }
 
