@@ -5,39 +5,39 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.2.0</title>
-            <pubDate>Thu, 13 Aug 2026 08:40:02 +0800</pubDate>
-            <sparkle:version>1.2.0</sparkle:version>
-            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <title>1.2.1</title>
+            <pubDate>Thu, 13 Aug 2026 10:33:50 +0800</pubDate>
+            <sparkle:version>1.2.1</sparkle:version>
+            <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
             <description><![CDATA[
-<h2>The DeskLayer Community</h2>
+<h2>Community fixes</h2>
 <ul>
-<li><b>Community pane</b> — browse every published plugin in a paged grid, sorted by cheers, downloads, or newest, with search and a verified-only filter. Each plugin opens a page with its preview, comments, and a one-click Install.</li>
-<li><b>Cheer and comment in-app.</b> Sign in with your forum account to like a plugin and join its discussion without leaving DeskLayer — every cheer and comment is a real post on the forum.</li>
-<li><b>Share to Community…</b> on your own plugins: publish with a real preview captured from the running plugin — just the plugin, never your desktop.</li>
+<li><b>Sign-in is more patient.</b> A first-time sign-in — where you register on the forum and confirm your email — no longer times out; DeskLayer waits the full ten minutes and keeps trying.</li>
+<li><b>Sign in and refresh from the Community pane.</b> The pane now shows your account (or a Sign in button) and has a refresh button, so you don't have to go through Share to Community to sign in.</li>
+<li><b>Your name on what you publish.</b> Plugins you publish while signed in are attributed to your forum account everywhere — the store page and the plugin's own details.</li>
+<li>Removed the now-redundant "Community Store" entry from the ＋ menu (the Community pane is the place to browse).</li>
 </ul>
-<p>Browsing and installing need no account. Requires 64-bit Windows 10 (21H2) or later; existing installs from 1.1.7+ update silently.</p>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
-<h2>DeskLayer 社区</h2>
+<h2>社区功能修复</h2>
 <ul>
-<li><b>社区面板</b>——在分页网格中浏览所有已发布的插件，可按点赞、下载或最新排序，并支持搜索与“仅已验证”筛选。点开任意插件即可查看预览图、评论，并一键安装。</li>
-<li><b>在应用内点赞和评论。</b>用论坛账号登录后，无需离开 DeskLayer 即可为插件点赞并参与讨论——每次点赞和评论都是论坛上的真实内容。</li>
-<li>自己的插件支持<b>“分享到社区…”</b>：发布时会截取运行中插件的真实预览图——只含插件本身，绝不包含你的桌面。</li>
+<li><b>登录更有耐心。</b>首次登录（在论坛注册并确认邮箱）不再超时；DeskLayer 会等待整整十分钟并持续重试。</li>
+<li><b>可在社区面板中登录和刷新。</b>面板现在会显示你的账号（或“登录”按钮），并新增刷新按钮，无需再通过“分享到社区”来登录。</li>
+<li><b>发布内容署你的名字。</b>登录后发布的插件会在各处以你的论坛账号署名——商店页面与插件详情。</li>
+<li>移除了 ＋ 菜单中已冗余的“社区商店”入口（浏览请使用社区面板）。</li>
 </ul>
-<p>浏览与安装无需账号。需要 64 位 Windows 10（21H2）或更高版本；1.1.7 及以上的现有安装会静默更新。</p>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
-<h2>DeskLayer コミュニティ</h2>
+<h2>コミュニティ機能の修正</h2>
 <ul>
-<li><b>コミュニティペイン</b> — 公開されたすべてのプラグインをページ送りのグリッドで閲覧できます。応援・ダウンロード・新着で並べ替え、検索と「確認済みのみ」フィルターにも対応。各プラグインを開くと、プレビュー・コメント・ワンクリックのインストールが表示されます。</li>
-<li><b>アプリ内で応援・コメント。</b>フォーラムアカウントでサインインすれば、DeskLayer を離れずにプラグインを応援し議論に参加できます。応援もコメントもフォーラム上の実際の投稿です。</li>
-<li>自作プラグインの<b>「コミュニティに公開…」</b>：実行中のプラグインから本物のプレビューをキャプチャして公開します — プラグインだけで、デスクトップは含まれません。</li>
+<li><b>サインインがより粘り強く。</b>初回サインイン（フォーラム登録とメール確認）でタイムアウトしなくなりました。DeskLayer は 10 分間待ち、再試行を続けます。</li>
+<li><b>コミュニティペインからサインイン・更新。</b>ペインにアカウント（またはサインインボタン）と更新ボタンが表示され、「コミュニティに公開」を経由せずサインインできます。</li>
+<li><b>公開物にあなたの名前。</b>サインイン中に公開したプラグインは、ストアページでもプラグイン詳細でも、あなたのフォーラムアカウントの名義になります。</li>
+<li>＋ メニューから不要になった「コミュニティストア」項目を削除しました（閲覧はコミュニティペインで）。</li>
 </ul>
-<p>閲覧とインストールにアカウントは不要です。64 ビット版 Windows 10（21H2）以降が必要です。1.1.7 以降の既存インストールは自動で更新されます。</p>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer-Setup-1.2.0.exe" length="50557130" type="application/octet-stream" sparkle:edSignature="AT1uac8ekYi01mSJD5vvhCLz9eJt4JR1d0nOvj9fwbKOlBnAVSR7Y4dSSf+DqM/j86EBFCesiR3lBCI3VJxxCQ=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer-Setup-1.2.1.exe" length="50557696" type="application/octet-stream" sparkle:edSignature="h23+U2/iDtnGtG3IkNUzuPAz+Ix2K3ols4x2G+lFIBvtKtT/IDMBWezUINYsM+0OfimpmazVgBgc8lXctJwACA=="/>
         </item>
     </channel>
 </rss>

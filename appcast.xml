@@ -3,6 +3,45 @@
     <channel>
         <title>DeskLayer</title>
         <item>
+            <title>1.2.1</title>
+            <pubDate>Thu, 13 Aug 2026 10:35:57 +0800</pubDate>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+            <description><![CDATA[
+<h2>Community fixes</h2>
+<ul>
+<li><b>Sign-in is more patient.</b> A first-time sign-in — where you register on the forum and confirm your email — no longer times out; DeskLayer waits and keeps trying, and reopening the sign-in no longer cancels it.</li>
+<li><b>Sharper preview thumbnails</b> in the gallery on Retina displays.</li>
+<li>Removed the now-redundant "Community Store" entry from the ＋ menu (the Community view is the place to browse).</li>
+</ul>
+            ]]></description>
+            <description xml:lang="zh-Hans"><![CDATA[
+<h2>社区功能修复</h2>
+<ul>
+<li><b>登录更有耐心。</b>首次登录（在论坛注册并确认邮箱）不再超时；DeskLayer 会持续等待重试，重新打开登录也不会中断它。</li>
+<li>在 Retina 显示屏上，图库中的<b>预览缩略图更清晰</b>。</li>
+<li>移除了 ＋ 菜单中已冗余的“社区商店”入口（浏览请使用社区视图）。</li>
+</ul>
+            ]]></description>
+            <description xml:lang="ja"><![CDATA[
+<h2>コミュニティ機能の修正</h2>
+<ul>
+<li><b>サインインがより粘り強く。</b>初回サインイン（フォーラム登録とメール確認）でタイムアウトしなくなり、待機と再試行を続けます。サインインを開き直してもキャンセルされません。</li>
+<li>Retina ディスプレイで、ギャラリーの<b>プレビューサムネイルがより鮮明に</b>。</li>
+<li>＋ メニューから不要になった「コミュニティストア」項目を削除しました（閲覧はコミュニティビューで）。</li>
+</ul>
+            ]]></description>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer-1.2.1.dmg" length="4475830" type="application/octet-stream" sparkle:edSignature="1OdIEGKqJxq7DudakbUTCbZEbaJtuAj+y6oFJba5xCK9Fsa0O+ReW7WnfEWs4YynH0c3GvmiI2Pu+kjoLt/cAw=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-13.delta" sparkle:deltaFrom="13" length="121570" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="H93VcuT8rxQf4xBgzALa61pkERMcU7+9b7j0Tsg2CKsE8oN343lBcu/ZeaeLV1rMxUiIHxNHijUWDUkBdcc5CA=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-11.delta" sparkle:deltaFrom="11" length="526402" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="3cc2sQWW/LNPDyupQP6/i9L2dKAIve2UJeFDZjTE7OkzUQYt+F0vhalBzms83+H3xdNNGkcUdqLZGLpRXo60DA=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-10.delta" sparkle:deltaFrom="10" length="529962" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="JtiraSEssrcZV4TCQ2c2CaB+C0UOZwYbXZC+I3Vsbqpdxgqks+FlCOA7CPV8nq1JRELnHdqNKKiZWiQ68ST+Dg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-9.delta" sparkle:deltaFrom="9" length="593546" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="CfwhvhF+j7zX7aYPw5sgTR6xdlAFpKXEMdEdLQYcIAzhJ0RHrTTmO4YKW5ItfAA976nWoU3F+GK9gFpnKFuXBg=="/>
+                <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.1/DeskLayer14-8.delta" sparkle:deltaFrom="8" length="600134" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Gakf0H8+d5LjCF66vwA+0sc+hiLkIbH0w+CXc5G6ckTOBLrbhCbzlRPDpkq5xg7A2mGu8kNA9k9Ho6cGZsA3DA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.2.0</title>
             <pubDate>Thu, 13 Aug 2026 09:42:32 +0800</pubDate>
             <sparkle:version>13</sparkle:version>
@@ -35,7 +74,7 @@
 <p>閲覧とインストールにアカウントは不要です。</p>
             ]]></description>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer-1.2.0.dmg" length="4472571" type="application/octet-stream" sparkle:edSignature="mg5RiYHlk7iVdG+v3ZnA25clI7ifSBDlH+AQiKq0S0nMCHYg43eZ2wTB+OniTNrjDRH0HiFIwHf/aamKCkibAw=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer-1.2.0.dmg" length="4476092" type="application/octet-stream" sparkle:edSignature="dY/asEnpoGJyAyCgcbnlT1lSJWZ6yMZsk+8mF6QmaTGmw25iaKBs1L+slnHB70xi56pMU+CSChZ4sqkOcsElDg=="/>
             <sparkle:deltas>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-12.delta" sparkle:deltaFrom="12" length="417906" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="08UG55bbsXliAEuP8Q5gXiQmIYQVKqX6kl1hh6he3P8D4r78Rb0jGfAJvAs1D2BOv31YLxodXGXuhR1y5ng6DQ=="/>
                 <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.0/DeskLayer13-11.delta" sparkle:deltaFrom="11" length="524658" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977840" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="tBvg6mKG49EXXRMKRD6t9p2ozXzV7I7b0GRpwfD1nH6Qdg0kk6300+/FWw/3tXXiYDo4zsNJiRJAW449jYZQBw=="/>
