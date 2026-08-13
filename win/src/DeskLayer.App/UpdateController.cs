@@ -41,6 +41,13 @@ public sealed class UpdateController : IDisposable
             // quit, so an update looked like a crash and never applied unless
             // the user found the window and clicked through it.
             CustomInstallerArguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART",
+            // Name the download from the enclosure URL, not by asking the
+            // server: GitHub's release redirect doesn't answer the filename
+            // probe, so NetSparkle saved the installer as an extensionless
+            // GUID — and cmd cannot execute a file with no extension, so the
+            // install step of the update batch silently did nothing and the
+            // old version relaunched. The URL always ends in the real name.
+            CheckServerFileName = false,
         };
         // NetSparkle explains itself in detail — which is the only way to see
         // why an update did nothing, since every failure reaches the user as
