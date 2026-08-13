@@ -19,6 +19,7 @@ namespace DeskLayer.App;
 public sealed class PublishDialog : Window
 {
     private readonly string source;
+    private DeskLayer.Core.Community.CommunityUser? me;
     private readonly TextBox name;
     private readonly TextBox version;
     private readonly TextBox description;
@@ -222,6 +223,7 @@ public sealed class PublishDialog : Window
     private async Task RefreshAccount()
     {
         var user = await CommunityClient.Me();
+        me = user;
         if (user != null)
         {
             accountText.Text = L.T("Signed in as {0}", user.Username);
@@ -256,10 +258,16 @@ public sealed class PublishDialog : Window
         }
         publish.IsEnabled = false;
         Show(L.T("Publishing…"));
+        // Attribute the plugin to the publisher: the store already sets the
+        // author from the token, and stamping the source makes the copy others
+        // download and inspect agree, instead of showing the template default.
+        var attributed = me is { } signedIn
+            ? DeskLayer.Core.PluginMetadata.StampAuthor(source, signedIn.Username)
+            : source;
         var result = await CommunityClient.Publish(new PublishRequest(
             proposedName, proposedVersion,
             description.Text.Trim().Length == 0 ? null : description.Text.Trim(),
-            source, permissions,
+            attributed, permissions,
             PreviewPngBase64: previewBytes is { Length: > 0 and <= 2 * 1024 * 1024 }
                 ? Convert.ToBase64String(previewBytes) : null,
             ThumbnailPngBase64: previewBytes is { Length: > 0 } && Thumbnail(previewBytes) is { } thumb

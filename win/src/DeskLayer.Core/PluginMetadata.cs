@@ -197,4 +197,29 @@ public static class PluginMetadata
         }
         finally { engine.Dispose(); }
     }
+
+    /// Rewrites the plugin's declared `author` to `author`, so a plugin
+    /// published while signed in carries the publisher's name everywhere it's
+    /// shown — the store already attributes it to them (from the token), and
+    /// this makes the source others download and inspect agree, instead of
+    /// showing whatever default ("DeskLayer") the template left.
+    ///
+    /// Conservative: replaces the value of a single existing string-literal
+    /// `author:` property and leaves the source untouched otherwise (no
+    /// author declared, or more than one — the store attribution still holds).
+    public static string StampAuthor(string source, string author)
+    {
+        if (string.IsNullOrWhiteSpace(author)) return source;
+        // `author:` or `"author":` then a quoted string; captures the quote so
+        // the replacement re-uses it and stays inside the same literal.
+        var pattern = new System.Text.RegularExpressions.Regex(
+            "([\"']?author[\"']?\\s*:\\s*)([\"'])(?:\\\\.|(?!\\2).)*\\2");
+        var matches = pattern.Matches(source);
+        if (matches.Count != 1) return source;
+        var escaped = author.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        var m = matches[0];
+        var quote = m.Groups[2].Value;
+        var replacement = m.Groups[1].Value + quote + (quote == "\"" ? escaped : author.Replace("'", "\\'")) + quote;
+        return source[..m.Index] + replacement + source[(m.Index + m.Length)..];
+    }
 }
