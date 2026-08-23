@@ -74,6 +74,28 @@ XFCE X11; sway and GNOME Xorg extended) and record findings here.
   normalized frames; declarative items correctly deferred to M2;
   DESKLAYER_DUMP_ITEM PNGs verified; clean exit restores the desktop.
   Stats read zero until the M4 $system binding lands.
+- **M2 wallpaper declarative + live stats (2026-08-23): PASS.** ViewNode
+  trees render through the toolkit-free Skia NodeRenderer (SystemMonitor,
+  RemoteMonitor incl. its ssh error cards — the ssh binding works end to
+  end); $system.stats() reads real /proc//sys data. X11 backend runs
+  cleanly under XWayland (visual validation on a real X11 DE pending).
+  Installed as a systemd user service on the omarchy box: 4 mac plugins
+  as the live wallpaper, crash-restart verified.
+
+## Install (current state)
+
+`scripts/linux/publish.sh <version>` builds a self-contained tarball (and an
+AppImage when appimagetool is present). On the target:
+
+```sh
+mkdir -p ~/.local/opt/desklayer && tar xzf DeskLayer-*.tar.gz -C ~/.local/opt/desklayer
+# layer-shell shim (until prebuilt ships): make -C linux/native/desklayer-wl && cp the .so alongside
+cp linux/installer/desklayer.service ~/.config/systemd/user/
+systemctl --user enable --now desklayer
+```
+
+The service restarts the engine on failure — the Linux analog of the win
+port's Explorer-restart watchdog (verified: kill -9 → back in seconds).
 
 ## Platform notes
 

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DeskLayer
+Comment=JavaScript plugins on your wallpaper
+Exec=DeskLayer.LinuxApp
+Icon=desklayer
+Categories=Utility;
+Terminal=false

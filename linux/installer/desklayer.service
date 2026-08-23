@@ -1,0 +1,16 @@
+# systemd user service for DeskLayer — the Linux analog of the win port's
+# Explorer-restart watchdog: Restart=on-failure brings the wallpaper back if
+# the compositor connection drops or the app dies.
+# Install: cp to ~/.config/systemd/user/ ; systemctl --user enable --now desklayer
+[Unit]
+Description=DeskLayer wallpaper engine
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/opt/desklayer/DeskLayer.LinuxApp
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
