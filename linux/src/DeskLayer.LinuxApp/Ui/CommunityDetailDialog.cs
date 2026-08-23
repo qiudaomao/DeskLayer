@@ -119,6 +119,17 @@ public sealed class CommunityDetailDialog : Window
         composeRow.Children.Add(composeHint);
         panel.Children.Add(composeRow);
 
+        // Explicit close — tiling compositors give dialogs no titlebar X
+        // (IsCancel makes Esc work too).
+        var closeButton = new Button
+        {
+            Content = L.T("Close"), IsCancel = true,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        closeButton.Click += (_, _) => Close();
+        panel.Children.Add(closeButton);
+
         Content = new ScrollViewer { Content = panel };
 
         _ = LoadLive();

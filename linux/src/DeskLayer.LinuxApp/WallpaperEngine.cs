@@ -36,6 +36,7 @@ public sealed class WallpaperEngine : IDisposable
         public SKRect DestRect;
         public double NextDue;
         public bool RenderedOnce;
+        public double NextSnapshotDue;
     }
 
     private readonly IWallpaperSurface surface;
@@ -85,6 +86,7 @@ public sealed class WallpaperEngine : IDisposable
         }
         items.Clear();
         Boot();
+        PruneSnapshots();
         // Repaint immediately, even if nothing is due yet.
         Compose();
         surface.Present(frame);
@@ -227,6 +229,7 @@ public sealed class WallpaperEngine : IDisposable
             {
                 Compose();
                 surface.Present(frame);
+                WriteSnapshots(now);
                 if (!dumped && Environment.GetEnvironmentVariable("DESKLAYER_DUMP_ITEM") is { Length: > 0 } dumpDir)
                 {
                     DumpItems(dumpDir);
@@ -295,6 +298,47 @@ public sealed class WallpaperEngine : IDisposable
             frameCanvas.DrawBitmap(item.Bitmap, item.DestRect);
         }
         frameCanvas.Flush();
+    }
+
+    /// Per-item live snapshots for the Manager's desktop overview (the mac
+    /// behavior). File-based like the rest of the engine↔Manager channel:
+    /// throttled PNGs in <data>/.snapshots/<itemId>.png, written atomically
+    /// so the Manager never reads a half-encoded file.
+    public static string SnapshotsDirectory => Path.Combine(LayoutStore.DataDirectory, ".snapshots");
+
+    private void WriteSnapshots(double now)
+    {
+        foreach (var item in items)
+        {
+            if (!item.RenderedOnce || now < item.NextSnapshotDue) continue;
+            item.NextSnapshotDue = now + 2;
+            try
+            {
+                Directory.CreateDirectory(SnapshotsDirectory);
+                var path = Path.Combine(SnapshotsDirectory, $"{item.Layout.Id}.png");
+                using (var image = SKImage.FromBitmap(item.Bitmap))
+                using (var data = image.Encode(SKEncodedImageFormat.Png, 80))
+                using (var file = File.Create(path + ".tmp"))
+                    data.SaveTo(file);
+                File.Move(path + ".tmp", path, overwrite: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    /// Snapshots for items that no longer exist would show stale ghosts in
+    /// the overview — drop everything the current layout doesn't carry.
+    private void PruneSnapshots()
+    {
+        try
+        {
+            if (!Directory.Exists(SnapshotsDirectory)) return;
+            var live = items.Select(i => $"{i.Layout.Id}.png").ToHashSet();
+            foreach (var file in Directory.GetFiles(SnapshotsDirectory))
+                if (!live.Contains(Path.GetFileName(file)))
+                    File.Delete(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     /// DESKLAYER_DUMP_ITEM=<dir>: write each item's raster once, for

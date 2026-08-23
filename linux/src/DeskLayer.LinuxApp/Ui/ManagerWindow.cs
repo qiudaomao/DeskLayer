@@ -541,10 +541,15 @@ public sealed class ManagerWindow : Window
         return Math.Min(available.Width / screenPx.Width, available.Height / screenPx.Height);
     }
 
+    private sealed record OverviewParts(Border Rect, Image Snapshot, Border SelectionWash, Border Grip);
+    private readonly Dictionary<Guid, OverviewParts> overviewParts = new();
+    private DispatcherTimer? snapshotTimer;
+
     private void RefreshOverview()
     {
         if (showingGallery) return;
         overview.Children.Clear();
+        overviewParts.Clear();
         var scale = OverviewScale();
         overview.Width = screenPx.Width * scale;
         overview.Height = screenPx.Height * scale;
@@ -554,6 +559,16 @@ public sealed class ManagerWindow : Window
             var frame = item.NormalizedFrame;
             var isSelected = item.Id == selectedItemId;
             var content = new Grid();
+            // Live engine snapshot as the rect's face — the mac behavior.
+            var snapshot = new Image { Stretch = Stretch.Fill };
+            content.Children.Add(snapshot);
+            var wash = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x48, 0x0A, 0x84, 0xFF)),
+                CornerRadius = new CornerRadius(4),
+                IsVisible = isSelected,
+            };
+            content.Children.Add(wash);
             content.Children.Add(new TextBlock
             {
                 Text = item.PluginId, Foreground = Brushes.White, FontSize = 10,
@@ -577,13 +592,12 @@ public sealed class ManagerWindow : Window
                 Tag = item.Id,
                 Width = Math.Max(28, frame.W * screenPx.Width * scale),
                 Height = Math.Max(20, frame.H * screenPx.Height * scale),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
-                    : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)),
+                Background = new SolidColorBrush(Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44)),
+                BorderBrush = SelectionBorder(isSelected),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(5),
                 Cursor = new Cursor(StandardCursorType.SizeAll),
+                ClipToBounds = true,
                 Opacity = item.IsEnabled ? 1 : 0.4,
                 Child = content,
             };
@@ -592,6 +606,40 @@ public sealed class ManagerWindow : Window
             WireDrag(rect, item.Id);
             WireResize(rect, grip, item.Id);
             overview.Children.Add(rect);
+            overviewParts[item.Id] = new OverviewParts(rect, snapshot, wash, grip);
+        }
+        RefreshSnapshots();
+        snapshotTimer ??= StartSnapshotTimer();
+    }
+
+    private static IBrush SelectionBorder(bool isSelected) => new SolidColorBrush(isSelected
+        ? Color.FromArgb(0xFF, 0x0A, 0x84, 0xFF)
+        : Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+
+    /// Repaints the rect faces from the engine's .snapshots/ files — in
+    /// place, so a drag in progress is never interrupted.
+    private DispatcherTimer StartSnapshotTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        timer.Tick += (_, _) => { if (!showingGallery && IsVisible) RefreshSnapshots(); };
+        timer.Start();
+        return timer;
+    }
+
+    private void RefreshSnapshots()
+    {
+        foreach (var (id, parts) in overviewParts)
+        {
+            var path = Path.Combine(WallpaperEngine.SnapshotsDirectory, $"{id}.png");
+            try
+            {
+                if (!File.Exists(path)) continue;
+                // Through bytes, not the path: Bitmap(path) would hold the
+                // file open and block the engine's atomic replace.
+                using var stream = new MemoryStream(File.ReadAllBytes(path));
+                parts.Snapshot.Source = new Avalonia.Media.Imaging.Bitmap(stream);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
         }
     }
 
@@ -600,17 +648,14 @@ public sealed class ManagerWindow : Window
 
     private void HighlightOverviewSelection()
     {
-        foreach (var child in overview.Children.OfType<Border>())
+        foreach (var (id, parts) in overviewParts)
         {
-            var isSelected = child.Tag is Guid id && id == selectedItemId;
-            child.Background = new SolidColorBrush(isSelected
-                ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
-                : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44));
-            var resizable = isSelected && child.Tag is Guid gripId &&
-                store.Layout.Items.FirstOrDefault(i => i.Id == gripId) is { } gripItem &&
-                GripUsable(InfoFor(gripItem.PluginId));
-            if (child.Child is Grid content && content.Children.Count > 1)
-                content.Children[1].IsVisible = resizable;
+            var isSelected = id == selectedItemId;
+            parts.Rect.BorderBrush = SelectionBorder(isSelected);
+            parts.SelectionWash.IsVisible = isSelected;
+            parts.Grip.IsVisible = isSelected &&
+                store.Layout.Items.FirstOrDefault(i => i.Id == id) is { } item &&
+                GripUsable(InfoFor(item.PluginId));
         }
     }
 
