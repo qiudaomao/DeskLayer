@@ -15,6 +15,7 @@
 using System.Diagnostics;
 using DeskLayer.Core.Js;
 using DeskLayer.Core.Model;
+using DeskLayer.LinuxApp.Platform;
 using DeskLayer.LinuxApp.Rendering;
 using DeskLayer.LinuxApp.Surfaces;
 using SkiaSharp;
@@ -29,7 +30,8 @@ public sealed class WallpaperEngine : IDisposable
         public required PluginInstance Instance;
         public required SKBitmap Bitmap;
         public required SKCanvas Canvas;
-        public required SkiaCanvas Bridge;
+        public SkiaCanvas? Bridge;          // canvas mode only
+        public string? LastTreeJson;        // declarative: skip unchanged renders
         public SKRect DestRect;
         public double NextDue;
         public bool RenderedOnce;
@@ -40,6 +42,7 @@ public sealed class WallpaperEngine : IDisposable
     private readonly List<Item> items = new();
     private readonly SKBitmap frame;
     private readonly SKCanvas frameCanvas;
+    private readonly SystemStatsBinding systemStats = new();
 
     public WallpaperEngine(LayerShellSurface surface, Action<string> log)
     {
@@ -67,11 +70,12 @@ public sealed class WallpaperEngine : IDisposable
             }
             var source = File.ReadAllText(plugin.SourcePath);
             var instance = PluginInstance.Boot(layoutItem.PluginId, source,
-                layoutItem.PropertyOverrides, m => log($"[{layoutItem.PluginId}] {m}"));
+                layoutItem.PropertyOverrides, m => log($"[{layoutItem.PluginId}] {m}"),
+                hostStats: systemStats);
             if (instance == null) continue;
-            if (instance.Mode != RenderMode.Canvas)
+            if (instance.Mode == RenderMode.Webview)
             {
-                log($"[{layoutItem.PluginId}] {instance.Mode} mode — lands in M2, skipped");
+                log($"[{layoutItem.PluginId}] webview mode is not supported on Linux yet — skipped");
                 instance.Dispose();
                 continue;
             }
@@ -85,9 +89,13 @@ public sealed class WallpaperEngine : IDisposable
             var bitmap = new SKBitmap(new SKImageInfo(wPx, hPx, SKColorType.Bgra8888, SKAlphaType.Premul));
             bitmap.Erase(SKColors.Transparent);
             var canvas = new SKCanvas(bitmap);
-            var bridge = new SkiaCanvas(canvas, wPx, hPx, surface.Scale);
-            var byName = instance.Properties.ToDictionary(p => p.Name, p => p.Value.BridgeValue);
-            bridge.PropertyProvider = name => byName.TryGetValue(name, out var v) ? v : null;
+            SkiaCanvas? bridge = null;
+            if (instance.Mode == RenderMode.Canvas)
+            {
+                bridge = new SkiaCanvas(canvas, wPx, hPx, surface.Scale);
+                var byName = instance.Properties.ToDictionary(p => p.Name, p => p.Value.BridgeValue);
+                bridge.PropertyProvider = name => byName.TryGetValue(name, out var v) ? v : null;
+            }
 
             items.Add(new Item
             {
@@ -128,14 +136,13 @@ public sealed class WallpaperEngine : IDisposable
                 var due = !item.RenderedOnce
                     || (!double.IsPositiveInfinity(item.Instance.RenderInterval) && now >= item.NextDue);
                 if (!due) continue;
-                item.Bridge.BeginFrame();
-                if (item.Instance.CallRender(item.Bridge))
+                if (RenderItem(item))
                 {
                     item.RenderedOnce = true;
                     item.NextDue = now + item.Instance.RenderInterval;
                     drewSomething = true;
                 }
-                else
+                else if (item.Instance.IsErrored)
                 {
                     log($"[{item.Layout.PluginId}] stopped: {item.Instance.ErrorMessage}");
                 }
@@ -153,6 +160,36 @@ public sealed class WallpaperEngine : IDisposable
             }
             Thread.Sleep(16);
         }
+    }
+
+    /// Renders one due item into its bitmap. Returns true when new pixels
+    /// were produced.
+    private bool RenderItem(Item item)
+    {
+        if (item.Bridge != null)
+        {
+            item.Bridge.BeginFrame();
+            return item.Instance.CallRender(item.Bridge);
+        }
+
+        // Declarative: identical trees skip the raster entirely (the win/mac
+        // JSON-comparison rule).
+        var json = item.Instance.CallRenderTree();
+        if (json == null) return false;
+        if (json == item.LastTreeJson) return item.RenderedOnce;
+        var tree = ViewNode.Decode(json);
+        if (tree == null) return false;
+        item.LastTreeJson = json;
+        item.Canvas.Clear(SKColors.Transparent);
+        item.Canvas.Save();
+        item.Canvas.Scale(surface.Scale);
+        NodeRenderer.Render(tree, item.Canvas,
+            item.Bitmap.Width / (double)surface.Scale,
+            item.Bitmap.Height / (double)surface.Scale,
+            m => log($"[{item.Layout.PluginId}] {m}"));
+        item.Canvas.Restore();
+        item.Canvas.Flush();
+        return true;
     }
 
     private void Compose()
@@ -189,7 +226,7 @@ public sealed class WallpaperEngine : IDisposable
         foreach (var item in items)
         {
             item.Instance.Dispose();
-            item.Bridge.Dispose();
+            item.Bridge?.Dispose();
             item.Canvas.Dispose();
             item.Bitmap.Dispose();
         }
