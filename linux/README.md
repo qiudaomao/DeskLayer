@@ -49,11 +49,24 @@ XFCE X11; sway and GNOME Xorg extended) and record findings here.
   (Jint + RecordingCanvas + CanonicalJson) holds on Linux as-is.
   Gotcha for anyone repeating it from a Mac: `COPYFILE_DISABLE=1` when
   tar-ing fixtures, or AppleDouble `._*.js` files show up as bogus failures.
-- **Shim build (2026-08-23):** `native/desklayer-wl` compiles clean on Linux
-  (gcc -Wall -Wextra, wayland-scanner from the fetched protocol XML). Runtime
-  behavior still needs a Wayland session (spike 2).
-- Spikes 1–4: code ready and compiling; runs pending the desktop VM matrix
-  on minipve.
+- **Spike 2 (2026-08-23, Arch + Hyprland 0.56.2): PASS.** The shim's layer
+  `bottom` surface composites half-transparently above the compositor
+  wallpaper and below all UI (bar, notifications); 455 frames / 0 skipped
+  at ~38fps under sleep pacing; teardown restores the desktop untouched.
+  Build note that made it work: layer-shell's `get_popup` references
+  `xdg_popup_interface`, so the xdg-shell protocol glue must be generated
+  and linked too (Makefile does this now).
+- **Spike 1/3 on Hyprland (2026-08-23): X11-DESKTOP fallback is a no-go on
+  wlroots compositors.** A `_NET_WM_WINDOW_TYPE_DESKTOP` XWayland window is
+  managed as a normal tiled window (focus border, above the wallpaper, in
+  the tiling layout). Consequence: on Wayland the backend selector must
+  treat layer-shell as the only wallpaper path for the wlroots family; the
+  XWayland-DESKTOP fallback is exclusively a GNOME/mutter bet and still
+  needs a GNOME VM to measure. Plain-X11 sessions (spike 1 proper) also
+  still need their matrix run (XFCE/KDE/GNOME Xorg).
+- **Conformance also ALL GREEN on Arch** (second distro data point,
+  omarchy box).
+- Spike 4 and the GNOME/X11 DE matrix: pending (GNOME VM on minipve).
 
 ## Platform notes
 
