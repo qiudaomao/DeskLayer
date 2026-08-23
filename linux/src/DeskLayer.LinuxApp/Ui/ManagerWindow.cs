@@ -541,7 +541,7 @@ public sealed class ManagerWindow : Window
         return Math.Min(available.Width / screenPx.Width, available.Height / screenPx.Height);
     }
 
-    private sealed record OverviewParts(Border Rect, Image Snapshot, Border SelectionWash, Border Grip);
+    private sealed record OverviewParts(Border Rect, Image Snapshot, Border SelectionWash, Border Grip, TextBlock Label);
     private readonly Dictionary<Guid, OverviewParts> overviewParts = new();
     private DispatcherTimer? snapshotTimer;
 
@@ -569,12 +569,15 @@ public sealed class ManagerWindow : Window
                 IsVisible = isSelected,
             };
             content.Children.Add(wash);
-            content.Children.Add(new TextBlock
+            // Name label — only until the live snapshot takes over as the
+            // face (it would overlap the plugin's own rendering).
+            var label = new TextBlock
             {
                 Text = item.PluginId, Foreground = Brushes.White, FontSize = 10,
                 Margin = new Thickness(5, 3), TextTrimming = TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
-            });
+            };
+            content.Children.Add(label);
             // Resize grip — selected items only, never on resizable: false.
             var grip = new Border
             {
@@ -606,7 +609,7 @@ public sealed class ManagerWindow : Window
             WireDrag(rect, item.Id);
             WireResize(rect, grip, item.Id);
             overview.Children.Add(rect);
-            overviewParts[item.Id] = new OverviewParts(rect, snapshot, wash, grip);
+            overviewParts[item.Id] = new OverviewParts(rect, snapshot, wash, grip, label);
         }
         RefreshSnapshots();
         snapshotTimer ??= StartSnapshotTimer();
@@ -638,6 +641,7 @@ public sealed class ManagerWindow : Window
                 // file open and block the engine's atomic replace.
                 using var stream = new MemoryStream(File.ReadAllBytes(path));
                 parts.Snapshot.Source = new Avalonia.Media.Imaging.Bitmap(stream);
+                parts.Label.IsVisible = false;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
         }
