@@ -1,8 +1,8 @@
-// The item inspector — the Linux take on the mac/win right pane: about &
-// capabilities, typed property editors (bool/number/color/string), SSH
-// destinations for ssh-permission plugins, background color, frame and
-// z-order. Every commit goes through LayoutStore; the engine service picks
-// it up from the watched layout.json.
+// The placed-item inspector — the Linux twin of the win RenderItemDetail:
+// origin, enabled, show-as, z-order, background color, frame in points
+// (top-left Y, resize policy honored), typed property editors, SSH
+// destinations, update controls, remove. Every commit goes through
+// LayoutStore; the engine service picks it up from the watched layout.json.
 
 using Avalonia;
 using Avalonia.Controls;
@@ -17,16 +17,29 @@ public sealed class ItemInspector : StackPanel
 {
     private readonly LayoutStore store;
     private readonly PluginRegistry registry;
-    private readonly Action refreshList;
+    private readonly PluginStoreRegistry storeRegistry;
+    private readonly Func<string, PluginMetadata.PluginInfo> infoFor;
+    private readonly Func<(double W, double H)> screenPoints;
+    private readonly Func<string, Control?> updateControls;
+    private readonly Action onRemoved;
     private Guid itemId;
 
-    public ItemInspector(LayoutStore store, PluginRegistry registry, Action refreshList)
+    public ItemInspector(LayoutStore store, PluginRegistry registry,
+                         PluginStoreRegistry storeRegistry,
+                         Func<string, PluginMetadata.PluginInfo> infoFor,
+                         Func<(double W, double H)> screenPoints,
+                         Func<string, Control?> updateControls,
+                         Action onRemoved)
     {
         this.store = store;
         this.registry = registry;
-        this.refreshList = refreshList;
+        this.storeRegistry = storeRegistry;
+        this.infoFor = infoFor;
+        this.screenPoints = screenPoints;
+        this.updateControls = updateControls;
+        this.onRemoved = onRemoved;
         Spacing = 8;
-        Margin = new Thickness(16);
+        Margin = new Thickness(14);
     }
 
     private LayoutItem? Item() => store.Layout.Items.FirstOrDefault(i => i.Id == itemId);
@@ -44,57 +57,50 @@ public sealed class ItemInspector : StackPanel
         var item = Item();
         if (item == null) return;
 
-        Children.Add(new TextBlock { Text = item.PluginId, FontSize = 18, FontWeight = FontWeight.Bold });
-
-        // ---- About ----
-        var plugin = registry.Plugin(item.PluginId);
-        var source = plugin != null && File.Exists(plugin.SourcePath)
-            ? File.ReadAllText(plugin.SourcePath) : null;
-        var info = source != null ? PluginMetadata.ExtractInfo(source) : null;
-        if (info != null)
-        {
-            var about = new TextBlock
+        Children.Add(new TextBlock { Text = item.PluginId, FontSize = 16, FontWeight = FontWeight.SemiBold });
+        if (storeRegistry.OriginOf(item.PluginId) is { } origin)
+            Children.Add(new TextBlock
             {
-                Text = string.Join("   ", new[]
-                {
-                    info.Version is { } v ? $"v{v}" : null,
-                    info.Author,
-                    info.Width is { } w && info.Height is { } h ? $"{w:0}×{h:0} pt" : null,
-                }.Where(s => s != null)),
-                Foreground = Brushes.Gray,
-            };
-            Children.Add(about);
-            if (info.Description is { Length: > 0 } description)
-                Children.Add(new TextBlock
-                {
-                    Text = description,
-                    TextWrapping = TextWrapping.Wrap,
-                    Foreground = Brushes.Gray,
-                    FontSize = 12,
-                });
-        }
+                Text = L.T("from {0}", origin), Foreground = Brushes.Gray, FontSize = 11,
+            });
 
-        var enabled = new CheckBox { Content = "Enabled", IsChecked = item.IsEnabled };
-        enabled.IsCheckedChanged += (_, _) =>
-        {
-            Mutate(i => i with { IsEnabled = enabled.IsChecked == true });
-            refreshList();
-        };
+        var enabled = new CheckBox { Content = L.T("Enabled"), IsChecked = item.IsEnabled };
+        enabled.IsCheckedChanged += (_, _) => Mutate(i => i with { IsEnabled = enabled.IsChecked == true });
         Children.Add(enabled);
 
-        BuildFrameRow(item);
-        BuildZRow(item);
-        BuildBackgroundRow(item);
-        BuildProperties(item, source);
-        BuildSsh(item, source);
+        // Show as — the win combo, with floating still pending on Linux.
+        Header(L.T("Show as"));
+        var target = new ComboBox
+        {
+            ItemsSource = new[] { L.T("Wallpaper"), L.T("Floating Window") },
+            SelectedIndex = item.Target == RenderTarget.Wallpaper ? 0 : 1,
+            IsEnabled = false,
+        };
+        Children.Add(target);
+        Children.Add(new TextBlock
+        {
+            Text = L.T("Floating windows aren't supported on Linux yet."),
+            FontSize = 10, Foreground = Brushes.Gray,
+        });
 
-        var remove = new Button { Content = "Remove from Desktop", Margin = new Thickness(0, 16, 0, 0) };
+        Header(L.T("Z-order"));
+        var zOrder = new TextBox { Text = item.ZOrder.ToString() };
+        zOrder.LostFocus += (_, _) => { if (int.TryParse(zOrder.Text, out var z)) Mutate(i => i with { ZOrder = z }); };
+        Children.Add(zOrder);
+
+        BuildBackgroundRow(item);
+        BuildFrameEditor(item);
+        BuildProperties(item);
+        BuildSsh(item);
+        if (updateControls(item.PluginId) is { } updates) Children.Add(updates);
+
+        var remove = new Button { Content = L.T("Remove from Desktop"), Margin = new Thickness(0, 16, 0, 0) };
         remove.Click += (_, _) =>
         {
-            var id = itemId;
-            store.Update(l => l with { Items = l.Items.Where(i => i.Id != id).ToList() });
+            var removeId = itemId;
+            store.Update(l => l with { Items = l.Items.Where(i => i.Id != removeId).ToList() });
             Children.Clear();
-            refreshList();
+            onRemoved();
         };
         Children.Add(remove);
     }
@@ -103,55 +109,14 @@ public sealed class ItemInspector : StackPanel
     {
         Text = text,
         FontWeight = FontWeight.Bold,
+        FontSize = 12,
         Margin = new Thickness(0, 10, 0, 0),
     });
 
-    // ---- frame / z / background ----
-
-    private void BuildFrameRow(LayoutItem item)
-    {
-        Header("Frame (normalized 0–1)");
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var boxes = new[]
-        {
-            Num(item.NormalizedFrame.X), Num(item.NormalizedFrame.Y),
-            Num(item.NormalizedFrame.W), Num(item.NormalizedFrame.H),
-        };
-        var labels = new[] { "x", "y", "w", "h" };
-        for (var i = 0; i < 4; i++)
-        {
-            row.Children.Add(new TextBlock { Text = labels[i], VerticalAlignment = VerticalAlignment.Center });
-            row.Children.Add(boxes[i]);
-        }
-        var apply = new Button { Content = "Apply" };
-        apply.Click += (_, _) =>
-        {
-            if (Parse(boxes[0]) is { } x && Parse(boxes[1]) is { } y
-                && Parse(boxes[2]) is { } w && Parse(boxes[3]) is { } h)
-                Mutate(i => i with { NormalizedFrame = new NormalizedFrame(x, y, Math.Max(0.01, w), Math.Max(0.01, h)) });
-        };
-        row.Children.Add(apply);
-        Children.Add(row);
-    }
-
-    private void BuildZRow(LayoutItem item)
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var label = new TextBlock { Text = $"Z-order: {item.ZOrder}", VerticalAlignment = VerticalAlignment.Center };
-        var up = new Button { Content = "▲" };
-        var down = new Button { Content = "▼" };
-        up.Click += (_, _) => { Mutate(i => i with { ZOrder = i.ZOrder + 1 }); Show(itemId); };
-        down.Click += (_, _) => { Mutate(i => i with { ZOrder = i.ZOrder - 1 }); Show(itemId); };
-        row.Children.Add(label);
-        row.Children.Add(up);
-        row.Children.Add(down);
-        Children.Add(row);
-    }
-
     private void BuildBackgroundRow(LayoutItem item)
     {
+        Header(L.T("Background"));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        row.Children.Add(new TextBlock { Text = "Background", VerticalAlignment = VerticalAlignment.Center, Width = 90 });
         var swatch = new Border
         {
             Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
@@ -159,36 +124,116 @@ public sealed class ItemInspector : StackPanel
             Background = BrushFor(item.BackgroundColor),
         };
         var box = new TextBox { Text = item.BackgroundColor ?? "", Watermark = "#00000000 or empty", MinWidth = 140 };
-        void Commit()
+        box.LostFocus += (_, _) =>
         {
             var text = (box.Text ?? "").Trim();
             Mutate(i => i with { BackgroundColor = text.Length == 0 ? null : text });
             swatch.Background = BrushFor(text.Length == 0 ? null : text);
-        }
-        box.LostFocus += (_, _) => Commit();
+        };
         row.Children.Add(box);
         row.Children.Add(swatch);
         Children.Add(row);
     }
 
+    // ---- frame: stored normalized, edited in points; X/Y are the top-left
+    // corner, height grows downward (the mac FrameEditor model) ----
+
+    private void BuildFrameEditor(LayoutItem item)
+    {
+        Header(L.T("Frame (points)"));
+        var (sw, sh) = screenPoints();
+        var frame = item.NormalizedFrame;
+        var info = infoFor(item.PluginId);
+
+        var x = new TextBox { Text = Math.Round(frame.X * sw).ToString("0"), Width = 70 };
+        var y = new TextBox { Text = Math.Round((1 - frame.Y - frame.H) * sh).ToString("0"), Width = 70 };
+        // An axis the plugin sizes from its own content isn't the user's to
+        // set: the next render would snap it straight back.
+        var w = new TextBox
+        {
+            Text = Math.Round(frame.W * sw).ToString("0"), Width = 70,
+            IsEnabled = info.Resizable && !info.AutoSizeWidth,
+        };
+        var h = new TextBox
+        {
+            Text = Math.Round(frame.H * sh).ToString("0"), Width = 70,
+            IsEnabled = info.Resizable && !info.AutoSizeHeight,
+        };
+
+        void CommitFrame(PluginMetadata.PluginInfo.SizeAxis? edited)
+        {
+            if (!double.TryParse(x.Text, out var px) || !double.TryParse(y.Text, out var py) ||
+                !double.TryParse(w.Text, out var pw) || !double.TryParse(h.Text, out var ph)) return;
+            px = Math.Clamp(px, 0, sw);
+            py = Math.Clamp(py, 0, sh);
+            (pw, ph) = info.ResolvedSize(pw, ph, edited);
+            x.Text = Math.Round(px).ToString("0");
+            y.Text = Math.Round(py).ToString("0");
+            w.Text = Math.Round(pw).ToString("0");
+            h.Text = Math.Round(ph).ToString("0");
+            var bottom = Math.Max(sh - py - ph, 0);
+            Mutate(i => i with
+            {
+                NormalizedFrame = new NormalizedFrame(
+                    Math.Min(px / sw, 1), Math.Min(bottom / sh, 1),
+                    Math.Min(pw / sw, 1), Math.Min(ph / sh, 1)),
+            });
+        }
+
+        Control Field(string label, TextBox box, PluginMetadata.PluginInfo.SizeAxis? axis)
+        {
+            var cell = new StackPanel();
+            cell.Children.Add(new TextBlock { Text = label, FontSize = 10, Foreground = Brushes.Gray });
+            box.LostFocus += (_, _) => CommitFrame(axis);
+            box.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) CommitFrame(axis); };
+            cell.Children.Add(box);
+            return cell;
+        }
+
+        var row1 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        row1.Children.Add(Field(L.T("X"), x, null));
+        row1.Children.Add(Field(L.T("Y (from top)"), y, null));
+        var row2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 4, 0, 0) };
+        row2.Children.Add(Field(L.T("Width"), w, PluginMetadata.PluginInfo.SizeAxis.Width));
+        row2.Children.Add(Field(L.T("Height"), h, PluginMetadata.PluginInfo.SizeAxis.Height));
+        Children.Add(row1);
+        Children.Add(row2);
+
+        var note = !info.Resizable
+            ? L.T("This plugin declares a fixed size (resizable: false).")
+            : (info.AutoSizeWidth, info.AutoSizeHeight) switch
+            {
+                (true, true) => L.T("Width and height follow this plugin's content."),
+                (true, false) => L.T("Width follows this plugin's content."),
+                (false, true) => L.T("Height follows this plugin's content."),
+                _ => null,
+            };
+        if (note != null)
+            Children.Add(new TextBlock
+            {
+                Text = note, FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+            });
+    }
+
     // ---- properties ----
 
-    private void BuildProperties(LayoutItem item, string? source)
+    private void BuildProperties(LayoutItem item)
     {
         var declared = Probe(item.PluginId)?.Properties ?? (IReadOnlyList<PluginProperty>)Array.Empty<PluginProperty>();
         if (declared.Count == 0) return;
-        Header("Properties");
+        Header(L.T("Properties"));
         foreach (var property in declared)
         {
             var current = item.PropertyOverrides.TryGetValue(property.Name, out var over) ? over : property.Value;
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             row.Children.Add(new TextBlock
             {
-                Text = property.Name, Width = 150, VerticalAlignment = VerticalAlignment.Center,
+                Text = property.Name, Width = 110, FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             });
             var name = property.Name;
-            var valueType = property.ValueType;
-            switch (valueType)
+            switch (property.ValueType)
             {
                 case "bool":
                 {
@@ -206,7 +251,7 @@ public sealed class ItemInspector : StackPanel
                         BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1),
                         Background = BrushFor(current.StringValue),
                     };
-                    var box = new TextBox { Text = current.StringValue, MinWidth = 120 };
+                    var box = new TextBox { Text = current.StringValue, MinWidth = 100 };
                     box.LostFocus += (_, _) =>
                     {
                         var text = (box.Text ?? "").Trim();
@@ -222,7 +267,7 @@ public sealed class ItemInspector : StackPanel
                 }
                 case "number":
                 {
-                    var box = new TextBox { Text = current.StringValue, MinWidth = 90 };
+                    var box = new TextBox { Text = current.StringValue, MinWidth = 80 };
                     box.LostFocus += (_, _) =>
                     {
                         if (double.TryParse(box.Text, System.Globalization.NumberStyles.Float,
@@ -234,7 +279,7 @@ public sealed class ItemInspector : StackPanel
                 }
                 default:
                 {
-                    var box = new TextBox { Text = current.StringValue, MinWidth = 180 };
+                    var box = new TextBox { Text = current.StringValue, MinWidth = 130 };
                     box.LostFocus += (_, _) => CommitOverride(name, PropertyValue.String(box.Text ?? ""));
                     row.Children.Add(box);
                     break;
@@ -251,18 +296,18 @@ public sealed class ItemInspector : StackPanel
 
     // ---- ssh destinations ----
 
-    private void BuildSsh(LayoutItem item, string? source)
+    private void BuildSsh(LayoutItem item)
     {
         var permissions = Probe(item.PluginId)?.Permissions;
         if (permissions == null || !permissions.Contains("ssh")) return;
-        Header("SSH Destinations");
+        Header(L.T("SSH Destinations"));
         foreach (var host in item.SshHosts)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             row.Children.Add(new TextBlock
             {
                 Text = $"{host.Name} → {(host.UsesAlias ? $"alias {host.Host}" : $"{host.User}@{host.Host}:{host.Port}")}",
-                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
             });
             var removeHost = new Button { Content = "✕", FontSize = 10 };
             var hostId = host.Id;
@@ -275,9 +320,9 @@ public sealed class ItemInspector : StackPanel
             Children.Add(row);
         }
         var addRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var nameBox = new TextBox { Watermark = "name", Width = 90 };
-        var aliasBox = new TextBox { Watermark = "~/.ssh/config alias", Width = 150 };
-        var add = new Button { Content = "Add alias" };
+        var nameBox = new TextBox { Watermark = L.T("name"), Width = 80 };
+        var aliasBox = new TextBox { Watermark = "~/.ssh/config alias", Width = 120 };
+        var add = new Button { Content = L.T("Add") };
         add.Click += (_, _) =>
         {
             var name = (nameBox.Text ?? "").Trim();
@@ -295,8 +340,8 @@ public sealed class ItemInspector : StackPanel
         Children.Add(addRow);
         Children.Add(new TextBlock
         {
-            Text = "Aliases resolve through this machine's ~/.ssh/config.",
-            FontSize = 11, Foreground = Brushes.Gray,
+            Text = L.T("Aliases resolve through this machine's ~/.ssh/config."),
+            FontSize = 10, Foreground = Brushes.Gray,
         });
     }
 
@@ -323,14 +368,4 @@ public sealed class ItemInspector : StackPanel
         if (css == null || !Rendering.Css.TryParse(css, out var c)) return Brushes.Transparent;
         return new SolidColorBrush(Color.FromArgb(c.Alpha, c.Red, c.Green, c.Blue));
     }
-
-    private static TextBox Num(double value) => new()
-    {
-        Text = value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
-        Width = 64,
-    };
-
-    private static double? Parse(TextBox box) =>
-        double.TryParse(box.Text, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 }

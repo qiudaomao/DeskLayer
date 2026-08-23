@@ -156,6 +156,10 @@ public static class CommunityClient
 
     /// The stored bearer token, DPAPI-sealed for this Windows account (the
     /// same treatment as the LLM API key). Null/empty clears it.
+    ///
+    /// On non-Windows the token is written as-is with owner-only (0600)
+    /// permissions — the ~/.ssh treatment — until the Secret Service seam
+    /// lands. The Windows format and path are unchanged.
     public static string? Token
     {
         get
@@ -163,7 +167,10 @@ public static class CommunityClient
             try
             {
                 if (!File.Exists(TokenPath)) return null;
-                var clear = ProtectedData.Unprotect(File.ReadAllBytes(TokenPath), null, DataProtectionScope.CurrentUser);
+                var raw = File.ReadAllBytes(TokenPath);
+                var clear = OperatingSystem.IsWindows()
+                    ? ProtectedData.Unprotect(raw, null, DataProtectionScope.CurrentUser)
+                    : raw;
                 var token = Encoding.UTF8.GetString(clear);
                 return token.Length == 0 ? null : token;
             }
@@ -182,8 +189,16 @@ public static class CommunityClient
                     return;
                 }
                 Directory.CreateDirectory(Model.LayoutStore.DataDirectory);
-                var sealed_ = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(TokenPath, sealed_);
+                if (OperatingSystem.IsWindows())
+                {
+                    var sealed_ = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
+                    File.WriteAllBytes(TokenPath, sealed_);
+                }
+                else
+                {
+                    File.WriteAllBytes(TokenPath, Encoding.UTF8.GetBytes(value));
+                    File.SetUnixFileMode(TokenPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                }
             }
             catch (Exception ex) when (ex is IOException or CryptographicException or UnauthorizedAccessException) { }
         }
