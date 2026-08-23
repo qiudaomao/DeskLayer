@@ -92,6 +92,21 @@ public sealed class WallpaperEngine : IDisposable
 
     private readonly System.Collections.Concurrent.ConcurrentQueue<(string PluginId, DateTime Deadline, TaskCompletionSource<byte[]?> Done)> captureQueue = new();
 
+    private readonly System.Collections.Concurrent.ConcurrentQueue<TaskCompletionSource<Dictionary<Guid, (byte[] Bgra, int Width, int Height)>>> snapshotQueue = new();
+
+    /// Straight-alpha BGRA snapshots of every settled wallpaper item, keyed
+    /// by layout item id — one render-thread pass, no PNG round trip. The
+    /// Manager's overview paints these as the items' faces (the mac's live
+    /// virtual-desktop thumbnails). Items mid-raster or errored are simply
+    /// absent; the caller keeps their previous face.
+    public Task<Dictionary<Guid, (byte[] Bgra, int Width, int Height)>> CaptureOverviewSnapshots()
+    {
+        var done = new TaskCompletionSource<Dictionary<Guid, (byte[] Bgra, int Width, int Height)>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        snapshotQueue.Enqueue(done);
+        return done.Task;
+    }
+
     /// A PNG of the plugin's rendered card, straight from the surface the
     /// desktop shows — for the community store's preview. Prefers a wallpaper
     /// item (read back from its D2D surface on the render thread); falls back
@@ -362,6 +377,25 @@ public sealed class WallpaperEngine : IDisposable
                     }
                     if (DateTime.UtcNow < capture.Deadline) captureQueue.Enqueue(capture);
                     else capture.Done.TrySetResult(null);
+                }
+
+                // Overview snapshots: answer with whatever is settled now.
+                while (snapshotQueue.TryDequeue(out var snapshot))
+                {
+                    var faces = new Dictionary<Guid, (byte[] Bgra, int Width, int Height)>();
+                    foreach (var item in items)
+                    {
+                        if (item.Instance.IsErrored) continue;
+                        bool settled;
+                        lock (item.Gate) { settled = item.RenderedOnce && item.PendingRaster == null && !item.RasterInFlight; }
+                        if (!settled) continue;
+                        if (ReadSurfaceRaw(item, dc) is { } raw)
+                        {
+                            UnPremultiply(raw);
+                            faces[item.Layout.Id] = (raw, item.PixelWidth, item.PixelHeight);
+                        }
+                    }
+                    snapshot.TrySetResult(faces);
                 }
 
                 // Power policy: paused stops all rendering (screen locked /
@@ -645,7 +679,11 @@ public sealed class WallpaperEngine : IDisposable
     /// but it has to be laid out again at the new size).
     /// Reads an item's surface back from the GPU and encodes it as PNG.
     /// Render thread only (uses the loop's device context).
-    private byte[]? ReadSurfacePng(Item item, ID2D1DeviceContext dc)
+    private byte[]? ReadSurfacePng(Item item, ID2D1DeviceContext dc) =>
+        ReadSurfaceRaw(item, dc) is { } raw ? EncodePng(raw, item.PixelWidth, item.PixelHeight) : null;
+
+    /// The item's surface as premultiplied BGRA rows. Render thread only.
+    private byte[]? ReadSurfaceRaw(Item item, ID2D1DeviceContext dc)
     {
         try
         {
@@ -663,13 +701,13 @@ public sealed class WallpaperEngine : IDisposable
                 for (var row = 0; row < h; row++)
                     System.Runtime.InteropServices.Marshal.Copy(
                         mapped.Bits + row * mapped.Pitch, pixels, row * w * 4, w * 4);
-                return EncodePng(pixels, w, h);
+                return pixels;
             }
             finally { staging.Unmap(); }
         }
         catch (SharpGen.Runtime.SharpGenException ex)
         {
-            log($"preview capture failed: {ex.Message}");
+            log($"surface readback failed: {ex.Message}");
             return null;
         }
     }
@@ -701,18 +739,23 @@ public sealed class WallpaperEngine : IDisposable
     }
 
     /// Premultiplied BGRA rows → straight-alpha PNG. Any thread.
+    /// Premultiplied → straight alpha, in place: consumers (PNG, WPF Bgra32)
+    /// expect straight, and premultiplied pixels darken translucent edges.
+    private static void UnPremultiply(byte[] pixels)
+    {
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            var a = pixels[i + 3];
+            if (a is 0 or 255) continue;
+            pixels[i] = (byte)Math.Min(255, pixels[i] * 255 / a);
+            pixels[i + 1] = (byte)Math.Min(255, pixels[i + 1] * 255 / a);
+            pixels[i + 2] = (byte)Math.Min(255, pixels[i + 2] * 255 / a);
+        }
+    }
+
     private static byte[] EncodePng(byte[] premultiplied, int width, int height)
     {
-        // PNG carries straight alpha; leaving the pixels premultiplied would
-        // darken every translucent edge when the store renders them.
-        for (var i = 0; i < premultiplied.Length; i += 4)
-        {
-            var a = premultiplied[i + 3];
-            if (a is 0 or 255) continue;
-            premultiplied[i] = (byte)Math.Min(255, premultiplied[i] * 255 / a);
-            premultiplied[i + 1] = (byte)Math.Min(255, premultiplied[i + 1] * 255 / a);
-            premultiplied[i + 2] = (byte)Math.Min(255, premultiplied[i + 2] * 255 / a);
-        }
+        UnPremultiply(premultiplied);
         var source = System.Windows.Media.Imaging.BitmapSource.Create(
             width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
             premultiplied, width * 4);

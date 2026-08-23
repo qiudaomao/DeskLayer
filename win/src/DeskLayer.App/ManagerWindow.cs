@@ -63,13 +63,21 @@ public sealed class ManagerWindow : Window
     /// Captures a running plugin's rendered card as PNG (wired to the
     /// engine by Program); null when the engine isn't available.
     private readonly Func<string, Task<byte[]?>>? capturePreview;
+    /// Live faces for the desktop overview (mac's virtual-desktop
+    /// thumbnails): straight-alpha BGRA per layout item, from the engine.
+    private readonly Func<Task<Dictionary<Guid, (byte[] Bgra, int Width, int Height)>>>? captureSnapshots;
+    private readonly Dictionary<Guid, ImageBrush> snapshots = new();
+    private System.Windows.Threading.DispatcherTimer? snapshotTimer;
+    private bool snapshotInFlight;
 
     public ManagerWindow(LayoutStore store, PluginRegistry registry,
                          PluginStoreRegistry storeRegistry, PluginUpdater updater,
                          System.Drawing.Rectangle screenBounds, Action? reopenToggled = null,
-                         Func<string, Task<byte[]?>>? capturePreview = null)
+                         Func<string, Task<byte[]?>>? capturePreview = null,
+                         Func<Task<Dictionary<Guid, (byte[] Bgra, int Width, int Height)>>>? captureSnapshots = null)
     {
         this.capturePreview = capturePreview;
+        this.captureSnapshots = captureSnapshots;
         this.store = store;
         this.registry = registry;
         this.storeRegistry = storeRegistry;
@@ -113,6 +121,14 @@ public sealed class ManagerWindow : Window
         // the Community pane's refresh button — and an app that tracks the
         // system theme doesn't need it.
         Content = grid;
+
+        if (captureSnapshots != null)
+        {
+            snapshotTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            snapshotTimer.Tick += async (_, _) => await RefreshSnapshots();
+            Loaded += async (_, _) => { snapshotTimer.Start(); await RefreshSnapshots(); };
+            Closed += (_, _) => snapshotTimer.Stop();
+        }
 
         store.OnChange += RefreshFromStore;
         registry.DidChange += RegistryChanged;
@@ -1021,6 +1037,9 @@ public sealed class ManagerWindow : Window
                 Foreground = Brushes.White,
                 FontSize = 10,
                 Margin = new Thickness(5, 3, 5, 3),
+                Padding = new Thickness(4, 1, 4, 1),
+                // Legible over the live snapshot behind it.
+                Background = new SolidColorBrush(Color.FromArgb(0x99, 0x00, 0x00, 0x00)),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
@@ -1040,22 +1059,35 @@ public sealed class ManagerWindow : Window
                     ? Visibility.Visible : Visibility.Collapsed,
             };
             content.Children.Add(grip);
+            // Selection is a translucent wash + accent border rather than a
+            // solid fill, so the live snapshot stays visible underneath.
+            var wash = new Border
+            {
+                Tag = "wash",
+                Background = new SolidColorBrush(Color.FromArgb(0x4D, 0x0A, 0x84, 0xFF)),
+                CornerRadius = new CornerRadius(4),
+                Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed,
+            };
+            content.Children.Insert(0, wash);
             var rect = new Border
             {
                 Tag = item.Id,
                 Width = Math.Max(28, frame.W * screenBounds.Width * scale),
                 Height = Math.Max(20, frame.H * screenBounds.Height * scale),
-                Background = new SolidColorBrush(isSelected
-                    ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
-                    : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44)),
-                BorderBrush = item.Target == RenderTarget.FloatingWindow
-                    ? new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A))
-                    : new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)),
-                BorderThickness = new Thickness(1),
+                Background = snapshots.TryGetValue(item.Id, out var face)
+                    ? face
+                    : new SolidColorBrush(Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44)),
+                BorderBrush = isSelected
+                    ? new SolidColorBrush(Color.FromRgb(0x0A, 0x84, 0xFF))
+                    : item.Target == RenderTarget.FloatingWindow
+                        ? new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A))
+                        : new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(isSelected ? 2 : 1),
                 CornerRadius = new CornerRadius(5),
                 Cursor = Cursors.SizeAll,
                 Opacity = item.IsEnabled ? 1 : 0.4,
                 Child = content,
+                ClipToBounds = true,
             };
             Canvas.SetLeft(rect, frame.X * screenBounds.Width * scale);
             Canvas.SetTop(rect, (1 - frame.Y - frame.H) * screenBounds.Height * scale);
@@ -1073,19 +1105,54 @@ public sealed class ManagerWindow : Window
     /// Recolors the preview rects for a selection change without rebuilding
     /// them — rebuilding mid-mousedown would destroy the border being
     /// dragged and kill the drag.
+    /// Fetches fresh faces from the engine and paints them onto the
+    /// existing rects in place — never rebuilding them, so a drag in
+    /// progress is not interrupted (the same rule as selection recoloring).
+    private async Task RefreshSnapshots()
+    {
+        if (captureSnapshots == null || snapshotInFlight || showingGallery || !IsVisible) return;
+        snapshotInFlight = true;
+        try
+        {
+            var faces = await captureSnapshots();
+            foreach (var (id, face) in faces)
+            {
+                var source = BitmapSource.Create(face.Width, face.Height, 96, 96,
+                    PixelFormats.Bgra32, null, face.Bgra, face.Width * 4);
+                source.Freeze();
+                snapshots[id] = new ImageBrush(source) { Stretch = Stretch.Fill };
+            }
+            foreach (var child in overview.Children.OfType<Border>())
+                if (child.Tag is Guid id && snapshots.TryGetValue(id, out var brush))
+                    child.Background = brush;
+        }
+        finally { snapshotInFlight = false; }
+    }
+
     private void HighlightOverviewSelection()
     {
         foreach (var child in overview.Children.OfType<Border>())
         {
-            var isSelected = child.Tag is Guid id && id == selectedItemId;
-            child.Background = new SolidColorBrush(isSelected
-                ? Color.FromArgb(0xE0, 0x0A, 0x84, 0xFF)
-                : Color.FromArgb(0xAA, 0x3A, 0x3A, 0x44));
-            var resizable = isSelected && child.Tag is Guid gripId &&
-                store.Layout.Items.FirstOrDefault(i => i.Id == gripId) is { } gripItem &&
+            if (child.Tag is not Guid id) continue;
+            var isSelected = id == selectedItemId;
+            var isFloating = store.Layout.Items.FirstOrDefault(i => i.Id == id)?.Target == RenderTarget.FloatingWindow;
+            child.BorderBrush = isSelected
+                ? new SolidColorBrush(Color.FromRgb(0x0A, 0x84, 0xFF))
+                : isFloating
+                    ? new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A))
+                    : new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+            child.BorderThickness = new Thickness(isSelected ? 2 : 1);
+            var resizable = isSelected &&
+                store.Layout.Items.FirstOrDefault(i => i.Id == id) is { } gripItem &&
                 GripUsable(InfoFor(gripItem.PluginId));
-            if (child.Child is Grid content && content.Children.Count > 1)
-                content.Children[1].Visibility = resizable ? Visibility.Visible : Visibility.Collapsed;
+            if (child.Child is Grid content)
+                foreach (var element in content.Children.OfType<Border>())
+                {
+                    if (Equals(element.Tag, "wash"))
+                        element.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
+                    else if (element.Cursor == Cursors.SizeNWSE)   // the grip
+                        element.Visibility = resizable ? Visibility.Visible : Visibility.Collapsed;
+                }
         }
     }
 
