@@ -126,8 +126,17 @@ three-pane structure as win/mac (win ManagerWindow is the reference):
 
 Sign-in stores the forum token via `CommunityClient.Token`, which now
 branches off-Windows to a 0600 plain file (Secret Service is the tracked
-follow-up). Floating-window target still renders nowhere on Linux; the
-inspector says so.
+follow-up); `LlmSettings.ApiKey` got the same treatment. Floating-window
+target still renders nowhere on Linux; the inspector says so.
+
+**Create Plugin** ("+ → Create Plugin…", or "Rewrite with AI…" on an
+installed plugin): the AI authoring dialog, driven by Core's
+`PluginAuthorSession` — any OpenAI-compatible endpoint, model fetch or
+hand-typed, replace-or-copy for rewrites (store plugins always copy),
+live step log, nothing installs until it validates. Headless
+verification: `DESKLAYER_AUTHOR_TEST=<prompt>` runs the loop against the
+configured llm.json and exits 0 on install (proven on omarchy against a
+mock endpoint).
 
 The Manager owns a StatusNotifier **tray icon** (Open Manager · Pause/
 Resume Wallpaper · Restart Engine · Quit); closing the window hides it.
@@ -146,9 +155,10 @@ edit; in-place reconcile is the tracked follow-up.
 ## Backlog toward parity (next cycles)
 
 - floating-window target (Avalonia panels), webview mode
-- community sign-in (cheer/comment/publish) + LLM authoring UIs — blocked
-  on the ISecretStore seam (CommunityClient.Token is DPAPI/Windows-only)
-- power controller (logind), D-Bus single instance, Secret Service ISecretStore
+- publish-to-community dialog (needs preview capture from the engine)
+- power controller (logind), D-Bus single instance; Secret Service backend
+  for the token/API-key files (both currently 0600 plain files — create
+  atomically via FileStreamOptions.UnixCreateMode when the seam lands)
 - AppImage + NetSparkle updater on appcast-linux.xml
 - in-place reconcile, multi-output, MIT-SHM & fractional-scale presentation
 - GNOME Wayland / X11 DE matrix runs (spikes ready; needs VMs)
