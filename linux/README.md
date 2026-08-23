@@ -97,6 +97,26 @@ systemctl --user enable --now desklayer
 The service restarts the engine on failure — the Linux analog of the win
 port's Explorer-restart watchdog (verified: kill -9 → back in seconds).
 
+## Manager
+
+`DeskLayer.LinuxApp --manager` opens the Avalonia manager (item list,
+enable/disable, add installed plugins, frame/z-order/property editing,
+remove). It is a separate process from the engine service: both edit the
+wire-format `layout.json`, which the engine watches and rebuilds from —
+no IPC. v1 rebuild resets JS state on edit; in-place reconcile is the
+tracked follow-up.
+
+## Backlog toward parity (next cycles)
+
+- floating-window target (Avalonia panels), webview mode
+- store browsing + community gallery/publish/social + LLM authoring UIs
+  (Core clients are already cross-platform; these are Avalonia dialogs)
+- power controller (logind), D-Bus single instance, Secret Service ISecretStore
+- AppImage + NetSparkle updater on appcast-linux.xml
+- in-place reconcile, multi-output, MIT-SHM & fractional-scale presentation
+- GNOME Wayland / X11 DE matrix runs (spikes ready; needs VMs)
+- Linux symbol/font tables (`-linux` siblings) + bundled fonts
+
 ## Platform notes
 
 - Plugins and layout live in `~/.config/DeskLayer` (override with

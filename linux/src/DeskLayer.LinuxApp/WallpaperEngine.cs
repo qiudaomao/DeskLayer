@@ -7,10 +7,11 @@
 // Reference: win/src/DeskLayer.App/WallpaperEngine.cs (1198 LOC). This v0
 // carries only what M1 needs; declarative/floating/reconcile land in M2+.
 //
-// v0 simplifications (tracked):
+// v1 simplifications (tracked):
 // - single output; every enabled wallpaper item renders regardless of its
 //   DisplayUuid (mac/win layouts carry their own display ids).
-// - no file watching, no live reconcile: layout is read once at start.
+// - layout edits rebuild every item (JS state resets) rather than the
+//   mac/win in-place reconcile — acceptable while the Manager is young.
 
 using System.Diagnostics;
 using DeskLayer.Core.Js;
@@ -43,6 +44,8 @@ public sealed class WallpaperEngine : IDisposable
     private readonly SKBitmap frame;
     private readonly SKCanvas frameCanvas;
     private readonly SystemStatsBinding systemStats = new();
+    private FileSystemWatcher? watcher;
+    private long layoutDirty;
 
     public WallpaperEngine(IWallpaperSurface surface, Action<string> log)
     {
@@ -51,6 +54,40 @@ public sealed class WallpaperEngine : IDisposable
         frame = new SKBitmap(new SKImageInfo(surface.WidthPx, surface.HeightPx,
             SKColorType.Bgra8888, SKAlphaType.Premul));
         frameCanvas = new SKCanvas(frame);
+    }
+
+    /// Watches layout.json so Manager edits (a separate process) apply
+    /// without restarting the service. Debounced; the loop rebuilds.
+    public void WatchLayout()
+    {
+        var dir = LayoutStore.DataDirectory;
+        Directory.CreateDirectory(dir);
+        watcher = new FileSystemWatcher(dir, "layout.json")
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+            EnableRaisingEvents = true,
+        };
+        FileSystemEventHandler mark = (_, _) => Interlocked.Exchange(ref layoutDirty, 1);
+        watcher.Changed += mark;
+        watcher.Created += mark;
+        watcher.Renamed += (_, _) => Interlocked.Exchange(ref layoutDirty, 1);
+    }
+
+    private void RebuildFromLayout()
+    {
+        log("layout.json changed — rebuilding items");
+        foreach (var item in items)
+        {
+            item.Instance.Dispose();
+            item.Bridge?.Dispose();
+            item.Canvas.Dispose();
+            item.Bitmap.Dispose();
+        }
+        items.Clear();
+        Boot();
+        // Repaint immediately, even if nothing is due yet.
+        Compose();
+        surface.Present(frame);
     }
 
     public int Boot()
@@ -134,6 +171,13 @@ public sealed class WallpaperEngine : IDisposable
             {
                 log("wayland connection lost — exiting");
                 return;
+            }
+
+            if (Interlocked.Exchange(ref layoutDirty, 0) == 1)
+            {
+                Thread.Sleep(300); // let the writer finish (LayoutStore debounces saves)
+                Interlocked.Exchange(ref layoutDirty, 0);
+                RebuildFromLayout();
             }
 
             var now = clock.Elapsed.TotalSeconds;
@@ -244,6 +288,7 @@ public sealed class WallpaperEngine : IDisposable
 
     public void Dispose()
     {
+        watcher?.Dispose();
         foreach (var item in items)
         {
             item.Instance.Dispose();

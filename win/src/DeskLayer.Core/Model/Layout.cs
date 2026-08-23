@@ -167,7 +167,15 @@ public sealed record Layout
     {
         var items = new List<LayoutItem>();
         if (root.TryGetProperty("items", out var arr) && arr.ValueKind == JsonValueKind.Array)
-            foreach (var e in arr.EnumerateArray()) items.Add(LayoutItem.ReadJson(e));
+            foreach (var e in arr.EnumerateArray())
+            {
+                // One malformed (often hand-edited) item must not take the
+                // rest of the layout with it — the same lossy rule the store
+                // list learned the hard way on the mac.
+                try { items.Add(LayoutItem.ReadJson(e)); }
+                catch (Exception ex) when (ex is JsonException or KeyNotFoundException
+                    or InvalidOperationException or FormatException or IndexOutOfRangeException) { }
+            }
         return new Layout
         {
             Version = root.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : 1,

@@ -14,6 +14,12 @@ using DeskLayer.LinuxApp.Surfaces;
 
 var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "dev";
 void Log(string message) => Console.WriteLine($"[desklayer] {message}");
+
+// The Manager is its own process (the engine runs as a service); both edit
+// the same layout.json, which the engine watches.
+if (args.Contains("--manager"))
+    return DeskLayer.LinuxApp.Ui.ManagerApp.Run(args.Where(a => a != "--manager").ToArray());
+
 Log($"DeskLayer for Linux {version} starting");
 
 var surface = BackendSelector.Create(Log);
@@ -26,6 +32,7 @@ Log($"backend: {surface.BackendName}");
 
 using var surfaceLifetime = surface;
 using var engine = new WallpaperEngine(surface, Log);
+engine.WatchLayout();
 var count = engine.Boot();
 if (count == 0)
 {
