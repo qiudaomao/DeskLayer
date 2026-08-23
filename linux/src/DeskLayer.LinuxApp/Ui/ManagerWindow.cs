@@ -28,6 +28,7 @@ public sealed class ManagerWindow : Window
     private readonly PluginRegistry registry = new(watch: true);
     private readonly PluginStoreRegistry storeRegistry = new(_ => { });
     private readonly PluginUpdater updater = new(_ => { });
+    private readonly DeskLayer.Core.Llm.PluginAuthorSession author;
 
     private readonly StackPanel sidebarPanel = new() { Margin = new Thickness(8, 10, 8, 6) };
     private readonly ContentControl centerHost = new();
@@ -54,6 +55,7 @@ public sealed class ManagerWindow : Window
         Width = 1080;
         Height = 640;
 
+        author = new DeskLayer.Core.Llm.PluginAuthorSession(registry, storeRegistry, _ => { });
         itemInspector = new ItemInspector(store, registry, storeRegistry,
             InfoFor, () => (screenPx.Width / scaling, screenPx.Height / scaling),
             UpdateControls, onRemoved: () => { selectedItemId = null; RefreshAll(); });
@@ -98,8 +100,11 @@ public sealed class ManagerWindow : Window
     /// the gallery, DESKLAYER_MANAGER_SELECT=<n> selects the nth item.
     private void ApplyDebugHooks()
     {
-        if (Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_TAB")?.ToLowerInvariant() == "community")
+        var tab = Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_TAB")?.ToLowerInvariant();
+        if (tab == "community")
             ShowGallery();
+        else if (tab == "create")
+            OpenCreatePlugin(null);
         else if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_SELECT"), out var n)
             && n >= 0 && n < store.Layout.Items.Count)
             SelectItem(store.Layout.Items[n].Id);
@@ -228,6 +233,9 @@ public sealed class ManagerWindow : Window
         var import = new MenuItem { Header = L.T("Add Plugin…") };
         import.Click += async (_, _) => await ImportPlugins();
         flyout.Items.Add(import);
+        var create = new MenuItem { Header = L.T("Create Plugin…") };
+        create.Click += (_, _) => OpenCreatePlugin(null);
+        flyout.Items.Add(create);
         flyout.Items.Add(new Separator());
         foreach (var preset in PresetStore.All)
         {
@@ -852,6 +860,10 @@ public sealed class ManagerWindow : Window
             });
             panel.Children.Add(reveal);
 
+            var rewrite = new Button { Content = L.T("Rewrite with AI…") };
+            rewrite.Click += (_, _) => OpenCreatePlugin(pluginId);
+            panel.Children.Add(rewrite);
+
             var uninstall = ConfirmButton(L.T("Uninstall"),
                 usageCount > 0 ? L.T("Really uninstall? {0} items stop rendering", usageCount) : L.T("Really uninstall?"),
                 () =>
@@ -950,6 +962,13 @@ public sealed class ManagerWindow : Window
         panel.Children.Add(button);
         panel.Children.Add(status2);
         return panel;
+    }
+
+    private void OpenCreatePlugin(string? preselectedPluginId)
+    {
+        var dialog = new CreatePluginDialog(author, registry, preselectedPluginId);
+        dialog.ShowInstalled += id => SelectPlugin(id);
+        _ = dialog.ShowDialog(this);
     }
 
     private (string StoreName, StorePlugin Plugin)? StoreSourceFor(string pluginId)

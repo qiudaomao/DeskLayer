@@ -20,6 +20,34 @@ void Log(string message) => Console.WriteLine($"[desklayer] {message}");
 if (args.Contains("--manager"))
     return DeskLayer.LinuxApp.Ui.ManagerApp.Run(args.Where(a => a != "--manager").ToArray());
 
+// DESKLAYER_AUTHOR_TEST=<prompt>: run the Core plugin-authoring loop
+// headlessly against the configured llm.json endpoint and report each step
+// — the same ssh-driven verification tradition as DESKLAYER_DUMP_ITEM.
+if (Environment.GetEnvironmentVariable("DESKLAYER_AUTHOR_TEST") is { Length: > 0 } authorPrompt)
+{
+    using var authorRegistry = new DeskLayer.Core.Model.PluginRegistry(watch: false);
+    var authorStores = new DeskLayer.Core.Model.PluginStoreRegistry(Log);
+    var session = new DeskLayer.Core.Llm.PluginAuthorSession(authorRegistry, authorStores, Log);
+    var printed = 0;
+    session.Changed += () =>
+    {
+        lock (session)
+        {
+            for (; printed < session.Steps.Count; printed++)
+            {
+                var step = session.Steps[printed];
+                Log($"{(step.IsError ? "⚠" : "✓")} {step.Text}{(step.Detail is { } d ? $" — {d}" : "")}");
+            }
+        }
+    };
+    Log($"author test: model {session.Settings.Model} at {session.Settings.BaseUrl}");
+    session.Start(authorPrompt, DeskLayer.Core.Llm.PluginAuthorSession.Subject.New);
+    while (session.IsRunning) await Task.Delay(200);
+    if (session.Error is { } authorError) Log($"error: {authorError}");
+    Log($"installed: {session.InstalledPluginId ?? "(nothing)"}");
+    return session.InstalledPluginId != null ? 0 : 1;
+}
+
 Log($"DeskLayer for Linux {version} starting");
 
 var surface = BackendSelector.Create(Log);

@@ -104,6 +104,10 @@ public sealed class LlmSettings
 
     /// DPAPI (current user), never plain JSON — the Windows stand-in for the
     /// mac's login Keychain. Null/empty clears the stored key.
+    ///
+    /// On non-Windows the key is written as-is with owner-only (0600)
+    /// permissions — the same treatment as CommunityClient.Token, pending
+    /// the Secret Service seam. The Windows format and path are unchanged.
     public static string? ApiKey
     {
         get
@@ -111,7 +115,10 @@ public sealed class LlmSettings
             try
             {
                 if (!File.Exists(KeyPath)) return null;
-                var clear = ProtectedData.Unprotect(File.ReadAllBytes(KeyPath), null, DataProtectionScope.CurrentUser);
+                var raw = File.ReadAllBytes(KeyPath);
+                var clear = OperatingSystem.IsWindows()
+                    ? ProtectedData.Unprotect(raw, null, DataProtectionScope.CurrentUser)
+                    : raw;
                 var key = Encoding.UTF8.GetString(clear);
                 return key.Length == 0 ? null : key;
             }
@@ -130,8 +137,16 @@ public sealed class LlmSettings
                     return;
                 }
                 Directory.CreateDirectory(LayoutStore.DataDirectory);
-                var sealed_ = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(KeyPath, sealed_);
+                if (OperatingSystem.IsWindows())
+                {
+                    var sealed_ = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
+                    File.WriteAllBytes(KeyPath, sealed_);
+                }
+                else
+                {
+                    File.WriteAllBytes(KeyPath, Encoding.UTF8.GetBytes(value));
+                    File.SetUnixFileMode(KeyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                }
             }
             catch (Exception ex) when (ex is IOException or CryptographicException or UnauthorizedAccessException) { }
         }
