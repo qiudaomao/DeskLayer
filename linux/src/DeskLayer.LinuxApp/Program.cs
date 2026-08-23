@@ -20,6 +20,22 @@ void Log(string message) => Console.WriteLine($"[desklayer] {message}");
 if (args.Contains("--manager"))
     return DeskLayer.LinuxApp.Ui.ManagerApp.Run(args.Where(a => a != "--manager").ToArray());
 
+// DESKLAYER_MEASURE_TEST=<tree.json>: measure a dumped tree twice at two
+// widths and print the results — pure-function check for MeasureNatural.
+if (Environment.GetEnvironmentVariable("DESKLAYER_MEASURE_TEST") is { Length: > 0 } treePath)
+{
+    var treeJson = File.ReadAllText(treePath);
+    var parsed = DeskLayer.Core.Model.ViewNode.Decode(treeJson);
+    if (parsed == null) { Log("tree didn't decode"); return 1; }
+    foreach (var w in new[] { 273.0, 340.0 })
+    {
+        var first = DeskLayer.LinuxApp.Rendering.NodeRenderer.MeasureNatural(parsed, w, 100, false, true, Log);
+        var second = DeskLayer.LinuxApp.Rendering.NodeRenderer.MeasureNatural(parsed, w, 100, false, true, Log);
+        Log($"width {w}: natural {first.Width:F1}×{first.Height:F1}, again {second.Width:F1}×{second.Height:F1}");
+    }
+    return 0;
+}
+
 // DESKLAYER_AUTHOR_TEST=<prompt>: run the Core plugin-authoring loop
 // headlessly against the configured llm.json endpoint and report each step
 // — the same ssh-driven verification tradition as DESKLAYER_DUMP_ITEM.

@@ -34,6 +34,23 @@ public static class NodeRenderer
         element.Draw(canvas, SKRect.Create(0, 0, (float)width, (float)height), style);
     }
 
+    /// The tree's natural size in points — the WPF Measure pass the win
+    /// rasterizer leans on for autoSize axes. Auto axes measure against a
+    /// huge (finite — the element math never sees infinity) budget; fixed
+    /// axes keep the item's frame so wrapping stays honest.
+    public static SKSize MeasureNatural(ViewNode root, double width, double height,
+        bool autoWidth, bool autoHeight, Action<string> log)
+    {
+        const float generous = 100_000f;
+        var element = Build(root, log);
+        var natural = element.Measure(
+            new SKSize(autoWidth ? generous : (float)width, autoHeight ? generous : (float)height),
+            TextStyle.Default);
+        return new SKSize(
+            autoWidth ? natural.Width : (float)width,
+            autoHeight ? natural.Height : (float)height);
+    }
+
     // ---- element model ----
 
     private sealed record TextStyle(SKColor Color, float FontSize, bool Bold)
