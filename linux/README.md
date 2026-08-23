@@ -104,25 +104,39 @@ port's Explorer-restart watchdog (verified: kill -9 → back in seconds).
 
 ## Manager
 
-`DeskLayer.LinuxApp --manager` opens the Avalonia manager, three tabs:
+`DeskLayer.LinuxApp --manager` opens the Avalonia manager — the same
+three-pane structure as win/mac (win ManagerWindow is the reference):
 
-- **Desktop** — item list + full typed inspector: about (version/author/
-  size/description via `PluginMetadata.ExtractInfo`), enable, frame,
-  z-order, per-item background color, bool/number/color/string property
-  editors (color with live swatch), SSH destination editor for
-  ssh-permission plugins, remove.
-- **Stores** — `PluginStoreRegistry` browsing: preset one-click add
-  (Official/Sample), add-by-URL, refresh, install/update per plugin.
-- **Community** — live `CommunityClient.Gallery`: sort (cheers/downloads/
-  latest), search, verified filter, pager, install (origin recorded as
-  "DeskLayer Community" so updates flow like mac/win). Sign-in features
-  (cheer/comment/publish) wait on the ISecretStore seam.
+- **Sidebar** — the Community entry, the Installed library, and one
+  category per store (inline add-to-desktop / install buttons, "+" menu
+  with preset stores / add-by-URL / import .js, plugins-folder button).
+- **Centre** — the desktop overview: item rects over a screen-shaped
+  canvas, drag to move, corner grip to resize (declared resize policy
+  honored: aspect, limits, auto-size axes snap back). Selecting the
+  Community entry swaps in the gallery: thumbnail tiles, sort chips,
+  verified filter, debounced search, pager, device-code **sign-in**, and
+  a detail dialog (full preview, live cheer toggle, comments + compose).
+- **Inspector** — follows the selection kind, exactly like win: placed
+  item (origin, enabled, show-as, z-order, background, frame in points
+  with top-left Y, typed property editors, SSH destinations, update
+  controls, remove) · installed plugin (about, capabilities, read-only
+  properties, updates, add/reveal/uninstall) · store (counts, catalog
+  URL, refresh, remove) · store-listed plugin (details, install,
+  install-&-add).
+
+Sign-in stores the forum token via `CommunityClient.Token`, which now
+branches off-Windows to a 0600 plain file (Secret Service is the tracked
+follow-up). Floating-window target still renders nowhere on Linux; the
+inspector says so.
 
 The Manager owns a StatusNotifier **tray icon** (Open Manager · Pause/
 Resume Wallpaper · Restart Engine · Quit); closing the window hides it.
 Pause drops a `.paused` sentinel in the data dir which the engine polls —
 the wallpaper freezes on its last frame, resume is instant. Debug hooks:
-`DESKLAYER_MANAGER_TAB=stores|community`, `DESKLAYER_MANAGER_SELECT=<n>`.
+`DESKLAYER_MANAGER_TAB=community`, `DESKLAYER_MANAGER_SELECT=<n>`.
+
+Avalonia note for future UI work: assigning `null` to `Foreground`/
+`Background` blanks the theme brush (invisible text) — use `ClearValue`.
 
 It is a separate process from the engine service: both edit the
 wire-format `layout.json`, which the engine watches and rebuilds from —
