@@ -747,14 +747,19 @@ public sealed class ManagerWindow : Window
             e.Handled = true;
             var scale = OverviewScale();
             var (wPts, hPts) = info.ResolvedSize(rect.Width / scale / scaling, rect.Height / scale / scaling, null);
-            var w = wPts * scaling / screenPx.Width;
-            var h = hPts * scaling / screenPx.Height;
             var top = Canvas.GetTop(rect) / scale / screenPx.Height;
             store.Update(layout => layout with
             {
-                Items = layout.Items.Select(item => item.Id == itemId
-                    ? item with { NormalizedFrame = item.NormalizedFrame with { W = w, H = h, Y = 1 - top - h } }
-                    : item).ToList(),
+                Items = layout.Items.Select(item =>
+                {
+                    if (item.Id != itemId) return item;
+                    // Content-driven axes are the engine's to set, not the
+                    // drag's: writing a rounded copy back would fight the
+                    // adoption loop. They keep their stored values verbatim.
+                    var w = info.AutoSizeWidth ? item.NormalizedFrame.W : wPts * scaling / screenPx.Width;
+                    var h = info.AutoSizeHeight ? item.NormalizedFrame.H : hPts * scaling / screenPx.Height;
+                    return item with { NormalizedFrame = item.NormalizedFrame with { W = w, H = h, Y = 1 - top - h } };
+                }).ToList(),
             });
         };
     }
