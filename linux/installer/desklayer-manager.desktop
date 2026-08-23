@@ -1,0 +1,13 @@
+# App-launcher entry for the Manager UI (the engine itself is the systemd
+# service; this is what "DeskLayer" in walker/rofi/GNOME should open).
+# Install to ~/.local/share/applications/ with the %h path made absolute,
+# or let scripts/linux/publish.sh's install snippet do it.
+[Desktop Entry]
+Type=Application
+Name=DeskLayer
+Comment=JavaScript plugins on your wallpaper — settings & store
+Exec=desklayer-manager
+Icon=desklayer
+Categories=Utility;Settings;
+Terminal=false
+StartupWMClass=DeskLayer.LinuxApp

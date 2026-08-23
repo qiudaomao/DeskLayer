@@ -92,6 +92,11 @@ mkdir -p ~/.local/opt/desklayer && tar xzf DeskLayer-*.tar.gz -C ~/.local/opt/de
 # layer-shell shim (until prebuilt ships): make -C linux/native/desklayer-wl && cp the .so alongside
 cp linux/installer/desklayer.service ~/.config/systemd/user/
 systemctl --user enable --now desklayer
+# launcher entry ("DeskLayer" in walker/rofi/GNOME opens the Manager):
+printf '#!/bin/sh\nexec "%s/.local/opt/desklayer/DeskLayer.LinuxApp" --manager "$@"\n' "$HOME" \
+  > ~/.local/bin/desklayer-manager && chmod +x ~/.local/bin/desklayer-manager
+cp linux/installer/desklayer-manager.desktop ~/.local/share/applications/
+cp linux/installer/AppDir/desklayer.png ~/.local/share/icons/hicolor/256x256/apps/
 ```
 
 The service restarts the engine on failure — the Linux analog of the win
@@ -99,18 +104,36 @@ port's Explorer-restart watchdog (verified: kill -9 → back in seconds).
 
 ## Manager
 
-`DeskLayer.LinuxApp --manager` opens the Avalonia manager (item list,
-enable/disable, add installed plugins, frame/z-order/property editing,
-remove). It is a separate process from the engine service: both edit the
+`DeskLayer.LinuxApp --manager` opens the Avalonia manager, three tabs:
+
+- **Desktop** — item list + full typed inspector: about (version/author/
+  size/description via `PluginMetadata.ExtractInfo`), enable, frame,
+  z-order, per-item background color, bool/number/color/string property
+  editors (color with live swatch), SSH destination editor for
+  ssh-permission plugins, remove.
+- **Stores** — `PluginStoreRegistry` browsing: preset one-click add
+  (Official/Sample), add-by-URL, refresh, install/update per plugin.
+- **Community** — live `CommunityClient.Gallery`: sort (cheers/downloads/
+  latest), search, verified filter, pager, install (origin recorded as
+  "DeskLayer Community" so updates flow like mac/win). Sign-in features
+  (cheer/comment/publish) wait on the ISecretStore seam.
+
+The Manager owns a StatusNotifier **tray icon** (Open Manager · Pause/
+Resume Wallpaper · Restart Engine · Quit); closing the window hides it.
+Pause drops a `.paused` sentinel in the data dir which the engine polls —
+the wallpaper freezes on its last frame, resume is instant. Debug hooks:
+`DESKLAYER_MANAGER_TAB=stores|community`, `DESKLAYER_MANAGER_SELECT=<n>`.
+
+It is a separate process from the engine service: both edit the
 wire-format `layout.json`, which the engine watches and rebuilds from —
-no IPC. v1 rebuild resets JS state on edit; in-place reconcile is the
-tracked follow-up.
+no IPC beyond that file and the sentinel. v1 rebuild resets JS state on
+edit; in-place reconcile is the tracked follow-up.
 
 ## Backlog toward parity (next cycles)
 
 - floating-window target (Avalonia panels), webview mode
-- store browsing + community gallery/publish/social + LLM authoring UIs
-  (Core clients are already cross-platform; these are Avalonia dialogs)
+- community sign-in (cheer/comment/publish) + LLM authoring UIs — blocked
+  on the ISecretStore seam (CommunityClient.Token is DPAPI/Windows-only)
 - power controller (logind), D-Bus single instance, Secret Service ISecretStore
 - AppImage + NetSparkle updater on appcast-linux.xml
 - in-place reconcile, multi-output, MIT-SHM & fractional-scale presentation

@@ -165,12 +165,34 @@ public sealed class WallpaperEngine : IDisposable
     {
         var clock = Stopwatch.StartNew();
         var dumped = false;
+        var pausedSentinel = Path.Combine(LayoutStore.DataDirectory, ".paused");
+        var paused = false;
+        var pausedCheck = 0.0;
         while (!ct.IsCancellationRequested)
         {
             if (!surface.Dispatch())
             {
                 log("wayland connection lost — exiting");
                 return;
+            }
+
+            // Tray "Pause Wallpaper" drops a sentinel file; the wallpaper
+            // freezes on its last frame (no teardown — resume is instant).
+            var tick = clock.Elapsed.TotalSeconds;
+            if (tick >= pausedCheck)
+            {
+                pausedCheck = tick + 1;
+                var exists = File.Exists(pausedSentinel);
+                if (exists != paused)
+                {
+                    paused = exists;
+                    log(paused ? "paused (sentinel present)" : "resumed");
+                }
+            }
+            if (paused)
+            {
+                Thread.Sleep(250);
+                continue;
             }
 
             if (Interlocked.Exchange(ref layoutDirty, 0) == 1)
@@ -265,6 +287,11 @@ public sealed class WallpaperEngine : IDisposable
         foreach (var item in items.OrderBy(i => i.Layout.ZOrder))
         {
             if (!item.RenderedOnce) continue;
+            if (item.Layout.BackgroundColor is { Length: > 0 } bg && Css.TryParse(bg, out var color))
+            {
+                using var paint = new SKPaint { Color = color, IsAntialias = true };
+                frameCanvas.DrawRoundRect(item.DestRect, 8, 8, paint);
+            }
             frameCanvas.DrawBitmap(item.Bitmap, item.DestRect);
         }
         frameCanvas.Flush();

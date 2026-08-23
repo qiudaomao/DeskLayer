@@ -1,19 +1,20 @@
-// The Linux Manager v1 — a deliberately compact Avalonia take on the
-// mac/win 3-pane manager (reference: win/src/DeskLayer.App/ManagerWindow.cs,
-// 2.2k LOC; this v1 carries the daily-driver subset).
+// The Linux Manager — Avalonia take on the mac/win manager (reference:
+// win/src/DeskLayer.App/ManagerWindow.cs, 2.2k LOC).
 //
 // Architecture differs from mac/win on purpose: the wallpaper engine runs
 // as a separate systemd service, so the Manager is its own process editing
 // the shared wire-format layout.json through Core's LayoutStore. The engine
-// watches the file and reconciles; nothing needs IPC.
+// watches the file and reconciles; nothing needs IPC beyond two files
+// (layout.json and the .paused sentinel).
 //
-// v1 scope: item list, enable/disable, add installed plugin to desktop,
-// remove, frame editing in points, z-order, property editing with
-// type-coerced commits. Store browsing / community / LLM dialogs ride the
-// next cycle (their Core clients are already cross-platform).
+// Tabs: Desktop (item list + typed inspector), Stores (catalog browsing +
+// install), Community (gallery browsing + install). The app owns a
+// StatusNotifier tray icon; closing the window hides it, Quit lives in the
+// tray menu. LLM dialog / publish / floating windows ride the next cycle.
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using DeskLayer.Core.Model;
@@ -25,16 +26,55 @@ public sealed class ManagerWindow : Window
     private readonly LayoutStore store = new();
     private readonly PluginRegistry registry = new(watch: true);
     private readonly ListBox itemList = new();
-    private readonly StackPanel editor = new() { Spacing = 8, Margin = new Thickness(16) };
+    private readonly ItemInspector inspector;
     private readonly ComboBox addPlugin = new() { MinWidth = 160 };
-    private Guid? selectedId;
 
     public ManagerWindow()
     {
         Title = "DeskLayer";
-        Width = 860;
-        Height = 560;
+        Width = 960;
+        Height = 620;
 
+        inspector = new ItemInspector(store, registry, RefreshItems);
+
+        var tabs = new TabControl
+        {
+            Items =
+            {
+                new TabItem { Header = "Desktop", Content = BuildDesktopTab() },
+                new TabItem { Header = "Stores", Content = new StoresPane(registry) },
+                new TabItem { Header = "Community", Content = new CommunityPane(registry) },
+            },
+        };
+        Content = tabs;
+
+        // Deep-link hook (also how headless verification drives the tabs):
+        // DESKLAYER_MANAGER_TAB=desktop|stores|community
+        tabs.SelectedIndex = Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_TAB")?.ToLowerInvariant() switch
+        {
+            "stores" => 1,
+            "community" => 2,
+            _ => 0,
+        };
+
+        itemList.SelectionChanged += (_, _) =>
+        {
+            if (itemList.SelectedItem is ListBoxItem { Tag: Guid id }) inspector.Show(id);
+        };
+
+        RefreshItems();
+        RefreshPlugins();
+        registry.DidChange += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshPlugins);
+
+        // Headless-verification hook: pre-select the Nth desktop item so the
+        // inspector's probe/editor path runs without synthetic input.
+        if (int.TryParse(Environment.GetEnvironmentVariable("DESKLAYER_MANAGER_SELECT"), out var preselect)
+            && preselect >= 0 && preselect < itemList.Items.Count)
+            itemList.SelectedIndex = preselect;
+    }
+
+    private Control BuildDesktopTab()
+    {
         var addButton = new Button { Content = "Add to Desktop" };
         addButton.Click += (_, _) => AddSelectedPlugin();
 
@@ -56,23 +96,15 @@ public sealed class ManagerWindow : Window
         var divider = new Border { Background = Brushes.Gray, Opacity = 0.3 };
         Grid.SetColumn(divider, 1);
         split.Children.Add(divider);
-        var scroll = new ScrollViewer { Content = editor };
+        var scroll = new ScrollViewer { Content = inspector };
         Grid.SetColumn(scroll, 2);
         split.Children.Add(scroll);
-        Content = split;
-
-        itemList.SelectionChanged += (_, _) =>
-        {
-            if (itemList.SelectedItem is ListBoxItem { Tag: Guid id }) ShowEditor(id);
-        };
-
-        RefreshItems();
-        RefreshPlugins();
-        registry.DidChange += () => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshPlugins);
+        return split;
     }
 
     private void RefreshItems()
     {
+        var selected = itemList.SelectedItem is ListBoxItem { Tag: Guid id } ? id : (Guid?)null;
         var items = store.Layout.Items;
         itemList.Items.Clear();
         foreach (var item in items)
@@ -83,9 +115,9 @@ public sealed class ManagerWindow : Window
                 Tag = item.Id,
             });
         }
-        if (selectedId is { } id)
+        if (selected is { } keep)
         {
-            var index = items.ToList().FindIndex(i => i.Id == id);
+            var index = items.ToList().FindIndex(i => i.Id == keep);
             if (index >= 0) itemList.SelectedIndex = index;
         }
     }
@@ -110,150 +142,10 @@ public sealed class ManagerWindow : Window
             ZOrder = store.Layout.Items.Count == 0 ? 0 : store.Layout.Items.Max(i => i.ZOrder) + 1,
         };
         store.Update(l => l with { Items = l.Items.Append(item).ToList() });
-        selectedId = item.Id;
         RefreshItems();
+        var index = store.Layout.Items.ToList().FindIndex(i => i.Id == item.Id);
+        if (index >= 0) itemList.SelectedIndex = index;
     }
-
-    private LayoutItem? Selected() => store.Layout.Items.FirstOrDefault(i => i.Id == selectedId);
-
-    private void Mutate(Func<LayoutItem, LayoutItem> change)
-    {
-        if (selectedId is not { } id) return;
-        store.Update(l => l with
-        {
-            Items = l.Items.Select(i => i.Id == id ? change(i) : i).ToList(),
-        });
-    }
-
-    private void ShowEditor(Guid id)
-    {
-        selectedId = id;
-        editor.Children.Clear();
-        var item = Selected();
-        if (item == null) return;
-
-        editor.Children.Add(new TextBlock { Text = item.PluginId, FontSize = 18, FontWeight = FontWeight.Bold });
-
-        var enabled = new CheckBox { Content = "Enabled", IsChecked = item.IsEnabled };
-        enabled.IsCheckedChanged += (_, _) =>
-        {
-            Mutate(i => i with { IsEnabled = enabled.IsChecked == true });
-            RefreshItems();
-        };
-        editor.Children.Add(enabled);
-
-        // Frame in normalized coordinates exposed as points of a nominal
-        // 1366x768 reference (the engine multiplies by real screen size).
-        editor.Children.Add(new TextBlock { Text = "Frame (normalized 0–1)", FontWeight = FontWeight.Bold, Margin = new Thickness(0, 8, 0, 0) });
-        var frameRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var fx = FrameBox(item.NormalizedFrame.X);
-        var fy = FrameBox(item.NormalizedFrame.Y);
-        var fw = FrameBox(item.NormalizedFrame.W);
-        var fh = FrameBox(item.NormalizedFrame.H);
-        foreach (var (label, box) in new[] { ("x", fx), ("y", fy), ("w", fw), ("h", fh) })
-        {
-            frameRow.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
-            frameRow.Children.Add(box);
-        }
-        var applyFrame = new Button { Content = "Apply" };
-        applyFrame.Click += (_, _) =>
-        {
-            if (Parse(fx) is { } x && Parse(fy) is { } y && Parse(fw) is { } w && Parse(fh) is { } h)
-                Mutate(i => i with { NormalizedFrame = new NormalizedFrame(x, y, Math.Max(0.01, w), Math.Max(0.01, h)) });
-        };
-        frameRow.Children.Add(applyFrame);
-        editor.Children.Add(frameRow);
-
-        var zRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        zRow.Children.Add(new TextBlock { Text = $"Z-order: {item.ZOrder}", VerticalAlignment = VerticalAlignment.Center });
-        var zUp = new Button { Content = "▲" };
-        var zDown = new Button { Content = "▼" };
-        zUp.Click += (_, _) => { Mutate(i => i with { ZOrder = i.ZOrder + 1 }); ShowEditor(id); };
-        zDown.Click += (_, _) => { Mutate(i => i with { ZOrder = i.ZOrder - 1 }); ShowEditor(id); };
-        zRow.Children.Add(zUp);
-        zRow.Children.Add(zDown);
-        editor.Children.Add(zRow);
-
-        // Properties: declared list comes from a probe boot of the plugin
-        // source (no live engine in this process).
-        var declared = ProbeProperties(item.PluginId);
-        if (declared.Count > 0)
-        {
-            editor.Children.Add(new TextBlock { Text = "Properties", FontWeight = FontWeight.Bold, Margin = new Thickness(0, 8, 0, 0) });
-            foreach (var property in declared)
-            {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-                row.Children.Add(new TextBlock
-                {
-                    Text = $"{property.Name} ({property.ValueType})",
-                    Width = 180,
-                    VerticalAlignment = VerticalAlignment.Center,
-                });
-                var current = item.PropertyOverrides.TryGetValue(property.Name, out var over)
-                    ? over : property.Value;
-                var box = new TextBox { Text = current.StringValue, MinWidth = 160 };
-                var name = property.Name;
-                var valueType = property.ValueType;
-                box.LostFocus += (_, _) => CommitProperty(name, valueType, box.Text ?? "");
-                row.Children.Add(box);
-                editor.Children.Add(row);
-            }
-        }
-
-        var remove = new Button { Content = "Remove from Desktop", Margin = new Thickness(0, 16, 0, 0) };
-        remove.Click += (_, _) =>
-        {
-            store.Update(l => l with { Items = l.Items.Where(i => i.Id != id).ToList() });
-            selectedId = null;
-            editor.Children.Clear();
-            RefreshItems();
-        };
-        editor.Children.Add(remove);
-    }
-
-    private void CommitProperty(string name, string valueType, string text)
-    {
-        object raw = valueType == "number" && double.TryParse(text,
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var n) ? n
-            : valueType == "bool" ? text.Trim().ToLowerInvariant() is "true" or "1" or "yes"
-            : text;
-        var coerced = PropertyValue.Coerce(raw, valueType);
-        if (coerced == null) return;
-        Mutate(i => i with
-        {
-            PropertyOverrides = new Dictionary<string, PropertyValue>(i.PropertyOverrides)
-            {
-                [name] = coerced.Value,
-            },
-        });
-    }
-
-    private IReadOnlyList<PluginProperty> ProbeProperties(string pluginId)
-    {
-        var plugin = registry.Plugin(pluginId);
-        if (plugin == null) return Array.Empty<PluginProperty>();
-        try
-        {
-            using var probe = DeskLayer.Core.Js.PluginInstance.Boot(
-                pluginId, File.ReadAllText(plugin.SourcePath));
-            return probe?.Properties.ToList() ?? (IReadOnlyList<PluginProperty>)Array.Empty<PluginProperty>();
-        }
-        catch
-        {
-            return Array.Empty<PluginProperty>();
-        }
-    }
-
-    private static TextBox FrameBox(double value) => new()
-    {
-        Text = value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
-        Width = 64,
-    };
-
-    private static double? Parse(TextBox box) =>
-        double.TryParse(box.Text, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 }
 
 public static class ManagerApp
@@ -264,14 +156,101 @@ public static class ManagerApp
 
     private sealed class App : Application
     {
+        private ManagerWindow? window;
+
         public override void Initialize() =>
             Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
 
         public override void OnFrameworkInitializationCompleted()
         {
-            if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
-                desktop.MainWindow = new ManagerWindow();
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                // The tray icon owns the app's lifetime; closing the window
+                // just hides it (the mac/win menubar-app model).
+                desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                window = new ManagerWindow();
+                desktop.MainWindow = window;
+                window.Closing += (_, e) => { e.Cancel = true; window.Hide(); };
+                SetupTray(desktop);
+            }
             base.OnFrameworkInitializationCompleted();
+        }
+
+        private static string PausedSentinel =>
+            Path.Combine(LayoutStore.DataDirectory, ".paused");
+
+        private void SetupTray(IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var pause = new NativeMenuItem(PauseLabel());
+            pause.Click += (_, _) =>
+            {
+                if (File.Exists(PausedSentinel)) File.Delete(PausedSentinel);
+                else File.WriteAllText(PausedSentinel, "");
+                pause.Header = PauseLabel();
+            };
+
+            var open = new NativeMenuItem("Open Manager");
+            open.Click += (_, _) => ShowWindow();
+
+            var restart = new NativeMenuItem("Restart Engine");
+            restart.Click += (_, _) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "systemctl",
+                ArgumentList = { "--user", "restart", "desklayer" },
+                UseShellExecute = false,
+            });
+
+            var quit = new NativeMenuItem("Quit DeskLayer Manager");
+            quit.Click += (_, _) => desktop.Shutdown();
+
+            var menu = new NativeMenu();
+            menu.Items.Add(open);
+            menu.Items.Add(new NativeMenuItemSeparator());
+            menu.Items.Add(pause);
+            menu.Items.Add(restart);
+            menu.Items.Add(new NativeMenuItemSeparator());
+            menu.Items.Add(quit);
+
+            var tray = new TrayIcon
+            {
+                ToolTipText = "DeskLayer",
+                Icon = TrayIconImage(),
+                Menu = menu,
+            };
+            tray.Clicked += (_, _) => ShowWindow();
+            TrayIcon.SetIcons(this, new TrayIcons { tray });
+        }
+
+        private void ShowWindow()
+        {
+            if (window == null) return;
+            window.Show();
+            window.Activate();
+        }
+
+        private static string PauseLabel() =>
+            File.Exists(PausedSentinel) ? "Resume Wallpaper" : "Pause Wallpaper";
+
+        // No bundled asset pipeline yet — draw the icon (rounded square,
+        // "DL") with Skia and hand Avalonia the PNG.
+        private static WindowIcon TrayIconImage()
+        {
+            using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(64, 64));
+            var canvas = surface.Canvas;
+            canvas.Clear(SkiaSharp.SKColors.Transparent);
+            using var back = new SkiaSharp.SKPaint
+            {
+                Color = new SkiaSharp.SKColor(0x2b, 0x6c, 0xb8), IsAntialias = true,
+            };
+            canvas.DrawRoundRect(new SkiaSharp.SKRect(4, 4, 60, 60), 14, 14, back);
+            using var font = new SkiaSharp.SKFont(SkiaSharp.SKTypeface.Default, 30) { Embolden = true };
+            using var text = new SkiaSharp.SKPaint(font) { Color = SkiaSharp.SKColors.White, IsAntialias = true };
+            var width = text.MeasureText("DL");
+            canvas.DrawText("DL", (64 - width) / 2f, 43, font, text);
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+            using var stream = new MemoryStream(data.ToArray());
+            return new WindowIcon(stream);
         }
     }
 }
