@@ -1,9 +1,8 @@
 // DeskLayer for Linux — entry point (M1 walking skeleton).
 //
-// v0 backend: Wayland layer-shell only (proven on Hyprland, spike 2). The
-// X11 backend and the Avalonia manager arrive in later milestones; when the
-// compositor has no layer-shell this exits with a clear message instead of
-// guessing.
+// Backends: Wayland layer-shell (proven on Hyprland) with X11 DESKTOP-type
+// fallback (plain X11 sessions and GNOME Wayland via XWayland). Override
+// with DESKLAYER_WALLPAPER_BACKEND=x11|layer-shell.
 //
 // Env hooks (win-port tradition, they all paid off there):
 //   DESKLAYER_DATA_DIR      data directory (default ~/.config/DeskLayer)
@@ -17,14 +16,15 @@ var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "dev";
 void Log(string message) => Console.WriteLine($"[desklayer] {message}");
 Log($"DeskLayer for Linux {version} starting");
 
-var surface = LayerShellSurface.TryCreate(Log);
+var surface = BackendSelector.Create(Log);
 if (surface == null)
 {
-    Log("no usable wallpaper surface (layer-shell required in M1; X11 backend lands next)");
+    Log("no usable wallpaper surface (need Wayland layer-shell or an X11 session)");
     return 1;
 }
+Log($"backend: {surface.BackendName}");
 
-using var _ = surface;
+using var surfaceLifetime = surface;
 using var engine = new WallpaperEngine(surface, Log);
 var count = engine.Boot();
 if (count == 0)

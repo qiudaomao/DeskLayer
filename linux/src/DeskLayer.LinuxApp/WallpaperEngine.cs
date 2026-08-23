@@ -37,14 +37,14 @@ public sealed class WallpaperEngine : IDisposable
         public bool RenderedOnce;
     }
 
-    private readonly LayerShellSurface surface;
+    private readonly IWallpaperSurface surface;
     private readonly Action<string> log;
     private readonly List<Item> items = new();
     private readonly SKBitmap frame;
     private readonly SKCanvas frameCanvas;
     private readonly SystemStatsBinding systemStats = new();
 
-    public WallpaperEngine(LayerShellSurface surface, Action<string> log)
+    public WallpaperEngine(IWallpaperSurface surface, Action<string> log)
     {
         this.surface = surface;
         this.log = log;
@@ -73,6 +73,15 @@ public sealed class WallpaperEngine : IDisposable
                 layoutItem.PropertyOverrides, m => log($"[{layoutItem.PluginId}] {m}"),
                 hostStats: systemStats);
             if (instance == null) continue;
+            if (instance.Permissions.Contains("ssh"))
+            {
+                // Same resolution as win: alias entries lean on ~/.ssh/config,
+                // manual ones carry host/port/user/key.
+                instance.ConfigureSsh(layoutItem.SshHosts.Select(h => h.UsesAlias
+                    ? new HostBindings.ResolvedSsh(h.Name, h.Host, 22, "", null)
+                    : new HostBindings.ResolvedSsh(h.Name, h.Host, h.Port, h.User,
+                        h.KeyPath.Length == 0 ? null : h.KeyPath)).ToList());
+            }
             if (instance.Mode == RenderMode.Webview)
             {
                 log($"[{layoutItem.PluginId}] webview mode is not supported on Linux yet — skipped");
@@ -194,9 +203,21 @@ public sealed class WallpaperEngine : IDisposable
 
     private void Compose()
     {
-        // Transparent base: the compositor wallpaper shows through the
-        // layer-bottom surface (spike 2). Items composite in z-order.
-        frameCanvas.Clear(SKColors.Transparent);
+        // layer-shell: transparent base, the compositor wallpaper shows
+        // through (spike 2). X11: the window is opaque — paint the captured
+        // root-pixmap wallpaper (or a solid) as base, the win model.
+        if (surface.SupportsTransparency)
+        {
+            frameCanvas.Clear(SKColors.Transparent);
+        }
+        else if (surface.BaseImage is { } baseImage)
+        {
+            frameCanvas.DrawBitmap(baseImage, SKRect.Create(0, 0, surface.WidthPx, surface.HeightPx));
+        }
+        else
+        {
+            frameCanvas.Clear(new SKColor(24, 26, 32));
+        }
         foreach (var item in items.OrderBy(i => i.Layout.ZOrder))
         {
             if (!item.RenderedOnce) continue;

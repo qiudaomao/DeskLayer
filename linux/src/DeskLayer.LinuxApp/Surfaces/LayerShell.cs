@@ -38,15 +38,16 @@ internal static partial class Dlwl
     }
 }
 
-public sealed class LayerShellSurface : IDisposable
+public sealed class LayerShellSurface : IWallpaperSurface
 {
     private readonly nint handle;
 
+    public string BackendName => "layer-shell";
     public int WidthPx { get; }
     public int HeightPx { get; }
     public int Scale { get; }
-    public double WidthPts => (double)WidthPx / Scale;
-    public double HeightPts => (double)HeightPx / Scale;
+    public bool SupportsTransparency => true;
+    public SKBitmap? BaseImage => null;
 
     private LayerShellSurface(nint handle, int widthPx, int heightPx, int scale)
     {
