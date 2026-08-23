@@ -5,33 +5,33 @@
         <description>DeskLayer Windows release feed</description>
         <language>en</language>
         <item>
-            <title>1.2.3</title>
-            <pubDate>Thu, 13 Aug 2026 17:21:49 +0800</pubDate>
-            <sparkle:version>1.2.3</sparkle:version>
-            <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
+            <title>1.2.5</title>
+            <pubDate>Sun, 23 Aug 2026 22:56:39 +0800</pubDate>
+            <sparkle:version>1.2.5</sparkle:version>
+            <sparkle:shortVersionString>1.2.5</sparkle:shortVersionString>
             <description><![CDATA[
-<h2>Fixed</h2>
+<h2>New</h2>
 <ul>
-<li><b>In-app updates install for real now.</b> The updater saved its download under a name Windows couldn't run, so "Install and Relaunch" quietly brought the old version back. If this update itself won't apply, download and run the installer once manually — it's the last time.</li>
-<li><b>Community plugins can update again.</b> Plugins installed from the Community pane now carry a proper update source; the plugin's page offers new versions as they're published. Plugins installed before this fix heal the next time you open the Community pane.</li>
+<li><b>Live snapshots in the Manager.</b> The desktop overview now shows each widget's actual rendered face, updating every couple of seconds — the same virtual-desktop thumbnails the Mac has. Selection is a highlight over the live image instead of a solid block.</li>
 </ul>
+<p>Also carries groundwork for the new Linux version of DeskLayer; no behavior changes on Windows from it.</p>
             ]]></description>
             <description xml:lang="zh-Hans"><![CDATA[
-<h2>修复</h2>
+<h2>新增</h2>
 <ul>
-<li><b>应用内更新现在可以真正完成安装。</b>此前更新程序以 Windows 无法执行的文件名保存下载，导致“安装并重启”后旧版本悄然回归。如果本次更新本身也无法应用，请手动下载并运行一次安装程序——这是最后一次需要手动操作。</li>
-<li><b>社区插件可以再次更新。</b>从社区面板安装的插件现在具有正确的更新来源；新版本发布后，插件页面会提供更新。此前安装的插件会在下次打开社区面板时自动修复。</li>
+<li><b>管理器实时快照。</b>桌面概览现在显示每个小组件的真实渲染画面，每隔约两秒刷新——与 Mac 的虚拟桌面缩略图一致。选中效果改为叠加在实时画面上的高亮，而非纯色方块。</li>
 </ul>
+<p>同时包含为全新 Linux 版 DeskLayer 所做的基础工作；对 Windows 无行为变化。</p>
             ]]></description>
             <description xml:lang="ja"><![CDATA[
-<h2>修正</h2>
+<h2>新機能</h2>
 <ul>
-<li><b>アプリ内アップデートが正しくインストールされるようになりました。</b>これまでアップデーターは Windows が実行できないファイル名でダウンロードを保存しており、「インストールして再起動」後に旧バージョンが静かに戻っていました。今回のアップデート自体が適用できない場合は、一度だけ手動でインストーラーを実行してください — 手動が必要なのはこれが最後です。</li>
-<li><b>コミュニティプラグインが再び更新できるようになりました。</b>コミュニティペインからインストールしたプラグインは正しい更新元を持つようになり、新バージョンの公開時にプラグインのページで更新が提供されます。修正前にインストールしたものは、次にコミュニティペインを開いたときに自動的に修復されます。</li>
+<li><b>マネージャーのライブスナップショット。</b>デスクトップ概要に各ウィジェットの実際の描画が数秒ごとに更新されて表示されます — Mac の仮想デスクトップサムネイルと同じ体験です。選択表示はライブ画像の上のハイライトになりました。</li>
 </ul>
+<p>新しい Linux 版 DeskLayer のための基盤も含まれます。Windows での動作に変更はありません。</p>
             ]]></description>
             <sparkle:os>windows</sparkle:os>
-            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/1.2.3/DeskLayer-Setup-1.2.3.exe" length="50557404" type="application/octet-stream" sparkle:edSignature="4Z3hhH7qPDHdem9wNLtRyc8xtgFIUPdS3Eee+gDiAHuizTpy2Ol/tA22oFBb/wOWvWrOM3SwAgfEB+HZkJvnBQ=="/>
+            <enclosure url="https://github.com/qiudaomao/DeskLayer/releases/download/win-1.2.5/DeskLayer-Setup-1.2.5.exe" length="50553801" type="application/octet-stream" sparkle:edSignature="go5O7NVra+oPw4qlwCR5AFu0E1YXWZN3IkRkqaiqcyxa4dDhPdxPaA+QdQsWnitSZJKSFYWw1GFUs3gH6kHDAA=="/>
         </item>
     </channel>
 </rss>
