@@ -67,6 +67,13 @@ XFCE X11; sway and GNOME Xorg extended) and record findings here.
 - **Conformance also ALL GREEN on Arch** (second distro data point,
   omarchy box).
 - Spike 4 and the GNOME/X11 DE matrix: pending (GNOME VM on minipve).
+- **M1 walking skeleton (2026-08-23): PASS on Hyprland.** The mac's real
+  `layout.json` + plugin files, copied verbatim, decode and render: two
+  canvas plugins (The Clock, CPU History) on the wallpaper at their declared
+  cadences, transparent over the compositor background, positioned by the
+  normalized frames; declarative items correctly deferred to M2;
+  DESKLAYER_DUMP_ITEM PNGs verified; clean exit restores the desktop.
+  Stats read zero until the M4 $system binding lands.
 
 ## Platform notes
 

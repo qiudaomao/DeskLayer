@@ -109,7 +109,10 @@ public sealed class HostBindings
         engine.SetValue("__dl_applescript", (Action<string, JsValue, JsValue>)AppleScript);
         engine.SetValue("__dl_ssh", (Action<JsValue, JsValue, JsValue, JsValue, JsValue>)Ssh);
         engine.SetValue("__dl_server_on", (Action<string, JsValue>)ServerOn);
-        engine.SetValue("__dl_platform", "windows");
+        // Core now boots on more than one OS (the Linux port references it
+        // directly); report the real host so plugins can branch.
+        engine.SetValue("__dl_platform",
+            OperatingSystem.IsLinux() ? "linux" : OperatingSystem.IsMacOS() ? "macos" : "windows");
         engine.Execute(JsPrelude);
     }
 

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>DeskLayer.LinuxApp</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The platform-neutral half of the app, shared with the Windows port. -->
+    <ProjectReference Include="..\..\..\win\src\DeskLayer.Core\DeskLayer.Core.csproj" />
+    <PackageReference Include="SkiaSharp" Version="2.88.8" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
+  </ItemGroup>
+</Project>
