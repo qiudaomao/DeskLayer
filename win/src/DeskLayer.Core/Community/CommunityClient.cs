@@ -407,9 +407,15 @@ public static class CommunityClient
             var body = await response.Content.ReadAsStringAsync();
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) { Token = null; return new(null, L.T("Your session expired — sign in again.")); }
             if (!response.IsSuccessStatusCode) return new(null, ErrorFrom(body) ?? UnreachableOr(response.StatusCode));
-            return new(JsonSerializer.Deserialize<UnpublishResult>(body, Json), null);
+            // A 2xx means the plugin is gone whatever the body says (today
+            // it's {slug, unlisted}); never report a successful delete as a
+            // failure over an empty or reshaped reply.
+            UnpublishResult? parsed = null;
+            try { parsed = JsonSerializer.Deserialize<UnpublishResult>(body, Json); }
+            catch (JsonException) { }
+            return new(parsed ?? new UnpublishResult(slug, true), null);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return new(null, ex.Message);
         }
