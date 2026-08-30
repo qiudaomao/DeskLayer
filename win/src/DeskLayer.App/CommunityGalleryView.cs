@@ -362,5 +362,7 @@ public sealed class CommunityGalleryView : Grid
     {
         var dialog = new CommunityDetailDialog(dark, plugin, install, isInstalled) { Owner = owner };
         dialog.ShowDialog();
+        // A deletion unlists the plugin; reload so the tile goes now.
+        if (dialog.Deleted) Load(page);
     }
 }

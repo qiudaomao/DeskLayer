@@ -37,6 +37,10 @@ public sealed class CommunityDetailDialog : Window
     private CommunityUser? me;
     private bool cheered;
     private int cheers;
+    private readonly Button deleteButton;
+    /// True after a successful unpublish — the gallery reloads its page so
+    /// the tile disappears rather than lingering until the next search.
+    public bool Deleted { get; private set; }
 
     public CommunityDetailDialog(bool dark, GalleryPlugin plugin,
                                  Func<GalleryPlugin, Task<string?>> install,
@@ -104,6 +108,17 @@ public sealed class CommunityDetailDialog : Window
             discuss.Click += (_, _) => Process.Start(new ProcessStartInfo(topic) { UseShellExecute = true });
             actions.Children.Add(discuss);
         }
+        // Owner (or forum staff) only — shown once LoadSocial knows who's
+        // signed in. Unlists from the catalog; files and the forum topic stay.
+        deleteButton = new Button
+        {
+            Content = L.T("Delete from Community…"),
+            Style = (Style)FindResource("DangerButton"),
+            Margin = new Thickness(8, 0, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        deleteButton.Click += async (_, _) => await Unpublish();
+        actions.Children.Add(deleteButton);
         panel.Children.Add(actions);
         installStatus = new TextBlock
         {
@@ -166,7 +181,33 @@ public sealed class CommunityDetailDialog : Window
         }
         UpdateCheerLabel();
         UpdateComposeState();
+        deleteButton.Visibility = CanDelete() ? Visibility.Visible : Visibility.Collapsed;
         await ReloadComments();
+    }
+
+    /// The backend decides for real (a non-owner gets its 403 verbatim);
+    /// this only avoids offering a button that would be refused.
+    private bool CanDelete() =>
+        me != null && (me.Admin || me.Moderator ||
+            (plugin.Author != null && string.Equals(me.Username, plugin.Author, StringComparison.OrdinalIgnoreCase)));
+
+    private async Task Unpublish()
+    {
+        var confirm = MessageBox.Show(this,
+            L.T("Remove {0} from the community store? The forum discussion stays, and anyone who installed it keeps their copy.", plugin.Name),
+            L.T("Delete from Community"), MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+        deleteButton.IsEnabled = false;
+        var result = await CommunityClient.Unpublish(slug);
+        if (!result.Ok)
+        {
+            installStatus.Text = result.Error;   // backend's message, verbatim
+            installStatus.Visibility = Visibility.Visible;
+            deleteButton.IsEnabled = true;
+            return;
+        }
+        Deleted = true;
+        Close();
     }
 
     private async Task ReloadComments()

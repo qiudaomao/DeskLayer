@@ -227,6 +227,14 @@
     "zh-Hans": "默认尺寸",
     "ja": "デフォルトサイズ"
   },
+  "Delete from Community": {
+    "zh-Hans": "从社区删除",
+    "ja": "コミュニティから削除"
+  },
+  "Delete from Community…": {
+    "zh-Hans": "从社区删除…",
+    "ja": "コミュニティから削除…"
+  },
   "Describe what you want. The model is given DeskLayer's plugin API and writes the JavaScript; nothing is installed until it passes validation.": {
     "zh-Hans": "描述你想要的效果。模型会拿到 DeskLayer 的插件 API 并编写 JavaScript；只有通过校验才会安装。",
     "ja": "作りたいものを書いてください。モデルは DeskLayer のプラグイン API を渡されて JavaScript を書きます。検証を通るまでインストールされません。"
@@ -538,6 +546,10 @@
   "Remove this server": {
     "zh-Hans": "移除此服务器",
     "ja": "このサーバーを削除"
+  },
+  "Remove {0} from the community store? The forum discussion stays, and anyone who installed it keeps their copy.": {
+    "zh-Hans": "要将 {0} 从社区商店移除吗？论坛讨论会保留，已安装的用户仍保有其副本。",
+    "ja": "{0} をコミュニティストアから削除しますか？フォーラムの議論は残り、インストール済みのユーザーは自分のコピーを保持します。"
   },
   "Remove {0}?": {
     "zh-Hans": "移除 {0}？",
