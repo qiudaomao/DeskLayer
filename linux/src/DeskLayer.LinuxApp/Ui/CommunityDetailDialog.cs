@@ -21,6 +21,9 @@ public sealed class CommunityDetailDialog : Window
     private readonly GalleryPlugin plugin;
     private readonly string slug;
     private readonly Func<GalleryPlugin, Task<string?>> install;
+    private readonly Action? onChanged;
+    private readonly Button deleteButton = new() { IsVisible = false };
+    private bool deleteArmed;
 
     private readonly Button cheerButton = new();
     private readonly Button installButton = new() { Content = L.T("Install") };
@@ -35,10 +38,12 @@ public sealed class CommunityDetailDialog : Window
 
     public CommunityDetailDialog(GalleryPlugin plugin,
                                  Func<GalleryPlugin, Task<string?>> install,
-                                 Func<string, bool> isInstalled)
+                                 Func<string, bool> isInstalled,
+                                 Action? onChanged = null)
     {
         this.plugin = plugin;
         this.install = install;
+        this.onChanged = onChanged;
         slug = plugin.Slug ?? plugin.Name;
         cheers = plugin.Cheers;
 
@@ -121,14 +126,17 @@ public sealed class CommunityDetailDialog : Window
 
         // Explicit close — tiling compositors give dialogs no titlebar X
         // (IsCancel makes Esc work too).
-        var closeButton = new Button
-        {
-            Content = L.T("Close"), IsCancel = true,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
-        };
+        var closeButton = new Button { Content = L.T("Close"), IsCancel = true };
         closeButton.Click += (_, _) => Close();
-        panel.Children.Add(closeButton);
+        // Owner (or staff) can unlist their plugin — two clicks, the backend
+        // enforces ownership (403 "not your plugin" shows verbatim).
+        deleteButton.Content = L.T("Delete from Community");
+        deleteButton.Click += async (_, _) => await Unpublish();
+        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
+        DockPanel.SetDock(closeButton, Dock.Right);
+        footer.Children.Add(closeButton);
+        footer.Children.Add(deleteButton);
+        panel.Children.Add(footer);
 
         Content = new ScrollViewer { Content = panel };
 
@@ -151,6 +159,8 @@ public sealed class CommunityDetailDialog : Window
                 UpdateCheerLabel();
             }
             var signedIn = me != null;
+            deleteButton.IsVisible = me != null &&
+                (me.Username == plugin.Author || me.Admin || me.Moderator);
             compose.IsEnabled = signedIn;
             send.IsEnabled = signedIn;
             composeHint.Text = signedIn ? "" : L.T("Sign in from the Community pane to cheer or comment.");
@@ -210,6 +220,28 @@ public sealed class CommunityDetailDialog : Window
             composeHint.Text = result.Error ?? L.T("Couldn't post the comment.");
         }
         send.IsEnabled = true;
+    }
+
+    private async Task Unpublish()
+    {
+        if (!deleteArmed)
+        {
+            deleteArmed = true;
+            deleteButton.Content = L.T("Really delete {0}?", plugin.Name);
+            return;
+        }
+        deleteButton.IsEnabled = false;
+        var result = await CommunityClient.Unpublish(slug);
+        if (result.Ok)
+        {
+            onChanged?.Invoke();
+            Close();
+            return;
+        }
+        deleteButton.IsEnabled = true;
+        deleteArmed = false;
+        deleteButton.Content = L.T("Delete from Community");
+        installStatus.Text = result.Error ?? L.T("Couldn't delete the plugin.");
     }
 
     private async Task Install()

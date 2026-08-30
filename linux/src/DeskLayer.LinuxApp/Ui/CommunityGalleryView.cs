@@ -282,7 +282,9 @@ public sealed class CommunityGalleryView : Grid
 
     private void OpenDetail(GalleryPlugin plugin)
     {
-        var dialog = new CommunityDetailDialog(plugin, install, isInstalled);
+        // A deletion drops the plugin from the catalog — reload the page so
+        // the tile goes away rather than lingering until the next search.
+        var dialog = new CommunityDetailDialog(plugin, install, isInstalled, onChanged: () => Load(page));
         _ = dialog.ShowDialog(owner);
     }
 }

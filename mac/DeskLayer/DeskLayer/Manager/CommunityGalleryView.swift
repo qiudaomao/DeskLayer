@@ -131,7 +131,10 @@ struct CommunityGalleryView: View {
                     ForEach(gallery.plugins) { plugin in
                         GalleryTile(
                             plugin: plugin,
-                            isInstalled: registry.plugins.contains { $0.id == plugin.name }
+                            isInstalled: registry.plugins.contains { $0.id == plugin.name },
+                            // A deletion unlists the plugin; reload so the
+                            // tile goes rather than lingering until a search.
+                            onDeleted: { gallery.load(page: gallery.page) }
                         )
                     }
                 }
@@ -169,6 +172,7 @@ struct CommunityGalleryView: View {
 private struct GalleryTile: View {
     let plugin: GalleryPlugin
     let isInstalled: Bool
+    let onDeleted: () -> Void
     @EnvironmentObject private var registry: PluginRegistry
     @EnvironmentObject private var stores: PluginStoreRegistry
     @State private var isInstalling = false
@@ -238,7 +242,8 @@ private struct GalleryTile: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.35)))
         .help(plugin.description ?? plugin.name)
         .sheet(isPresented: $showsDetail) {
-            GalleryDetailSheet(plugin: plugin, isInstalled: isInstalled) { showsDetail = false }
+            GalleryDetailSheet(plugin: plugin, isInstalled: isInstalled,
+                               onDeleted: onDeleted) { showsDetail = false }
         }
     }
 
@@ -292,6 +297,7 @@ private struct GalleryTile: View {
 private struct GalleryDetailSheet: View {
     let plugin: GalleryPlugin
     let isInstalled: Bool
+    let onDeleted: () -> Void
     let onClose: () -> Void
     @EnvironmentObject private var account: CommunityAccount
     @EnvironmentObject private var registry: PluginRegistry
@@ -306,6 +312,8 @@ private struct GalleryDetailSheet: View {
     @State private var isSending = false
     @State private var socialError: String?
     @State private var isInstalling = false
+    @State private var confirmsDelete = false
+    @State private var isDeleting = false
 
     /// Discourse forbids liking your own post; hide the ability up front.
     private var isOwnPlugin: Bool {
@@ -445,6 +453,22 @@ private struct GalleryDetailSheet: View {
             }
 
             HStack {
+                if isOwnPlugin {
+                    Button(role: .destructive) {
+                        confirmsDelete = true
+                    } label: {
+                        Text(isDeleting ? String(localized: "Deleting…") : String(localized: "Delete from Community"))
+                    }
+                    .disabled(isDeleting)
+                    .confirmationDialog(
+                        String(localized: "Delete \(plugin.name) from the community?"),
+                        isPresented: $confirmsDelete, titleVisibility: .visible
+                    ) {
+                        Button(String(localized: "Delete"), role: .destructive) { unpublish() }
+                    } message: {
+                        Text("It disappears from the gallery and catalog. Installed copies and the forum topic stay.")
+                    }
+                }
                 Spacer()
                 Button("Close", action: onClose)
             }
@@ -454,6 +478,21 @@ private struct GalleryDetailSheet: View {
         .task { await loadSocial() }
         .onChange(of: account.isSignedIn) { _, signedIn in
             if signedIn { Task { await loadSocial() } }
+        }
+    }
+
+    private func unpublish() {
+        isDeleting = true
+        socialError = nil
+        Task {
+            switch await account.unpublish(slug: plugin.slug) {
+            case .success:
+                onDeleted()
+                onClose()
+            case .failure(let error):
+                socialError = error.message
+            }
+            isDeleting = false
         }
     }
 

@@ -238,6 +238,23 @@ final class CommunityAccount: ObservableObject {
         }
     }
 
+    /// Unlists the plugin from the catalog — owner or staff, the backend
+    /// decides (a 403 "not your plugin" comes back verbatim). Files and the
+    /// forum topic stay; the gallery drops it on its next load.
+    func unpublish(slug: String) async -> Result<Void, StoreError> {
+        guard token != nil else { return .failure(StoreError(message: String(localized: "Sign in first."))) }
+        let request = request("api/plugins/\(slug)", method: "DELETE", authorized: true)
+        do {
+            let (data, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 200 { return .success(()) }
+            if status == 401 { signOut(); return .failure(StoreError(message: String(localized: "Your session expired — sign in again."))) }
+            return .failure(StoreError(message: Self.errorText(data, status: status)))
+        } catch {
+            return .failure(StoreError(message: error.localizedDescription))
+        }
+    }
+
     func comments(slug: String, page: Int = 1) async -> Result<CommentsPage, StoreError> {
         var request = request("api/store/plugins/\(slug)/comments", authorized: false)
         request.url = request.url.flatMap {

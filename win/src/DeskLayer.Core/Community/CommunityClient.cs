@@ -124,6 +124,9 @@ public sealed record CommentPage(
 
 public sealed record CheerResult(bool Cheered, int Cheers);
 
+/// DELETE /api/plugins/<slug> — the slug the backend unlisted.
+public sealed record UnpublishResult(string Slug, bool Unlisted);
+
 /// A write that either succeeded (Value set) or carries a message to show the
 /// user verbatim — the backend passes Discourse's own localized error text
 /// through, so it is already in the user's forum language.
@@ -388,6 +391,29 @@ public static class CommunityClient
         System.Net.HttpStatusCode.Conflict => L.T("This plugin has no discussion topic yet."),
         _ => $"HTTP {(int)code}",
     };
+
+    /// Unlists the plugin from the catalog — owner or staff (the backend
+    /// decides; a 403 says "not your plugin" verbatim). Files and the forum
+    /// topic stay; the gallery drops it on its next load.
+    public static async Task<CommunityResult<UnpublishResult>> Unpublish(string slug)
+    {
+        var token = Token;
+        if (token == null) return new(null, L.T("Sign in first."));
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"{BaseUrl}/api/plugins/{Uri.EscapeDataString(slug)}");
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+            using var response = await Http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) { Token = null; return new(null, L.T("Your session expired — sign in again.")); }
+            if (!response.IsSuccessStatusCode) return new(null, ErrorFrom(body) ?? UnreachableOr(response.StatusCode));
+            return new(JsonSerializer.Deserialize<UnpublishResult>(body, Json), null);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return new(null, ex.Message);
+        }
+    }
 
     /// Publishes one version. The backend validates plugin.export, stores the
     /// immutable file, and creates (or extends) the forum showcase topic.
