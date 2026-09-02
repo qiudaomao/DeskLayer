@@ -75,7 +75,12 @@ public sealed record GalleryPlugin(
     int Downloads,
     bool Verified,
     [property: JsonPropertyName("topicUrl")] string? TopicUrl,
-    [property: JsonPropertyName("publishedAt")] DateTimeOffset? PublishedAt);
+    [property: JsonPropertyName("publishedAt")] DateTimeOffset? PublishedAt,
+    /// Automated security review: "pending" | "checked" | "blocked"; null on
+    /// entries that predate the reviewer. Advisory only — staff `verified`
+    /// stays the strong signal, and the UI must keep saying so.
+    [property: JsonPropertyName("aiReview")] string? AiReview = null,
+    [property: JsonPropertyName("aiReviewNote")] string? AiReviewNote = null);
 
 /// One page of the gallery. Total/Pages let the pane show "N of M" and cap
 /// paging; a past-the-end page comes back with an empty Plugins list.
@@ -104,7 +109,9 @@ public sealed record PluginDetail(
     int Downloads,
     bool Verified,
     bool? Cheered,
-    [property: JsonPropertyName("topicUrl")] string? TopicUrl);
+    [property: JsonPropertyName("topicUrl")] string? TopicUrl,
+    [property: JsonPropertyName("aiReview")] string? AiReview = null,
+    [property: JsonPropertyName("aiReviewNote")] string? AiReviewNote = null);
 
 public sealed record CommunityComment(
     long Id,

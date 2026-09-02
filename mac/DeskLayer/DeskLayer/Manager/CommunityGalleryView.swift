@@ -191,6 +191,11 @@ private struct GalleryTile: View {
 
             HStack(spacing: 4) {
                 Text(plugin.name).font(.headline).lineLimit(1)
+                if plugin.aiReview == "checked" {
+                    Image(systemName: "cpu")
+                        .foregroundStyle(.secondary)
+                        .help("Passed an automated AI review — still check the source before trusting a plugin.")
+                }
                 if plugin.verified == true {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.caption).foregroundStyle(.blue)
@@ -324,6 +329,11 @@ private struct GalleryDetailSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Text(plugin.name).font(.headline)
+                if plugin.aiReview == "checked" {
+                    Label("AI-checked", systemImage: "cpu")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .help("Passed an automated AI review — still check the source before trusting a plugin.")
+                }
                 if plugin.verified == true {
                     Image(systemName: "checkmark.seal.fill").foregroundStyle(.blue)
                         .help("Verified by store staff")
@@ -351,6 +361,15 @@ private struct GalleryDetailSheet: View {
                 Text(description).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(4)
+            }
+
+            if plugin.aiReview == "checked" {
+                Label(String(localized: "Checked by AI — automated review only; still look over the source before trusting a plugin."),
+                      systemImage: "cpu")
+                    .font(.caption2).foregroundStyle(.secondary)
+            } else if plugin.aiReview == "pending" {
+                Label(String(localized: "AI review pending."), systemImage: "hourglass")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
 
             HStack(spacing: 12) {

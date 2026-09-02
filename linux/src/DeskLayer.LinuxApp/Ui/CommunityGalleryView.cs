@@ -245,6 +245,12 @@ public sealed class CommunityGalleryView : Grid
                 Foreground = new SolidColorBrush(Color.FromRgb(0x30, 0xD1, 0x58)),
                 VerticalAlignment = VerticalAlignment.Center,
             });
+        if (plugin.AiReview == "checked")
+            titleRow.Children.Add(new TextBlock
+            {
+                Text = "  ⚙", FontSize = 12, Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
         body.Children.Add(titleRow);
         if (plugin.Author is { Length: > 0 } author)
             body.Children.Add(new TextBlock

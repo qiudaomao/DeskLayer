@@ -31,6 +31,10 @@ public sealed record StorePlugin
     public int? Cheers { get; init; }
     public int? Comments { get; init; }
     public bool? Verified { get; init; }
+    /// Automated security review: "pending" | "checked" | "blocked" (null =
+    /// predates the reviewer). Advisory; the UI warns to double-check.
+    public string? AiReview { get; init; }
+    public string? AiReviewNote { get; init; }
     public string? TopicUrl { get; init; }
 
     /// Every download address to try, primary first.

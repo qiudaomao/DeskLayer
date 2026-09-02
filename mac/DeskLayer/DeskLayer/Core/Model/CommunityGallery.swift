@@ -45,6 +45,11 @@ nonisolated struct GalleryPlugin: Codable, Hashable, Identifiable {
     var topicUrl: String?
     /// ISO 8601, latest version's publish time.
     var publishedAt: String?
+    /// Automated security review: "pending" | "checked" | "blocked"; absent
+    /// on entries that predate the reviewer. Advisory — staff `verified`
+    /// stays the strong signal, and the UI keeps saying so.
+    var aiReview: String?
+    var aiReviewNote: String?
 
     var id: String { slug }
 

@@ -66,6 +66,26 @@ public sealed class CommunityDetailDialog : Window
             });
         panel.Children.Add(sub);
 
+        // Advisory only — staff Verified stays the strong signal.
+        if (plugin.AiReview == "checked")
+            panel.Children.Add(new TextBlock
+            {
+                Text = "⚙ " + L.T("Checked by AI — automated review only; still look over the source before trusting a plugin."),
+                FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap,
+            });
+        else if (plugin.AiReview == "pending")
+            panel.Children.Add(new TextBlock
+            {
+                Text = L.T("AI review pending."), FontSize = 11, Foreground = Brushes.Gray,
+            });
+        else if (plugin.AiReview == "blocked")
+            panel.Children.Add(new TextBlock
+            {
+                Text = "⚠ " + L.T("Blocked by AI review{0}", plugin.AiReviewNote is { Length: > 0 } note ? $": {note}" : "."),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A)),
+            });
+
         // Full-size preview (not the thumbnail).
         var previewHost = new Border
         {
