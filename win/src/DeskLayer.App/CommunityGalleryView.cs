@@ -298,6 +298,17 @@ public sealed class CommunityGalleryView : Grid
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
             });
+        // Automated review badge — deliberately quieter and a different hue
+        // than the staff ✓, so the two aren't read as the same assurance.
+        if (plugin.AiReview == "checked")
+            titleRow.Children.Add(new TextBlock
+            {
+                Text = "  🛡",
+                ToolTip = L.T("Checked by AI — automated review only; still look over the source before trusting a plugin."),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xE8)),
+                FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
         body.Children.Add(titleRow);
         if (plugin.Author is { Length: > 0 } author)
             body.Children.Add(new TextBlock

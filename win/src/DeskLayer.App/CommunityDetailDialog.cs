@@ -73,7 +73,45 @@ public sealed class CommunityDetailDialog : Window
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x30, 0xD1, 0x58)),
             });
+        if (plugin.AiReview == "checked")
+            sub.Children.Add(new TextBlock
+            {
+                Text = "   🛡 " + L.T("AI-checked"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0xB5, 0xE8)),
+            });
+        else if (plugin.AiReview == "pending")
+            sub.Children.Add(new TextBlock
+            {
+                Text = "   " + L.T("AI review pending"),
+                FontSize = 12,
+                Foreground = (Brush)FindResource("TextSecondary"),
+            });
         panel.Children.Add(sub);
+        // The automated review is advisory, never a safety guarantee — say so
+        // whenever its badge is shown; a blocked entry (normally excluded
+        // from listings server-side) shows the reviewer's note in warning
+        // orange should one ever reach a client.
+        if (plugin.AiReview == "checked")
+            panel.Children.Add(new TextBlock
+            {
+                Text = L.T("Checked by AI — automated review only; still look over the source before trusting a plugin."),
+                FontSize = 11,
+                Foreground = (Brush)FindResource("TextSecondary"),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10),
+            });
+        else if (plugin.AiReview == "blocked")
+            panel.Children.Add(new TextBlock
+            {
+                Text = "⚠ " + (plugin.AiReviewNote is { Length: > 0 } note
+                    ? L.T("Blocked by AI review: {0}", note)
+                    : L.T("Blocked by AI review.")),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10),
+            });
 
         // Full-size preview (not the thumbnail).
         if (plugin.Preview is { Length: > 0 } preview && LoadImage(preview) is { } source)

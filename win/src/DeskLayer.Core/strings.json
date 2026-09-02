@@ -11,6 +11,14 @@
     "zh-Hans": "插件商店是一个列出可安装插件的 JSON 目录，添加后会成为插件库中的一个分类。",
     "ja": "ストアはインストールできるプラグインを列挙した JSON カタログです。追加するとライブラリ内の独立したカテゴリになります。"
   },
+  "AI review pending": {
+    "zh-Hans": "AI 审查待定",
+    "ja": "AI レビュー保留中"
+  },
+  "AI-checked": {
+    "zh-Hans": "AI 已检查",
+    "ja": "AI チェック済み"
+  },
   "API key": {
     "zh-Hans": "API 密钥",
     "ja": "API キー"
@@ -91,6 +99,14 @@
     "zh-Hans": "接口地址",
     "ja": "ベース URL"
   },
+  "Blocked by AI review.": {
+    "zh-Hans": "已被 AI 审查拦截。",
+    "ja": "AI レビューによりブロックされました。"
+  },
+  "Blocked by AI review: {0}": {
+    "zh-Hans": "已被 AI 审查拦截：{0}",
+    "ja": "AI レビューによりブロック：{0}"
+  },
   "Cancel": {
     "zh-Hans": "取消",
     "ja": "キャンセル"
@@ -122,6 +138,10 @@
   "Check for updates…": {
     "zh-Hans": "检查更新…",
     "ja": "アップデートを確認…"
+  },
+  "Checked by AI — automated review only; still look over the source before trusting a plugin.": {
+    "zh-Hans": "已由 AI 检查——仅为自动审查；信任插件前仍请自行查看源代码。",
+    "ja": "AI によるチェック済み — 自動レビューのみです。プラグインを信頼する前にソースをご確認ください。"
   },
   "Checking sign-in…": {
     "zh-Hans": "正在检查登录状态…",
